@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../core/notifications/announcement_read_store.dart';
+import '../notifications/student_notifications_page.dart';
 
 class StudentDashboardPage extends StatefulWidget {
   final VoidCallback? onSwitchToLecturer;
@@ -13,10 +15,45 @@ class StudentDashboardPage extends StatefulWidget {
 }
 
 class _StudentDashboardPageState extends State<StudentDashboardPage> {
+  static const String currentUserId = 'student-2201010042';
+
   int _currentNavIndex = 0;
 
   // State untuk interaksi Subnet Drill
   int _subnetSelectedOption = -1;
+
+  // Set ID pengumuman yang sudah dibaca (disimpan permanen via SharedPreferences)
+  Set<String> _readAnnouncementIds = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _loadReadState();
+  }
+
+  Future<void> _loadReadState() async {
+    final readIds = await AnnouncementReadStore.load(currentUserId);
+    if (mounted) {
+      setState(() {
+        _readAnnouncementIds = readIds;
+        for (var n in _recentNotifications) {
+          if (_readAnnouncementIds.contains(n['id'])) {
+            n['isRead'] = true;
+          }
+        }
+      });
+    }
+  }
+
+  Future<void> _openNotificationsPage() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const StudentNotificationsPage(userId: currentUserId),
+      ),
+    );
+    _loadReadState();
+  }
 
   // State untuk interaksi notifikasi
   final List<Map<String, dynamic>> _recentNotifications = [
@@ -159,7 +196,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 ),
             ],
           ),
-          onPressed: _showAllNotificationsSheet,
+          onPressed: _openNotificationsPage,
         ),
         const SizedBox(width: 8),
       ],
@@ -224,15 +261,22 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
             title: 'Notifikasi Terkini',
             subtitle: 'Pengumuman dosen dan pembaruan kegiatan akademik',
             trailingText: 'Tandai Semua Dibaca',
-            onTrailingTap: () {
+            onTrailingTap: () async {
+              await AnnouncementReadStore.markAllRead(
+                userId: currentUserId,
+                announcementIds: _recentNotifications.map((n) => n['id'] as String),
+              );
               setState(() {
                 for (var n in _recentNotifications) {
                   n['isRead'] = true;
+                  _readAnnouncementIds.add(n['id'] as String);
                 }
               });
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Semua notifikasi ditandai telah dibaca.')),
-              );
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Semua notifikasi ditandai telah dibaca.')),
+                );
+              }
             },
           ),
           const SizedBox(height: 12),
@@ -1156,9 +1200,14 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
             borderRadius: BorderRadius.circular(14),
             child: InkWell(
               borderRadius: BorderRadius.circular(14),
-              onTap: () {
+              onTap: () async {
+                await AnnouncementReadStore.markRead(
+                  userId: currentUserId,
+                  announcementId: notification['id'] as String,
+                );
                 setState(() {
                   notification['isRead'] = true;
+                  _readAnnouncementIds.add(notification['id'] as String);
                 });
                 _showNotificationDetailModal(notification);
               },
