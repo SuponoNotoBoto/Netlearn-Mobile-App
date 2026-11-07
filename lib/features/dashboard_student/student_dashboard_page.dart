@@ -17,7 +17,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
 
   // State untuk interaksi Subnet Drill
   int _subnetSelectedOption = -1;
-  bool _subnetAnswerSubmitted = false;
 
   // State untuk interaksi notifikasi
   final List<Map<String, dynamic>> _recentNotifications = [
@@ -132,7 +131,15 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               ),
             ),
           ),
+        // Ikon (?) About NetLearn
         IconButton(
+          tooltip: 'Tentang NetLearn',
+          icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF475569)),
+          onPressed: _showAboutNetLearnModal,
+        ),
+        // Ikon Notifikasi
+        IconButton(
+          tooltip: 'Notifikasi',
           icon: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -185,6 +192,25 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const SizedBox(height: 16),
           _buildPromoBanner(),
           const SizedBox(height: 24),
+
+          // Section Kelas Saya
+          _buildSectionHeader(
+            title: 'Kelas Saya',
+            subtitle: 'Informasi kelas aktif dan mata kuliah yang sedang ditempuh',
+          ),
+          const SizedBox(height: 12),
+          _buildClassCard(),
+          const SizedBox(height: 16),
+
+          // Visualisasi Leaderboard (Read Only / Non-Clickable)
+          _buildClassLeaderboardPreview(),
+          const SizedBox(height: 16),
+
+          // Visualisasi Forum Diskusi (Read Only / Non-Clickable)
+          _buildClassQaForumPreview(),
+          const SizedBox(height: 24),
+
+          // Section Learning Space
           _buildSectionHeader(
             title: 'Learning Space',
             subtitle: 'Akses cepat modul belajar, simulasi virtual, dan evaluasi',
@@ -192,6 +218,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const SizedBox(height: 12),
           _buildLearningSpaceGrid(),
           const SizedBox(height: 24),
+
+          // Section Notifikasi Terkini
           _buildSectionHeader(
             title: 'Notifikasi Terkini',
             subtitle: 'Pengumuman dosen dan pembaruan kegiatan akademik',
@@ -210,6 +238,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           const SizedBox(height: 12),
           _buildRecentNotificationsList(),
           const SizedBox(height: 24),
+
+          // Section Progres Belajar
           _buildSectionHeader(
             title: 'Progres Belajar',
             subtitle: 'Perjalanan pemahaman modul jaringan komputer',
@@ -376,6 +406,380 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     );
   }
 
+  // ================= SECTION KELAS SAYA ================= //
+
+  Widget _buildClassCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.school_rounded,
+                      color: Color(0xFF6366F1),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Jaringan Komputer',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFD1FAE5),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Kelas Aktif',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF059669),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 12),
+          _buildClassDetailRow(
+            icon: Icons.person_outline_rounded,
+            title: 'Dosen Pengampu',
+            value: 'Dr. Supono, M.Kom.',
+          ),
+          const SizedBox(height: 8),
+          _buildClassDetailRow(
+            icon: Icons.schedule_rounded,
+            title: 'Jadwal Kuliah',
+            value: 'Rabu, 08:00 - 10:30 WIB',
+          ),
+          const SizedBox(height: 8),
+          _buildClassDetailRow(
+            icon: Icons.location_on_outlined,
+            title: 'Ruang / Lab',
+            value: 'Lab Jaringan 2 (Lt. 3)',
+          ),
+          const SizedBox(height: 8),
+          _buildClassDetailRow(
+            icon: Icons.groups_outlined,
+            title: 'Mahasiswa',
+            value: '32 Orang Terdaftar',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClassDetailRow({
+    required IconData icon,
+    required String title,
+    required String value,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, size: 16, color: const Color(0xFF64748B)),
+        const SizedBox(width: 8),
+        Text(
+          '$title: ',
+          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+        ),
+        Expanded(
+          child: Text(
+            value,
+            style: const TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF1E293B),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Visualisasi Leaderboard Kelas (Hanya Tampilan / Non-Clickable)
+  Widget _buildClassLeaderboardPreview() {
+    final topStudents = [
+      {'rank': '🥇', 'name': 'Rendy Aditya', 'pts': '950 Pts', 'color': Color(0xFFFEF3C7)},
+      {'rank': '🥈', 'name': 'Ahmad Fauzan', 'pts': '920 Pts', 'color': Color(0xFFF1F5F9)},
+      {'rank': '🥉', 'name': 'Siti Rahma', 'pts': '880 Pts', 'color': Color(0xFFFFEDD5)},
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF3C7),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.emoji_events_rounded,
+                      color: Color(0xFFD97706),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Peringkat Kelas (Leaderboard)',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Pratinjau',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 10),
+          // Daftar Mahasiswa Teratas (Visual Only)
+          ...topStudents.map((student) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Row(
+                children: [
+                  Text(
+                    student['rank'] as String,
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      student['name'] as String,
+                      style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                  ),
+                  Text(
+                    student['pts'] as String,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF6366F1),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  /// Visualisasi Q&A Forum Diskusi Kelas (Hanya Tampilan / Non-Clickable)
+  Widget _buildClassQaForumPreview() {
+    final discussions = [
+      {
+        'title': 'Perbedaan routing statis vs dinamis OSPF?',
+        'author': 'Budi Pratama',
+        'replies': '4 balasan',
+      },
+      {
+        'title': 'Rekomendasi crimping tool untuk kabel UTP Cat6',
+        'author': 'Siti Rahma',
+        'replies': '7 balasan',
+      },
+    ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF0F172A).withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.forum_rounded,
+                      color: Color(0xFF6366F1),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'Forum Diskusi & Q&A',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text(
+                  'Pratinjau',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF64748B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(height: 1, color: Color(0xFFF1F5F9)),
+          const SizedBox(height: 10),
+          // Thread List (Visual Only)
+          ...discussions.map((thread) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF8FAFC),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFF1F5F9)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    thread['title'] as String,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1E293B),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Oleh: ${thread['author']}',
+                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                      ),
+                      Row(
+                        children: [
+                          const Icon(Icons.chat_bubble_outline_rounded, size: 12, color: Color(0xFF6366F1)),
+                          const SizedBox(width: 4),
+                          Text(
+                            thread['replies'] as String,
+                            style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  // ================= SECTION HEADER ================= //
+
   Widget _buildSectionHeader({
     required String title,
     String? subtitle,
@@ -427,17 +831,8 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     );
   }
 
-  /// Grid Learning Space yang lengkap berisi 10 modul shortcut:
-  /// 1. Pretest
-  /// 2. Modules
-  /// 3. AR Scanner
-  /// 4. Posttest
-  /// 5. Assessment
-  /// 6. Assessment History
-  /// 7. Learning Video [BARU]
-  /// 8. Virtual Lab [BARU]
-  /// 9. NetBot AI [BARU]
-  /// 10. Subnet Drill [BARU]
+  // ================= GRID LEARNING SPACE ================= //
+
   Widget _buildLearningSpaceGrid() {
     return GridView.count(
       crossAxisCount: 3,
@@ -489,7 +884,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           subtitle: 'Daftar skor evaluasi',
           onTap: _showAssessmentHistoryModal,
         ),
-        // Item baru: Learning Video
         _buildShortcutTile(
           icon: Icons.play_circle_outline_rounded,
           accentColor: const Color(0xFF0EA5E9),
@@ -497,7 +891,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           subtitle: 'Video animasi & lab',
           onTap: _showLearningVideoModal,
         ),
-        // Item baru: Virtual Lab
         _buildShortcutTile(
           icon: Icons.lan_outlined,
           accentColor: const Color(0xFF4F46E5),
@@ -505,7 +898,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           subtitle: 'Simulasi topologi 2D',
           onTap: _showVirtualLabModal,
         ),
-        // Item baru: NetBot AI
         _buildShortcutTile(
           icon: Icons.auto_awesome_rounded,
           accentColor: const Color(0xFF9333EA),
@@ -513,7 +905,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
           subtitle: 'Tutor cerdas 24/7',
           onTap: _showNetBotAiModal,
         ),
-        // Item baru: Subnet Drill
         _buildShortcutTile(
           icon: Icons.speed_rounded,
           accentColor: const Color(0xFFE11D48),
@@ -594,6 +985,145 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  // ================= ABOUT NETLEARN MODAL ================= //
+
+  void _showAboutNetLearnModal() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.all(24),
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFEEF2FF),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(
+                    Icons.hub_rounded,
+                    color: Color(0xFF6366F1),
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 14),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: const [
+                    Text(
+                      'Tentang NetLearn',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF1E293B),
+                      ),
+                    ),
+                    Text(
+                      'Versi 1.0.0 (Build 2026.1)',
+                      style: TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            Expanded(
+              child: ListView(
+                physics: const BouncingScrollPhysics(),
+                children: [
+                  const Text(
+                    'NetLearn adalah platform pembelajaran jaringan komputer interaktif yang menggabungkan modul kurikulum terstruktur, visualisasi Augmented Reality (AR) 3D, simulasi virtual lab, dan kecerdasan buatan NetBot AI untuk meningkatkan efektivitas pemahaman mahasiswa.',
+                    style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.6),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Fitur Utama Aplikasi:',
+                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
+                  ),
+                  const SizedBox(height: 8),
+                  _buildAboutFeatureItem(Icons.menu_book_rounded, 'Modul Kurikulum Multimedia Jaringan'),
+                  _buildAboutFeatureItem(Icons.view_in_ar_rounded, '3D AR Marker Scanner Perangkat'),
+                  _buildAboutFeatureItem(Icons.lan_rounded, 'Virtual Lab 2D Simulasi Topologi & Ping'),
+                  _buildAboutFeatureItem(Icons.auto_awesome_rounded, 'NetBot AI Tutor Pembelajaran 24/7'),
+                  _buildAboutFeatureItem(Icons.speed_rounded, 'Subnet Drill Tantangan Hitung Cepat'),
+                  const SizedBox(height: 16),
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text('Pengembang: Tim Pengembang NetLearn', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
+                        SizedBox(height: 4),
+                        Text('Dosen Pembimbing: Dr. Supono, M.Kom.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+                        SizedBox(height: 4),
+                        Text('© 2026 NetLearn Team. Hak Cipta Dilindungi.', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6366F1),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAboutFeatureItem(IconData icon, String text) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: const Color(0xFF6366F1)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
+          ),
+        ],
       ),
     );
   }
@@ -912,7 +1442,7 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     );
   }
 
-  // ================= MODAL HANDLERS FOR NEW LEARNING SPACE ITEMS ================= //
+  // ================= MODAL HANDLERS FOR LEARNING SPACE ITEMS ================= //
 
   void _showLearningVideoModal() {
     final videos = [
@@ -1151,7 +1681,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
               ],
             ),
             const SizedBox(height: 20),
-            // Simulator Canvas Preview
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(16),
@@ -1354,7 +1883,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 ],
               ),
               const SizedBox(height: 16),
-              // Chat conversation mock
               Expanded(
                 child: ListView(
                   physics: const BouncingScrollPhysics(),
@@ -1378,7 +1906,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 ),
               ),
               const SizedBox(height: 12),
-              // Input bar
               Row(
                 children: [
                   Expanded(
@@ -1576,7 +2103,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                // Question Card
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1606,7 +2132,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                // Options
                 ...List.generate(options.length, (idx) {
                   final isSelected = _subnetSelectedOption == idx;
                   return Padding(
@@ -1686,8 +2211,6 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
       ),
     );
   }
-
-  // ================= MODAL HANDLERS FOR INITIAL LEARNING SPACE ITEMS ================= //
 
   void _showPretestModal() {
     showModalBottomSheet(
