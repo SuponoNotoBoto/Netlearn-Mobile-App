@@ -48,3 +48,6 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# Local memory & AI guidelines (not pushed to GitHub)
+CONTEXT_MEMORY.md
+

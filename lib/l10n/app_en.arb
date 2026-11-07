@@ -1,0 +1,1606 @@
+{
+    "@@locale":  "en",
+    "appName":  "NetLearn",
+    "appDescription":  "AR Computer Network Learning Application",
+    "dashboard":  "Dashboard",
+    "materials":  "Materials",
+    "arScanner":  "AR Scanner",
+    "quizzes":  "Quizzes",
+    "profile":  "Profile",
+    "login":  "Login",
+    "logout":  "Logout",
+    "cancel":  "Cancel",
+    "save":  "Save",
+    "back":  "Back",
+    "next":  "Next",
+    "previous":  "Previous",
+    "continueText":  "Continue",
+    "close":  "Close",
+    "retry":  "Try Again",
+    "refresh":  "Refresh",
+    "loading":  "Loading",
+    "welcome":  "Welcome",
+    "hello":  "Hello",
+    "student":  "Student",
+    "lecturer":  "Lecturer",
+    "studentDashboard":  "Student Dashboard",
+    "lecturerDashboard":  "Lecturer Dashboard",
+    "learningMaterials":  "Learning Materials",
+    "learningModule":  "Learning Module",
+    "module":  "Module",
+    "modules":  "Modules",
+    "moduleList":  "Module List",
+    "computerNetworks":  "Computer Networks",
+    "learningProgress":  "Learning Progress",
+    "weeklyProgress":  "Weekly Progress",
+    "upcomingTasks":  "Upcoming Tasks",
+    "noUpcomingTasks":  "No upcoming tasks",
+    "noUpcomingTasksDescription":  "Tasks with deadlines will appear here.",
+    "viewAll":  "View All",
+    "deadline":  "Deadline",
+    "duration":  "Duration",
+    "minutes":  "minutes",
+    "available":  "Available",
+    "locked":  "Locked",
+    "unlocked":  "Unlocked",
+    "completed":  "Completed",
+    "inProgress":  "In Progress",
+    "notStarted":  "Not Started",
+    "readingMaterial":  "Reading Material",
+    "reading":  "Reading",
+    "video":  "Video",
+    "learningVideo":  "Learning Video",
+    "videoLearning":  "Learning Video",
+    "markAsCompleted":  "Mark as Completed",
+
+    "markAsRead":  "Mark as Read",
+    "@markAsRead":  {
+                                "description":  "Label of the reading completion action in the material reader. The PRD calls the student-facing action \"Mark as Read\"; the RPC behind it is still mark_reading_completed, so only the wording changed."
+                            },
+    "readLabel":  "Read",
+    "overallProgress":  "Overall progress",
+    "materialsCount":  "{count} materials",
+    "@materialsCount":  {
+                                "description":  "Number of materials inside a module, e.g. \"4 materials\".",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "moduleEyebrow":  "Module {number}",
+    "@moduleEyebrow":  {
+                                "description":  "Small eyebrow above a module card, e.g. \"Module 1\". Callers that want the padded \"01\" form pass the already-padded string, so the pattern here is a plain number."
+                            },
+    "materialArtExampleIp":  "EXAMPLE IP",
+    "@materialArtExampleIp":  {
+                                "description": "Small label painted inside the IP-address material thumbnail illustration. Kept as an actual localizable value instead of a constant because the Figma design switches it by language (CONTOH IP in Indonesian)."
+                            },
+    "readingProgressLabel":  "Reading progress",
+    "downloadPdf":  "Download PDF",
+    "nextVideo":  "Next: Video",
+    "nextQuiz":  "Next: Quiz",
+    "evaluation":  "Evaluation",
+    "quizList":  "Quiz List",
+    "startQuiz":  "Start Quiz",
+    "resumeQuiz":  "Resume Quiz",
+    "submitAnswer":  "Submit Answer",
+    "submitQuiz":  "Submit Quiz",
+    "question":  "Question",
+    "questions":  "Questions",
+    "fromTotal":  "of",
+    "timeRemaining":  "Time Remaining",
+    "quizCompleted":  "Quiz Completed",
+    "score":  "Score",
+    "correct":  "Correct",
+    "wrong":  "Wrong",
+    "passed":  "Passed",
+    "failed":  "Failed",
+    "returnDashboard":  "Return to Dashboard",
+    "backToQuizList":  "Back to Quiz List",
+    "academicInformation":  "Academic Information",
+    "name":  "Name",
+    "identityNumber":  "Identity Number",
+    "email":  "Email",
+    "program":  "Program",
+    "accountStatus":  "Account Status",
+    "active":  "Active",
+    "inactive":  "Inactive",
+    "settings":  "Settings",
+    "language":  "Language",
+    "english":  "English",
+    "indonesian":  "Indonesian",
+    "languageEnglish":  "English",
+    "languageIndonesian":  "Indonesian",
+    "logoutConfirmation":  "Are you sure you want to log out?",
+    "yesLogout":  "Yes, Log Out",
+    "error":  "Error",
+    "somethingWentWrong":  "Something went wrong.",
+    "pageNotFound":  "Page not found.",
+    "failedToLoad":  "Failed to load data.",
+    "sessionNotFound":  "Session not found.",
+    "profileNotFound":  "Profile not found.",
+    "arComingSoon":  "AR Scanner is coming soon.",
+    "arScannerTitle":  "AR Scanner",
+    "arStatusInitializing":  "Preparing the AR camera…",
+    "arStatusSearching":  "Point the camera at one of the NetLearn markers.",
+    "arMarkerDetected":  "Marker recognized",
+    "arScanPermissionDenied":  "Camera permission is required to scan markers. Enable camera access and try again.",
+    "arInitFailed":  "Could not start the AR camera. Your device may not support ARCore.",
+    "arRescanTooltip":  "Rescan",
+    "arHelpTooltip":  "Help",
+    "arHelpTitle":  "How to scan a marker",
+    "arHelpBody":  "1. Print the NetLearn marker cards.\n2. Place a card on a flat surface.\n3. Point the camera at the whole card.\n4. Hold steady until the object information appears.",
+    "arModuleBadge":  "Module {number}",
+    "@arModuleBadge":  {
+        "description":  "Badge shown on the object information card, e.g. \"Module 2\".",
+        "placeholders":  {
+            "number":  {
+                "type":  "int"
+            }
+        }
+    },
+    "arObjKomputerName":  "Desktop Computer",
+    "arObjKomputerDesc":  "An end device that sends and receives data over the network.",
+    "arObjSwitchName":  "Switch",
+    "arObjSwitchDesc":  "Connects devices in a local network and forwards frames to the destination port using MAC addresses.",
+    "arObjHubName":  "Hub",
+    "arObjHubDesc":  "Connects devices and repeats incoming data to every connected port, unlike a switch that forwards only to the target device.",
+    "arObjRouterName":  "Router",
+    "arObjRouterDesc":  "Connects different networks and forwards packets between them using IP addresses and a routing table.",
+    "arObjTopologiName":  "Star Topology",
+    "arObjTopologiDesc":  "A topology where every device connects to a central switch. The central device is critical: if it fails, the whole network is affected.",
+    "arObjIpAddressName":  "IP Address Simulation",
+    "arObjIpAddressDesc":  "Configure the IPv4 address and subnet mask of two computers connected through one switch.",
+    "arDetailHeaderLabel":  "Detailed Information",
+    "arDetailSectionDefinition":  "Definition",
+    "arDetailSectionFunction":  "Function",
+    "arDetailExtraKomputer":  "Example Activities",
+    "arDetailExtraSwitch":  "How It Works",
+    "arDetailExtraHub":  "Difference from a Switch",
+    "arDetailExtraRouter":  "How It Works",
+    "arDetailExtraTopologi":  "Advantages and Limitations",
+    "arDetailOpenButton":  "View Full Information",
+    "arNarrationMute":  "Turn off narration",
+    "arNarrationReplay":  "Listen again",
+    "arNarrationUnmute":  "Turn on narration",
+    "arObjKomputerDetailDef":  "A computer is an end device that users use to send and receive data over a network.",
+    "arObjKomputerDetailFunction":  "In a network, the computer is a source or destination of data: it creates requests, sends data to other devices, and receives data from them.",
+    "arObjKomputerDetailExtra":  "Examples of computer activity in a network: opening web pages, sending email, uploading files, and streaming video. All of these are essentially processes of sending and receiving data.",
+    "arObjSwitchDetailDef":  "A network device that connects many devices within a single local area network (LAN).",
+    "arObjSwitchDetailFunction":  "The switch connects devices in a local network and forwards data only to the destination device, so network traffic stays more efficient than with a hub.",
+    "arObjSwitchDetailExtra":  "How it works: the switch reads the destination MAC address on each frame and forwards it to the port connected to the destination device using its MAC table.",
+    "arObjHubDetailDef":  "A simple network device that connects several devices within one network.",
+    "arObjHubDetailFunction":  "The hub connects devices and forwards incoming data to every connected port, without knowing which device is the destination.",
+    "arObjHubDetailExtra":  "Difference from a switch: the hub broadcasts data to all devices, while the switch forwards data only to the destination device based on the MAC address. Hubs are therefore less efficient and more prone to collisions.",
+    "arObjRouterDetailDef":  "A network device that connects two or more different networks.",
+    "arObjRouterDetailFunction":  "The router forwards data packets between networks, choosing the best path toward the destination network.",
+    "arObjRouterDetailExtra":  "How it works: the router reads the destination IP address on the packet and decides the forwarding path using its routing table. Routers let devices from different networks communicate, for example between a home LAN and the internet.",
+    "arObjTopologiDetailDef":  "A network layout in which every device connects directly to a single central device, usually a switch or hub.",
+    "arObjTopologiDetailFunction":  "The central device acts as the shared connection point: all data between devices passes through it before being forwarded to its destination.",
+    "arObjTopologiDetailExtra":  "Advantages: easy to add devices and easy to detect a faulty cable. Limitation: if the central device fails, the whole network stops working (single point of failure).",
+    "arIpComputerA":  "Computer A",
+    "arIpComputerB":  "Computer B",
+    "arIpSwitch":  "Switch",
+    "arIpAddressLabel":  "IP Address",
+    "arIpSubnetLabel":  "Subnet Mask",
+    "arIpTestButton":  "Test Connection",
+    "arIpResetButton":  "Reset",
+    "arIpInitialHint":  "Enter each computer's IPv4 address and subnet mask, then test the connection.",
+    "arIpSuccessTitle":  "Connection Succeeded",
+    "arIpSuccessReason":  "Both computers are in the same subnet ({network}).",
+    "@arIpSuccessReason":  {
+        "description":  "Shown after a successful Modul 4 connectivity test.",
+        "placeholders":  {
+            "network":  {
+                "type":  "String"
+            }
+        }
+    },
+    "arIpFailureTitle":  "Connection Failed",
+    "arIpErrInvalidIpA":  "Computer A's IP address is not a valid IPv4 address.",
+    "arIpErrInvalidMaskA":  "Computer A's subnet mask is not valid.",
+    "arIpErrUnusableHostA":  "Computer A's address cannot be used as a host address.",
+    "arIpErrInvalidIpB":  "Computer B's IP address is not a valid IPv4 address.",
+    "arIpErrInvalidMaskB":  "Computer B's subnet mask is not valid.",
+    "arIpErrUnusableHostB":  "Computer B's address cannot be used as a host address.",
+    "arIpErrDuplicate":  "Both computers use the same IP address.",
+    "arIpErrDifferentSubnet":  "The computers are in different subnets, so they cannot communicate through the switch without routing.",
+    "loginTitle":  "Welcome to NetLearn!",
+    "loginSubtitle":  "Sign in using your personal email, institutional email, or student ID.",
+    "welcomeBack": "Welcome back",
+    "emailOrStudentId": "Email or Student ID",
+    "enterEmailOrStudentId": "Enter your NIM or Email",
+    "emailOrLecturerId": "Email or Lecturer ID",
+    "enterEmailOrLecturerId": "Enter your NIP or Email",
+    "password":  "Password",
+    "forgotPassword":  "Forgot password?",
+    "signIn":  "Sign In",
+    "loginAsStudent":  "Login as Student",
+    "loginAsLecturer":  "Login as Lecturer",
+    "loginAsAdmin":  "Login as Admin",
+    "studentId":  "Student ID",
+    "lecturerId":  "Lecturer ID",
+    "enterStudentId":  "Enter your student ID",
+    "enterLecturerId":  "Enter your lecturer ID",
+    "enterEmail":  "Enter your email",
+    "enterPassword":  "Enter your password",
+    "invalidCredentials":  "Invalid credentials.",
+    "accountInactive":  "Your account is inactive.",
+    "forgotPasswordTitle":  "Forgot Password",
+    "forgotPasswordSubtitle":  "Enter the registered email address to receive a password reset code.",
+    "sendResetLink":  "Send Reset Link",
+    "resetPasswordHeading":  "Reset\nPassword",
+    "backToLogin":  "Back to Login",
+    "requiredField":  "This field is required",
+    "invalidEmail":  "Enter a valid email address.",
+
+
+    "emailSent":  "Email Sent",
+    "passwordResetEmailSent":  "If the email is registered, a password reset link has been sent. Check your inbox.",
+    "registerTitle":  "Create Account",
+    "registerHeading": "Register",
+     "registerSubtitle":  "Create an account to start learning with NetLearn.",
+    "register":  "Register",
+    "fullName":  "Full Name",
+    "enterFullName":  "Enter your full name",
+    "studentIdOrEmployeeId": "Student ID / Employee ID",
+    "enterStudentOrEmployeeId": "Enter your Student ID",
+    "userEmail": "User Email",
+    "confirmPassword":  "Confirm Password",
+    "confirmPasswordPlaceholder":  "Confirm your password",
+    "passwordMismatch":  "Password confirmation does not match.",
+    "passwordMinLength":  "Password must be at least 8 characters",
+  "authIdentifierRequired": "NIM or Email is required.",
+  "authPasswordRequired": "Password is required.",
+  "fullNameRequired": "Full name is required.",
+  "studentIdRequired": "Student ID is required.",
+  "emailRequired": "Email is required.",
+  "confirmPasswordRequired": "Password confirmation is required.",
+  "bannerConnectionFailed": "Connection problem. Check your internet and try again.",
+  "bannerServerProblem": "Something went wrong on the server. Please try again.",
+  "bannerUnknownError": "Something went wrong. Please try again.",
+  "resetRequestSent": "Password reset instructions were requested. Check your email.",
+    "registerSuccessTitle":  "Registration Successful",
+     "registerSuccessMessage":  "We've sent a confirmation link to your email. Check your inbox and spam folder, confirm it, then sign in with your new account.",
+    "registerSuccessLoginPrompt":  "Registration successful. Please sign in with your email and password.",
+    "alreadyHaveAccount":  "Already have an account? Login",
+    "noAccountYet":  "Don't have an account? Register",
+    "chooseYourLanguage": "Choose Your Language",
+    "onboardingDescription": "Choose the language you want to use while learning with NetLearn.",
+    "continueButton": "Continue",
+    "prototypeMode": "Prototype mode · Language selection appears after every successful login.",
+    "computerNetworkingLMS": "Computer Networking LMS",
+    "unreadNotifications": "{count} unread notifications",
+    "@unreadNotifications": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "studentList": "Student List",
+    "studentScoreSummary": "Student Score Recap",
+    "tasksAwaitingReview": "{count} tasks awaiting review",
+    "@tasksAwaitingReview": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "reviewStudentSubmissions": "Review student submissions",
+    "tasksApproachingDeadline": "{count} tasks approaching their deadline",
+    "@tasksApproachingDeadline": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "trackActiveTasks": "Track active tasks",
+    "moduleNotPublished": "Module {number} is not published",
+    "@moduleNotPublished": {
+        "placeholders": {
+            "number": {"type": "int"}
+        }
+    },
+    "completeTheMaterial": "Complete the {title} material",
+    "@completeTheMaterial": {
+        "placeholders": {
+            "title": {"type": "String"}
+        }
+    },
+    "viewMaterial": "View Material",
+    "notifications": "Notifications",
+     "registerButton":  "Register",
+     "registerLecturerNotice":  "Lecturer accounts are created by the admin. Select Student to register.",
+    "accountManagedBy":  "Account managed by ",
+    "campusAdministrator":  "campus administrator",
+    "today":  "Today",
+    "yesterday":  "Yesterday",
+    "tomorrow":  "Tomorrow",
+    "minutesShort":  "min",
+    "lockedModuleMessage":  "This module is still locked.",
+    "lockedNeedsPretest":  "Complete the Pretest",
+    "dashboardLoadError":  "Failed to load dashboard data.",
+    "moduleProgressLoadError":  "Failed to load module progress.",
+    "noModules":  "No modules yet",
+    "noModulesDescription":  "Published modules will appear here.",
+    "moduleNumber":  "{number}",
+    "@moduleNumber":  {
+                          "description":  "Module number"
+                      },
+    "questionNumber":  "Question {number}",
+    "@questionNumber":  {
+                            "description":  "Question number"
+                        },
+    "questionsProgress":  "{current} of {total}",
+    "@questionsProgress":  {
+                               "description":  "Question progress"
+                           },
+    "durationMinutes":  "{minutes} minutes",
+    "@durationMinutes":  {
+                             "description":  "Duration in minutes"
+                         },
+    "progressPercentage":  "{percentage}%",
+    "@progressPercentage":  {
+                                "description":  "Progress percentage"
+                            },
+    "materialNotFound":  "Material not found.",
+    "learningMaterial":  "Learning Material",
+    "coreMaterial":  "Core",
+    "summary":  "Summary",
+"readMaterial":  "Read Material",
+    "readMaterialDescription":  "Study the material before continuing to the next stage.",
+    "materialContentUnavailable":  "Reading material is not available.",
+    "readingCompletedMessage":  "Reading material completed successfully.",
+    "progressSaveFailed":  "Failed to save progress: {error}",
+    "@progressSaveFailed":  {
+                                "description":  "Message shown when saving learning progress fails.",
+                                "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String",
+                                                                    "description":  "The error message returned by the application."
+                                                                }
+                                                  }
+                            },
+    "learningVideoDescription":  "Watch the learning video to strengthen your understanding.",
+    "videoUnavailable":  "Video for this material is not available.",
+    "watched":  "Watched",
+    "videoPlayerComingSoon":  "Video player will be available in the next stage.",
+    "evaluationDescription":  "Complete the quiz after finishing the learning components.",
+    "materialLocked":  "Material locked",
+    "completePreviousModule":  "Complete the previous module first to unlock this material.",
+    "readMaterialTitle":  "Read Material",
+    "materialIdMissing":  "Material ID not found.",
+    "videoMaterialIdMissing":  "Video material ID not found.",
+    "assessmentTypeMissing":  "Assessment type not found.",
+    "assessmentTypeInvalid":  "Invalid assessment type.",
+    "assessmentResultIdMissing":  "Assessment result ID not found.",
+    "readingProgress":  "Reading progress",
+    "videoOptional":  "Supporting Video (Optional)",
+"viewPdf": "View PDF",
+    "materialResources": "Material Resources",
+    "@materialResources": {
+      "description": "Section title for PDF view/download actions in the material reader."
+    },
+    "markAllAsRead": "Mark All as Read",
+    "@markAllAsRead": {
+      "description": "Button to mark all materials in the current module as read."
+    },
+    "markAllAsReadDescription": "Mark all reading materials in this module as completed.",
+    "@markAllAsReadDescription": {
+      "description": "Description for the Mark All as Read button."
+    },
+    "noPdfAvailable": "No PDF available for this material.",
+    "@noPdfAvailable": {
+      "description": "Shown when a material has no associated PDF file."
+    },
+    "pdfOpenFailed": "This PDF could not be displayed. Try downloading it.",
+    "@pdfOpenFailed": {
+      "description": "Shown when the in-app PDF viewer fails to open the file; the download button remains the fallback."
+    },
+    "materialResourcesDescription": "This material includes a PDF you can view or download.",
+    "@materialResourcesDescription": {
+      "description": "Description under the Material Resources title when the material has a PDF."
+    },
+    "pdfDownloadSuccess": "PDF downloaded successfully.",
+    "@pdfDownloadSuccess": {
+      "description": "Success message when PDF download completes."
+    },
+    "pdfDownloadFailed": "Failed to download PDF. Please try again.",
+    "@pdfDownloadFailed": {
+      "description": "Error message when PDF download fails."
+    },
+    "videoLearningSection": "Video Learning",
+    "@videoLearningSection": {
+      "description": "Section title for video resources in the material reader."
+    },
+    "assessmentListIntroTitle": "Your assessments",
+    "@assessmentListIntroTitle":  {
+                                "description":  "Heading above the assessment list cards."
+                            },
+    "assessmentListIntroSubtitle":  "Measure your understanding, from start to finish.",
+    "@assessmentListIntroSubtitle":  {
+                                "description":  "Sub-heading above the assessment list cards."
+                            },
+    "assessmentListIntroBody":  "Complete the Pretest before starting the materials. The Post Test becomes available after all modules are completed.",
+    "@assessmentListIntroBody":  {
+                                "description":  "Explains the order of the two core assessments above the list."
+                            },
+    "assessmentInitialTag":  "Initial assessment",
+    "assessmentFinalTag":  "Final assessment",
+    "startPretest":  "Start Pretest",
+    "startPostTestLabel":  "Start Post Test",
+    "@startPostTestLabel":  {
+                                "description":  "Button that opens the post test. Distinct from startPostTest, which is \"Start Post-test\" and is used on the dashboard."
+                            },
+    "viewPretestInstructions":  "View Pretest Instructions",
+    "@viewPretestInstructions":  {
+                                    "description":  "Button to open pretest instructions instead of starting directly."
+                                },
+    "viewPosttestInstructions":  "View Posttest Instructions",
+    "@viewPosttestInstructions":  {
+                                     "description":  "Button to open posttest instructions instead of starting directly."
+                                 },
+    "assignmentMeta":  "{count} Questions · {minutes} Minutes",
+    "@assignmentMeta":  {
+                            "description":  "Meta line showing question count and duration for an assessment card.",
+                            "placeholders":  {
+                                              "count":  {"type": "String"},
+                                              "minutes":  {"type": "String"}
+                                            }
+                          },
+    "assessmentInitialDesc":  "Check your initial understanding before studying.",
+    "@assessmentInitialDesc":  {
+                                    "description":  "Description for pretest card."
+                                  },
+    "assessmentFinalDesc":  "Evaluate your understanding after completing all modules.",
+    "@assessmentFinalDesc":  {
+                                    "description":  "Description for posttest card."
+                                  },
+    "assignments":  "Assessment",
+    "@assignments":  {
+                          "description":  "Top bar title for the lecturer assessments page."
+                        },
+    "assignmentsTab":  "Assessment",
+    "@assignmentsTab":  {
+                          "description":  "Bottom navigation tab label for assignments (student only)."
+                        },
+    "viewAssessmentHistory":  "View Assessment History",
+    "@viewAssessmentHistory":  {
+                                    "description":  "Link at bottom of assessment list to navigate to history page."
+                                },
+    "pretestInstructionsTopBar":  "Assessment - Pretest",
+    "@pretestInstructionsTopBar":  {
+                                      "description":  "Top bar title on the Pretest instructions page."
+                                  },
+    "pretestInstructionsArtLabel":  "KNOW YOUR STARTING POINT",
+    "@pretestInstructionsArtLabel":  {
+                                        "description":  "All-caps label inside the illustration on the Pretest instructions page."
+                                    },
+    "pretestInstructionsTitle":  "Know your starting point",
+    "@pretestInstructionsTitle":  {
+                                      "description":  "Main heading on the Pretest instructions page."
+                                  },
+    "pretestInstructionsBody":  "Before you start learning, let's measure your understanding of computer networking.",
+    "@pretestInstructionsBody":  {
+                                     "description":  "Introductory paragraph on the Pretest instructions page."
+                                 },
+    "pretestInstructionsQuestionsLabel":  "Number of questions",
+    "pretestInstructionsQuestionsValue":  "{count} questions",
+    "@pretestInstructionsQuestionsValue":  {
+                                              "description":  "Pretest question count on the instruction card.",
+                                              "placeholders":  {
+                                                                   "count":  {"type": "String"}
+                                                               }
+                                          },
+    "pretestInstructionsDurationLabel":  "Time limit",
+    "pretestInstructionsTypeLabel":  "Question type",
+    "pretestInstructionsTypeValue":  "Multiple choice",
+    "pretestInstructionsWarningPrefix":  "The pretest can only be taken ",
+    "pretestInstructionsWarningEmphasis":  "once",
+    "pretestInstructionsWarningSuffix":  ". Make sure your internet connection is stable and you are ready before starting.",
+    "pretestInstructionsLockTitle":  "The key to start learning",
+    "pretestInstructionsLockBody":  "Complete the pretest to unlock Module 1. The score does not affect your final grade.",
+    "startPretestNow":  "Start Pretest Now",
+    "@startPretestNow":  {
+                             "description":  "Primary button on the Pretest instructions page that opens the question screen."
+                         },
+    "posttestInstructionsTopBar":  "Assessment - Post Test",
+    "@posttestInstructionsTopBar":  {
+                                       "description":  "Top bar title on the Posttest instructions page."
+                                   },
+    "posttestInstructionsArtLabel":  "SHOW WHAT YOU HAVE LEARNED",
+    "@posttestInstructionsArtLabel":  {
+                                         "description":  "All-caps label inside the illustration on the Posttest instructions page."
+                                     },
+    "posttestInstructionsTitle":  "Posttest Instructions",
+    "@posttestInstructionsTitle":  {
+                                       "description":  "Main heading on the Posttest instructions page."
+                                   },
+    "posttestInstructionsBody":  "You have completed all modules. Let's measure how far your understanding of computer networking has grown.",
+    "@posttestInstructionsBody":  {
+                                      "description":  "Introductory paragraph on the Posttest instructions page."
+                                  },
+    "posttestInstructionsWarningPrefix":  "The post test can only be taken ",
+    "posttestInstructionsLockTitle":  "The final checkpoint",
+    "posttestInstructionsLockBody":  "The Post Test becomes available after all 4 modules have been completed. The score does not affect your final grade.",
+    "startPosttestNow":  "Start Post Test Now",
+    "@startPosttestNow":  {
+                              "description":  "Primary button on the Posttest instructions page that opens the question screen."
+                          },
+    "continueLearning":  "Continue Learning",
+    "@continueLearning":  {
+                              "description":  "Primary button on the student dashboard to resume the next unfinished learning step."
+                          },
+    "allMaterialsCompleted":  "All materials completed",
+    "@allMaterialsCompleted":  {
+                                   "description":  "Shown in place of the Continue Learning button when the whole learning flow is finished."
+                               },
+    "assessmentCompletedTitle":  "Already Completed",
+    "assessmentCompletedBody":  "You have already completed this assessment.",
+    "assessmentCompletedWithScore":  "You have already completed this assessment with a score of {score}.",
+    "@assessmentCompletedWithScore":  {
+                                "description":  "Shown in the completed-assessment dialog when a score exists.",
+                                "placeholders":  {
+                                                     "score":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "assessmentCompletedOnlyOnce":  "{assessment} can only be taken once and cannot be repeated.",
+    "@assessmentCompletedOnlyOnce":  {
+                                "description":  "Explains why the start action is gone: the assessment is one-shot.",
+                                "placeholders":  {
+                                                     "assessment":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "assessmentCompletedStatusPassed":  "Result: Passed",
+    "assessmentCompletedStatusFailed":  "Result: Not passed",
+    "assessmentCompletedBreakdown":  "{correct} correct · {wrong} wrong",
+    "@assessmentCompletedBreakdown":  {
+                                "description":  "Correct/wrong answer counts in the completed-assessment dialog.",
+                                "placeholders":  {
+                                                     "correct":  {
+                                                                   "type":  "int"
+                                                               },
+                                                     "wrong":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "viewAssessmentResult":  "View Result",
+    "assessmentLockedTitle":  "Assessment Locked",
+    "assessmentLockedPosttest":  "The Post Test becomes available after all 4 modules have been completed.",
+    "assessmentLockedGeneric":  "This assessment is not available yet.",
+    "assessmentLoadFailed":  "Failed to load assessments",
+    "assessmentLoadFailedBody":  "Check your internet connection and try again.",
+    "assessmentResult":  "Assessment Result",
+    "assessmentTotalQuestions":  "Total Questions",
+    "pretestCompletedMessage":  "The pretest is complete. You can continue to the learning materials.",
+    "posttestCompletedMessage":  "The post test is complete. The entire learning sequence has been completed.",
+    "backToAssessment":  "Back to Assessment",
+    "backToDashboard":  "Back to Dashboard",
+    "videoNotAvailable":  "This material has no video yet.",
+    "materialNotPublished":  "This material has not been published.",
+    "materialLockedMessage":  "This material is still locked.",
+    "markVideoDone":  "Mark as Done",
+    "videoDone":  "Video Done",
+    "videoMarkedDone":  "Video marked as done.",
+    "videoCannotOpen":  "This video cannot be opened",
+    "startReading":  "Start Reading",
+    "continueReading":  "Continue",
+    "noReadingContent":  "The reading content for this material is not available yet. Please contact your lecturer or admin.",
+    "readingMarked":  "Material marked as read.",
+    "assessmentQuestionProgress":  "Question {current} of {total}",
+    "@assessmentQuestionProgress":  {
+                                "description":  "Progress header above the current assessment question.",
+                                "placeholders":  {
+                                                     "current":  {
+                                                                   "type":  "int"
+                                                               },
+                                                     "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                 }
+                            },
+    "assessmentAnsweredCount":  "{count} answered",
+    "@assessmentAnsweredCount":  {
+                                "description":  "How many questions the student has answered so far.",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "assessmentQuestionNavigation":  "Question Navigation",
+    "assessmentCurrentQuestion":  "Current question",
+    "assessmentAnsweredQuestion":  "Answered",
+    "assessmentUnansweredQuestion":  "Not answered",
+    "assessmentYourAnswer":  "Your answer",
+    "assessmentPreviousQuestion":  "Previous question",
+    "assessmentNextQuestion":  "Next question",
+    "assessmentSubmitTitle":  "Submit Assessment?",
+    "assessmentSubmitWithUnanswered":  "There are still {count} unanswered questions. Are you sure you want to submit the assessment?",
+    "@assessmentSubmitWithUnanswered":  {
+                                "description":  "Submit confirmation when some questions are still unanswered.",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "assessmentSubmitAllAnswered":  "All questions have been answered. Are you sure you want to submit the assessment?",
+    "assessmentLeaveTitle":  "Leave Assessment?",
+    "assessmentLeaveBody":  "Your saved answers will remain saved, but the assessment will not be completed until you submit it.",
+    "stay":  "Stay",
+    "leave":  "Leave",
+    "assessmentSubmit":  "Submit",
+    "assessmentTimeWarning":  "Less than 1 minute remains.",
+    "assessmentNextAction":  "Next",
+    "assessmentSubmitAction":  "Submit Assessment",
+    "assessmentErrorNotFound":  "Assessment was not found.",
+    "assessmentErrorNotPublished":  "Assessment has not been published.",
+    "assessmentErrorNoQuestions":  "This assessment has no questions.",
+    "assessmentErrorAttemptNotFound":  "Assessment attempt was not found.",
+    "assessmentErrorLocked":  "Assessment is still locked.",
+    "assessmentErrorLockedOrCompleted":  "This test has already been completed or is not open yet.",
+    "assessmentErrorPretestRequired":  "You must complete the Pretest first.",
+    "assessmentErrorModulesIncomplete":  "All modules must be completed first.",
+    "assessmentErrorAlreadyCompleted":  "This assessment has already been completed.",
+    "assessmentErrorDeadlinePassed":  "The deadline for this assessment has passed.",
+    "assessmentErrorAttemptsExhausted":  "You have used up all attempts for this assessment.",
+    "assessmentErrorNotEnrolled":  "You are not enrolled in the class that owns this assessment.",
+    "assessmentErrorNoSession":  "Your login session was not found.",
+    "assessmentErrorGeneric":  "Something went wrong. Please try again.",
+    "backToMaterial":  "Back to Material",
+    "nextToVideo":  "Continue to Video",
+    "posttestUnlockedTitle":  "All modules complete!",
+    "posttestUnlockedMessage":  "You have finished every module. Take the Post-test to complete the course.",
+    "notNow":  "Not Now",
+    "startPosttest":  "Start Post-test",
+    "pretestLockedTitle":  "Pretest Not Completed",
+    "pretestLockedMessage":  "This module unlocks once you complete the Pretest. Take the Pretest first to open this material.",
+    "startPretest":  "Take the Pretest",
+    "readyToStart":  "Ready to start",
+    "darkMode":  "Dark Mode",
+    "assessment":  "Assessment",
+    "on":  "On",
+    "off":  "Off",
+    "lecturerDashboardSubtitle":  "Information Technology Education",
+    "contentManagement":  "Content Management",
+    "manageMaterials":  "Manage Materials",
+    "manageMaterialsDescription":  "Add and edit learning materials",
+    "manageAssessments":  "Manage Assessments",
+    "manageAssessmentsDescription":  "Questions and answer keys",
+    "addMaterial":  "Add Material",
+    "addMaterialDescription":  "Create a new learning material",
+    "totalStudents":  "Total Students",
+    "totalClasses":  "Total Classes",
+    "averageScore":  "Average Score",
+    "noClassData":  "No class data yet",
+
+    "publishedOfTotal":  "{count} of {total} published",
+    "@publishedOfTotal":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "scorePercent":  "{value}%",
+    "@scorePercent":  {
+                          "placeholders":  {
+                                               "value":  {
+                                                             "type":  "String"
+                                                         }
+                                           }
+                      },
+    "searchMaterials":  "Search materials",
+    "allModules":  "All Modules",
+    "noVideo":  "No video",
+    "createdAt":  "Created {date}",
+    "@createdAt":  {
+                       "placeholders":  {
+                                            "date":  {
+                                                         "type":  "String"
+                                                     }
+                                        }
+                   },
+    "coreMaterialProtected":  "Core materials cannot be deleted",
+    "coreModuleLocked":  "Only core materials can be placed in a module",
+    "noMaterials":  "No materials yet",
+    "noMaterialsDescription":  "Tap Add Material to create your first learning material.",
+    "edit":  "Edit",
+    "delete":  "Delete",
+    "publish":  "Publish",
+    "unpublish":  "Unpublish",
+    "published":  "Published",
+    "draft":  "Draft",
+    "deleteMaterial":  "Delete Material",
+    "deleteMaterialConfirmBody":  "This material will be permanently removed. Student progress for it is deleted as well.",
+    "materialDeleted":  "Material deleted.",
+    "materialPublished":  "Material published.",
+    "materialUnpublished":  "Material unpublished.",
+    "materialCreated":  "Material created.",
+    "materialUpdated":  "Material updated.",
+    "materialSaveFailed":  "Could not save the material.",
+    "coreProtectedError":  "This is a core material and cannot be changed.",
+    "invalidVideoUrlError":  "That video URL is not a valid YouTube link.",
+    "notPermittedError":  "You don't have permission to do that.",
+    "addMaterialTitle":  "Add Material",
+    "editMaterial":  "Edit Material",
+    "materialTitleSection":  "Title",
+    "titleIndonesian":  "Title (Indonesian)",
+    "titleIndonesianHint":  "The title students see",
+    "titleEnglish":  "Title (English)",
+    "titleEnglishHint":  "Optional, shown when the app is in English",
+    "materialPlacementSection":  "Placement",
+    "orderIndex":  "Order Index",
+    "orderIndexInvalid":  "Enter a valid order number (1 or higher)",
+    "summaryHint":  "A short summary shown on the material card",
+    "description":  "Description",
+    "descriptionHint":  "Describe the task objectives",
+    "content":  "Content",
+    "materialContentSection":  "Content",
+    "materialContentHint":  "Plain text. Use three backticks for monospaced blocks, \u0027- \u0027 for bullets and \u00271. \u0027 for headings.",
+    "contentHint":  "Reading content",
+    "videoUrl":  "Video URL",
+    "durationMinutesLabel":  "Duration (minutes)",
+    "studyTimeLabel":  "Estimated study time (minutes)",
+    "studyTimeHint":  "Reading time plus video. This is not the YouTube video length.",
+    "durationInvalid":  "Enter a valid duration",
+    "publishOn":  "Publish immediately",
+    "publishOff":  "Save as draft",
+    "assessmentIntro":  "Both assessments are shared by all students. Every question needs an answer key before it can be published.",
+    "noAssessments":  "No assessments",
+    "noAssessmentsDescription":  "There are no assessments in this course yet.",
+    "pretest":  "Pre-test",
+    "posttest":  "Post-test",
+    "questionsShort":  "questions",
+    "answerKeysShort":  "answer keys",
+    "answerKeyMissing":  "{count} questions missing answer key",
+    "@answerKeyMissing":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "manageQuestions":  "Manage Questions",
+    "assessmentPublished":  "Assessment published.",
+    "assessmentUnpublished":  "Assessment unpublished.",
+    "assessmentQuizIncomplete":  "Cannot publish: every question needs an answer key.",
+    "assessmentSaveFailed":  "Failed to save assessment.",
+    "addQuestion":  "Add Question",
+    "editQuestion":  "Edit Question",
+    "noQuestions":  "No questions yet",
+    "noQuestionsDescription":  "Tap Add Question to build this assessment.",
+    "questionText":  "Question",
+    "questionTextHint":  "Enter the question text",
+    "answerOptions":  "Answer Options",
+    "optionHint":  "Enter option text",
+    "correctAnswer":  "Correct Answer",
+    "answerKeyHint":  "Select the correct answer",
+    "pickAnswerKey":  "Please select the correct answer first.",
+    "noAnswerKey":  "No answer key set",
+    "questionImage":  "Question Image URL",
+    "questionAdded":  "Question added.",
+    "questionUpdated":  "Question updated.",
+    "questionDeleted":  "Question deleted.",
+    "questionSaveFailed":  "Could not save the question.",
+    "deleteQuestion":  "Delete Question",
+    "deleteQuestionConfirmBody":  "The answer key and any student answers to this question are deleted too, and cannot be restored.",
+    "nip":  "NIP",
+    "role":  "Role",
+    "roleLecturer":  "Lecturer",
+    "accountInformation":  "Account information",
+    "profileReadOnlyNote":  "Your name, NIP and email are managed by the admin. Contact them to change them.",
+    "myProfile":  "My Profile",
+    "joinedSince":  "Joined since",
+    "users":  "Users",
+    "tasks":  "Tasks",
+    "status":  "Status",
+    "manage":  "Manage",
+    "overview":  "Overview",
+    "all":  "All",
+    "lockStatus":  "Lock Status",
+    "materialAccessLabel": "Material access",
+    "materialAccessOptionProgress": "Progress",
+    "materialAccessOptionOpen": "Open",
+    "materialAccessOptionLocked": "Locked",
+    "materialAccessHelp": "Follow progress: counts toward finishing the module, like every ordinary material. Open / Locked: your override — optional for students, never blocks the next module.",
+    "materialAccessForcedOpenBadge": "Forced open",
+    "materialAccessForcedLockedBadge": "Forced locked",
+    "materialAccessLockedItemMessage": "This material is locked by the lecturer.",
+    "statusPublished":  "Published",
+    "statusDraft":  "Draft",
+    "studyProgram":  "Study Programme",
+    "notFilledYet":  "(not filled in yet)",
+"academicTag": "Information Technology Education",
+    "studentAcademicTag": "Information Technology Education",
+    "@studentAcademicTag": {
+      "description": "Academic tag shown on student profile hero, e.g. study program name."
+    },
+    "settingsAndActivity": "Settings & Activity",
+    "profileInfo": "Profile Information",
+    "academicInfo": "Academic Information",
+    "academicInfoStudentSubtitle": "NIM, Semester, and Study Program details",
+    "@academicInfoStudentSubtitle": {
+      "description": "Subtitle for the student academic information menu item."
+    },
+    "assessmentHistory": "Assessment History",
+    "@assessmentHistory": {
+      "description": "Menu item title for student assessment history."
+    },
+    "assessmentCoreTab": "Pretest & Post Test",
+    "@assessmentCoreTab": {
+      "description": "First tab of the two-tab assessment page: the core pretest and post test list."
+    },
+    "assessmentHistorySubtitle": "Pretest & Post Test transcripts",
+    "@assessmentHistorySubtitle": {
+      "description": "Subtitle for assessment history menu item."
+    },
+    "studentProgressLabel": "Progress",
+    "@studentProgressLabel": {
+      "description": "Metric label for student progress percentage."
+    },
+    "studentModulesLabel": "Modules",
+    "@studentModulesLabel": {
+      "description": "Metric label for student completed modules."
+    },
+    "studentAverageScoreLabel": "Average Score",
+    "@studentAverageScoreLabel": {
+      "description": "Metric label for student average score."
+    },
+    "securityAndPassword": "Security & Password",
+    "appVersion":  "NetLearn v1.0.0 \u00b7 Learn. Connect. Grow.",
+    "themeLight":  "Light Theme",
+    "themeDark":  "Dark Theme",
+    "changePasswordNotAvailable":  "Password change not available yet. Use the link below to reset.",
+    "usePasswordReset":  "Forgot Password",
+    "passwordResetEmailFailed":  "Failed to send the password reset link. Make sure your email is valid.",
+    "@passwordResetEmailFailed": {
+      "description": "Shown when the password reset email could not be sent from the profile security dialog."
+    },
+    "assessmentHistoryEmpty":  "No assessment history yet. Complete your first assessment to see its result here.",
+    "@assessmentHistoryEmpty": {
+      "description": "Empty state for the student assessment history page."
+    },
+    "historyStudentId":  "Student ID",
+    "@historyStudentId": {
+      "description": "Label for the student ID shown on the assessment history identity card."
+    },
+    "historyPretestTitle":  "Pretest",
+    "@historyPretestTitle": {
+      "description": "Card title for the Pretest status row on the assessment history page, spelled as in the Figma reference."
+    },
+    "historyPosttestTitle":  "Posttest",
+    "@historyPosttestTitle": {
+      "description": "Card title for the Posttest status row on the assessment history page, spelled as in the Figma reference."
+    },
+    "historyCompletedLabel":  "Assessments completed",
+    "@historyCompletedLabel": {
+      "description": "Label for the completed-assessments metric on the assessment history summary."
+    },
+    "historyAverageLabel":  "Average available score",
+    "@historyAverageLabel": {
+      "description": "Label for the average-score metric on the assessment history summary."
+    },
+    "historyScoreLabel":  "Score:",
+    "@historyScoreLabel": {
+      "description": "Row label for the score on an assessment history card."
+    },
+    "historyCoreIncomplete":  "{done}/2 · Assessments not complete",
+    "@historyCoreIncomplete": {
+      "description": "Caption under the assessment history summary while either the Pretest or the Post Test has no submitted attempt.",
+      "placeholders": {
+        "done":  {"type": "String"}
+      }
+    },
+
+    "studentSpaceHeading":  "Your learning space",
+    "studentDashboardSubtitle":  "Ready to learn something new today?",
+    "shortcutPretest":  "Pretest",
+    "shortcutPretestHint":  "Test your knowledge",
+    "shortcutModules":  "Modules",
+    "shortcutModulesHint":  "4 learning modules",
+    "shortcutScanner":  "AR Scanner",
+    "shortcutScannerHint":  "Explore in 3D",
+    "shortcutPosttest":  "Post Test",
+    "shortcutPosttestHint":  "Final assessment",
+    "shortcutAssignments":  "Assessment",
+    "shortcutAssignmentsHint":  "Tasks & assessments",
+    "shortcutAssessmentHistory":  "Assessment History",
+    "shortcutAssessmentHistoryHint":  "Scores and progress history",
+    "shortcutProfile":  "Profile",
+    "shortcutProfileHint":  "Account & settings",
+    "shortcutVirtualLab":  "Virtual Lab",
+    "shortcutVirtualLabHint":  "Network simulation",
+    "virtualLab":  "Virtual Lab",
+    "virtualLabAddPc":  "Add PC",
+    "virtualLabAddSwitch":  "Add switch",
+    "virtualLabConnect":  "Connect",
+    "virtualLabConnectFinish": "Create cable",
+    "virtualLabEmptyHint":  "Use the toolbar above to add devices and link them",
+    "virtualLabDeleteSelected":  "Delete selected",
+    "virtualLabReset":  "Reset canvas",
+    "virtualLabConnectNeedSelection": "Select a device first",
+    "virtualLabConnectPendingHint":  "Tap a second device to create the cable",
+    "virtualLabSelectedCable":  "Cable selected",
+    "virtualLabTestConnectivity": "Test connectivity",
+    "virtualLabTestSuccess": "Connection succeeded",
+    "virtualLabTestFailed": "Connection failed",
+    "virtualLabTestNeedDevices": "Add network settings to at least two devices first",
+    "virtualLabConfigDeviceTitle": "Device configuration",
+    "virtualLabIpLabel": "IP Address",
+    "virtualLabMaskLabel": "Subnet Mask",
+    "virtualLabNoIp": "Not configured",
+    "virtualLabScenario1": "Scenario 1",
+    "virtualLabReasonInvalidIp": "Invalid IP address format.",
+    "virtualLabReasonInvalidMask": "Invalid subnet mask format.",
+    "virtualLabReasonHostAddress": "An address is a network or broadcast address, not a host.",
+    "virtualLabReasonDuplicate": "Duplicate IP address detected.",
+    "virtualLabReasonNoPath": "No network path between the configured devices.",
+    "virtualLabReasonDifferentSubnet": "Devices are in different subnets.",
+    "virtualLabSelectedDevice":  "Device selected",
+    "virtualLabSubtitle": "Build a topology, set IPv4, then test connectivity with ping.",
+    "virtualLabScenarioLabel": "SCENARIO 1 · SINGLE-SUBNET LAN",
+    "virtualLabScenarioDescription": "Connect PC2 to Switch1, give it an IP in 192.168.1.0/24, then ping from PC1 to PC2.",
+    "virtualLabToolSelect": "Select",
+    "virtualLabToolCable": "Cable",
+    "virtualLabToolPc": "PC",
+    "virtualLabToolSwitch": "Switch",
+    "virtualLabToolDelete": "Delete",
+    "virtualLabToolReset": "Reset",
+    "virtualLabLegendConnected": "Connected",
+    "virtualLabLegendNeedsConfig": "Needs config",
+    "virtualLabLegendNotCabled": "Not cabled",
+    "virtualLabCanvasHint": "Tap to select · drag to move · tap a cable to select it",
+    "virtualLabPanelConfiguration": "Configuration",
+    "virtualLabPanelPingTest": "Ping Test",
+    "virtualLabNoDeviceSelected": "Tap a device on the canvas to configure it.",
+    "virtualLabDeviceNameLabel": "Device name",
+    "virtualLabDevicePcPorts": "PC · 1 port NIC",
+    "virtualLabDeviceSwitchPorts": "Switch · multi-port",
+    "virtualLabStatusInvalid": "Invalid",
+    "virtualLabCableConnected": "Cable: connected",
+    "virtualLabCableNotConnected": "Cable: not connected",
+    "virtualLabApply": "Apply configuration",
+    "virtualLabPingSource": "Source",
+    "virtualLabPingTarget": "Target",
+    "virtualLabPingRun": "Run ping",
+    "virtualLabPingSuccess": "Ping succeeded — both devices can reach each other.",
+    "virtualLabPingFailed": "Ping failed",
+    "virtualLabPingNoDevices": "Add at least two devices first.",
+    "virtualLabPingSameDevice": "Choose two different devices to ping.",
+    "virtualLabCableIssueSameDevice": "Pick a different device for the other end of the cable.",
+    "virtualLabCableIssuePcPortFull": "This PC already uses its only port. Delete its existing cable first.",
+    "virtualLabCableIssueDuplicate": "These two devices are already connected.",
+    "virtualLabReasonNotConfigured": "A device has no IP configuration yet.",
+    "virtualLabFooterNote": "Local on-device simulation · Scores and progress unaffected.",
+    "virtualLabBackToDashboard": "Back to Dashboard",
+    "learningJourney":  "Your learning journey",
+    "modulesCompletedOf":  "{completed} of {total} modules completed",
+    "moduleMaterialsCompleted":  "{completed} of {total} materials completed",
+    "@moduleMaterialsCompleted":  {
+                                "description":  "Per-module completion line on the student dashboard module card, e.g. \"2 of 3 materials completed\".",
+                                "placeholders":  {
+                                                     "completed":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                     "total":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "keepGoing":  "Keep going!",
+    "oneStepToday":  "One small step today,",
+    "oneConnectionTomorrow":  "one big connection for your future.",
+    "aboutNetLearn":  "About NetLearn",
+    "aboutNetLearnHeadline":  "NetLearn \u2014 Computer Networking Learning Platform",
+    "@aboutNetLearnHeadline": {
+      "description": "Hero heading on the About page naming the product and its subject."
+    },
+    "aboutNetLearnBody":  "NetLearn is a computer networking learning platform designed to help students learn networking concepts through structured learning materials, digital reading, learning videos, and assessments.",
+    "@aboutNetLearnBody": {
+      "description": "First paragraph of the About page description, addressing students."
+    },
+    "aboutNetLearnBodyLecturers":  "The platform also supports lecturers in managing learning materials and organizing learning resources in one place.",
+    "@aboutNetLearnBodyLecturers": {
+      "description": "Second paragraph of the About page description, addressing lecturers."
+    },
+    "aboutReleaseBadge":  "Release",
+    "@aboutReleaseBadge": {
+      "description": "Release-status badge on the About page hero card."
+    },
+    "aboutUnderDevelopmentBadge":  "Under Development",
+    "@aboutUnderDevelopmentBadge": {
+      "description": "Badge next to the version line while the app is not released."
+    },
+    "aboutPreReleaseNote":  "The application has been officially released and is ready to use.",
+    "@aboutPreReleaseNote": {
+      "description": "Short note under the version block on the About page."
+    },
+    "aboutVersion":  "Version 1.0.0",
+    "keyFeaturesTitle":  "Key Features",
+    "@keyFeaturesTitle": {
+      "description": "Section heading above the six feature rows on the About page."
+    },
+    "aboutFeatureMaterialsTitle":  "Learning Materials",
+    "aboutFeatureMaterialsDescription":  "Access structured computer networking lessons.",
+    "aboutFeatureReadingTitle":  "Digital Reading",
+    "aboutFeatureReadingDescription":  "Study networking topics through the material reader.",
+    "aboutFeatureVideosTitle":  "Learning Videos",
+    "aboutFeatureVideosDescription":  "Access available supporting learning videos.",
+    "aboutFeatureAssessmentTitle":  "Assessment",
+    "aboutFeatureAssessmentDescription":  "Complete Pretest and Posttest activities to evaluate understanding.",
+    "aboutFeatureProgressTitle":  "Learning Progress",
+    "aboutFeatureProgressDescription":  "Review your progress through the available learning activities.",
+    "aboutFeatureLecturerTitle":  "Lecturer Material Management",
+    "aboutFeatureLecturerDescription":  "Help lecturers create, edit, and manage learning materials.",
+    "downloadResourcesTitle":  "Download Resources",
+    "@downloadResourcesTitle": {
+      "description": "Section heading above the three download resource cards."
+    },
+    "downloadMarkerTitle":  "Download Marker",
+    "downloadMarkerDescription":  "Download markers provided for supported Augmented Reality learning activities in NetLearn.",
+    "downloadMaterialsTitle":  "Download Materials",
+    "downloadMaterialsDescription":  "Download the NetLearn computer networking course material book in PDF format.",
+    "downloadManualsTitle":  "Download Manual Books",
+    "downloadManualsDescription":  "Access the NetLearn user guides explaining how to use the application's main features according to the available user roles.",
+    "downloadComingSoon":  "Coming Soon",
+    "@downloadComingSoon": {
+      "description": "Badge on download cards whose resource file does not exist yet."
+    },
+    "notAvailableYet":  "Not Available Yet",
+    "@notAvailableYet": {
+      "description": "Status line on download cards without a real file or destination."
+    },
+    "downloadGeneric":  "Download",
+    "@downloadGeneric": {
+      "description": "Label of the (inactive) download button on each resource card."
+    },
+    "downloadPdfBadge":  "PDF",
+    "@downloadPdfBadge": {
+      "description": "Badge on download cards whose PDF file is bundled in the app."
+    },
+    "downloadSucceeded":  "PDF downloaded.",
+    "@downloadSucceeded": {
+      "description": "Snackbar after a bundled About PDF is downloaded."
+    },
+    "downloadFailed":  "Could not download the PDF. Please try again.",
+    "@downloadFailed": {
+      "description": "Snackbar when a bundled About PDF fails to download; raw errors never surface because they can leak the asset path."
+    },
+    "viewAllNotifications":  "View All Notifications",
+    "componentsCompletedOf":  "{completed}/{total} · Components completed",
+    "@componentsCompletedOf":  {
+                                "description":  "Overall completion line on the student dashboard summary card.",
+                                "placeholders":  {
+                                                     "completed":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                     "total":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "componentPretestSubtitle":  "Check your understanding before learning.",
+    "componentTapToOpen":  "Tap to open",
+    "componentCompletePretestFirst":  "Complete Pretest first.",
+    "componentPosttestSubtitle":  "Evaluate your understanding after all modules.",
+    "componentCompleteAllModules":  "Complete all modules first.",
+
+    "lecturerGreeting":  "Hello, {name} 👋",
+    "@lecturerGreeting":  {
+                                "description":  "Greeting shown on the lecturer dashboard hero. The {name} placeholder is replaced with the lecturer's actual name.",
+                                "placeholders":  {
+                                                        "name":  {
+                                                                      "type":  "String",
+                                                                      "example":  "Pratama"
+                                                                  }
+                                                    }
+                            },
+    "lecturerSpaceHeading":  "Teaching workspace",
+    "shortcutManageMaterials":  "Manage Materials",
+    "shortcutManageMaterialsHint":  "12 materials",
+    "assignment":  "Assignments",
+    "shortcutAssignmentHint":  "Pretest & Post Test",
+    "shortcutManageQuestions":  "Manage Questions",
+    "shortcutManageQuestionsHint":  "Question bank",
+    "shortcutManageTasks":  "Manage Tasks",
+    "shortcutManageTasksHint":  "Tasks & submissions",
+    "shortcutLecturerProfile":  "Lecturer Profile",
+    "comingSoon":  "This feature is coming soon.",
+    "recentActivity":  "Recent Activity",
+    "recentNotifications":  "Recent Notifications",
+    "noNotifications":  "No notifications yet",
+    "notificationsTitle":  "Notifications",
+    "announcements":  "Announcements",
+    "reminders":  "Reminders",
+    "noAnnouncements":  "No announcements yet",
+    "noAnnouncementsMessage":  "Announcements published by your lecturer will appear here.",
+    "noReminders":  "No upcoming deadlines",
+    "noRemindersMessage":  "Reminders appear when an assessment is pending or a deadline is approaching.",
+    "assessmentsCompleted":  "Assessments completed",
+    "assessmentsIncomplete":  "Assessments not complete",
+    "averageAvailableScore":  "Average available score",
+    "backToStudentList":  "Back to Student List",
+    "lecturerNoRemindersMessage":  "All students have completed the Pretest and Posttest.",
+    "noAssessmentHistory":  "No assessment history yet. Complete your first assessment to see its result here.",
+    "noStudentsFound":  "No students found.",
+    "reminderNotCompleted":  "Not completed",
+    "scoreTabEmpty":  "No student data yet.",
+    "searchStudentsHint":  "Search name or student ID",
+    "studentListIntro":  "Select a student to view their Pretest and Posttest scores.",
+    "studentScoreHistoryIntro":  "Pretest and Posttest score history.",
+    "viewScoreSummary":  "View Score Recap",
+    "notificationUnread":  "Unread",
+    "notificationRead":  "Read",
+    "notificationJustNow":  "Just now",
+    "notificationMinutesAgo":  "{count} minutes ago",
+    "notificationHoursAgo":  "{count} hours ago",
+    "notificationDaysAgo":  "{count} days ago",
+    "notificationReadSaveFailed":  "Could not save the read status.",
+    "manageAnnouncements":  "Manage Announcements",
+    "createAnnouncement":  "Create Announcement",
+    "editAnnouncement":  "Edit Announcement",
+    "announcementTitle":  "Announcement Title",
+    "announcementTitleHint":  "Enter a title for the announcement",
+    "announcementContent":  "Announcement Content",
+    "announcementContentHint":  "Write the announcement details here",
+    "recipientScope":  "Recipient Scope",
+    "allStudents":  "All Students",
+    "saveAsDraft":  "Save as Draft",
+    "publishAnnouncement":  "Publish Announcement",
+    "saveDraft":  "Save Draft",
+    "announcementDraft":  "Draft",
+    "announcementPublished":  "Published",
+    "deleteAnnouncement":  "Delete Announcement",
+    "deleteAnnouncementConfirm":  "This announcement will be permanently removed. Are you sure?",
+    "announcementDeleted":  "Announcement deleted.",
+    "announcementCreated":  "Announcement created.",
+    "announcementUpdated":  "Announcement updated.",
+    "announcementPublishedSuccess":  "Announcement published.",
+    "announcementUnpublished":  "Announcement unpublished.",
+    "announcementSaveFailed":  "Could not save the announcement.",
+    "titleRequired":  "Title is required",
+    "contentRequired":  "Content is required",
+    "reminderDueSoon":  "Due soon",
+    "reminderDueTomorrow":  "Due tomorrow",
+    "reminderOverdue":  "Overdue",
+    "daysLeft":  "{count} days left",
+    "hoursLeft":  "{count} hours left",
+    "minutesLeft":  "{count} minutes left",
+    "viewDetails":  "View Details",
+    "markAsReadAction":  "Mark as Read",
+"by":  "by",
+
+    "assessments":  "Assessments",
+    "addTask":  "Add Assessment",
+    "editTask":  "Edit Task",
+    "editTaskAndQuestions":  "Edit Task & Questions",
+    "viewDetail":  "View Detail",
+    "taskDetails":  "Task Details",
+    "taskCreated":  "Task created.",
+    "taskUpdated":  "Task updated.",
+    "taskPublished":  "Task published.",
+    "taskUnpublished":  "Task unpublished.",
+    "taskSaveFailed":  "Could not save the task.",
+    "taskNotFound":  "Task not found.",
+    "taskIdMissing":  "Task ID not found.",
+    "noTasks":  "No tasks yet",
+    "noTasksDescription":  "Create your first task to get started.",
+    "basicInformation":  "Basic Information",
+    "timingDeadline":  "Timing & Deadline",
+    "taskTitle":  "Task Title",
+    "taskTitleHint":  "Enter task title",
+    "instructions":  "Instructions",
+    "instructionsHint":  "Instructions for students",
+    "moduleHint":  "Select a module",
+    "standaloneTask":  "Standalone Task",
+    "timeLimitMinutes":  "Time Limit (minutes)",
+    "timeLimitHelper":  "0 means no time limit. Max 180 minutes.",
+    "timeLimitInvalid":  "Time limit must be between 0 and 180 minutes",
+    "timeLimitShort":  "limit",
+    "deadlineHint":  "Select deadline (optional)",
+    "deadlineInvalid":  "Invalid deadline format",
+    "createTask":  "Create Task",
+    "noDescription":  "No description provided",
+    "noInstructions":  "No instructions provided",
+    "submitted":  "Submitted",
+    "submissionRate":  "Submission rate:",
+    "taskResults":  "Task Results",
+    "questionImageHint":  "Optional image URL",
+    "assessmentPublishedTitle":  "Assessment Published",
+    "assessmentUnpublishedTitle":  "Assessment Unpublished",
+    "january":  "January",
+    "february":  "February",
+    "march":  "March",
+    "april":  "April",
+    "may":  "May",
+    "june":  "June",
+    "july":  "July",
+    "august":  "August",
+    "september":  "September",
+    "october":  "October",
+    "november":  "November",
+    "december":  "December",
+    "multipleChoice":  "Multiple Choice",
+    "backToAssessments":  "Back to Assessments",
+    "failedToLoadQuestions":  "Failed to load questions",
+
+    "submissionRateUnavailable":  "Student count unavailable",
+    "moveUp":  "Move up",
+    "moveDown":  "Move down",
+    "department":  "Department",
+    "informaticsEngineering":  "Informatics Engineering",
+    "informationTechnologyEducation":  "Information Technology Education",
+    "lecturerRoleProgram":  "Lecturer S1 Information Technology Education",
+
+    "materialPdf":  "Material PDF (optional)",
+    "uploadPdf":  "Upload PDF",
+    "replacePdf":  "Replace PDF",
+    "removePdf":  "Remove PDF",
+    "pdfUploading":  "Uploading PDF...",
+    "pdfUploaded":  "PDF uploaded.",
+    "pdfRemoved":  "PDF removed.",
+    "pdfUploadFailed":  "Could not upload the PDF.",
+    "pdfTooLarge":  "PDF is too large (max 20 MB).",
+    "pdfInvalidType":  "Please choose a PDF file.",
+    "noPdf":  "No PDF uploaded",
+    "openPdfFailed":  "Could not open the PDF.",
+    "accountEmail":  "Account Email",
+    "answerKeysConfigured":  "{answered}/{total} Answer Keys Configured",
+    "@answerKeysConfigured":  {
+      "placeholders":  {
+        "answered":  {"type":  "int"},
+        "total":  {"type":  "int"}
+      }
+    },
+    "answerOptionsAndKey":  "Options & Answer Key",
+    "assessmentQuestions":  "Assessment Questions",
+    "backToSecurity":  "Back to Security",
+    "changeEmail":  "Change Email",
+    "changePassword":  "Change Password",
+    "changePasswordHint":  "You can change your password here",
+    "confirmNewPassword":  "Confirm New Password",
+    "confirmNewPasswordHint":  "Re-enter your new password",
+    "drafts":  "Drafts",
+    "forgotPasswordHint":  "Enter your email to receive a reset code",
+    "imageUrlHint":  "https://... (optional)",
+    "invalidOtp":  "Invalid code. Please try again.",
+    "manageAnnouncementsSubtitle":  "Manage your announcements",
+    "newPassword":  "New Password",
+    "newPasswordHint":  "Enter your new password",
+    "currentPassword":  "Current Password",
+    "@currentPassword": {
+      "description": "Label for the current password field on the change password form."
+    },
+    "strongPasswordHint":  "Use a strong password that you do not use on other accounts.",
+    "@strongPasswordHint": {
+      "description": "Helper text above the change password fields."
+    },
+    "saveChanges":  "Save Changes",
+    "@saveChanges": {
+      "description": "Submit button on the change password form."
+    },
+    "noAnnouncementsLecturerMessage":  "No announcements yet",
+    "noStudents":  "No students yet",
+    "noStudentsDescription":  "Students with the student role will appear here.",
+    "nim":  "NIM",
+
+    "posttestScore":  "Posttest Score",
+    "pretestScore":  "Pretest Score",
+    "scoreNotAvailable":  "Not available",
+    "scoreScaleHint":  "Scores are on a 0–100 scale. — means the assessment has not been completed.",
+    "scoreTableSemantics":  "Student score table",
+    "studentName":  "Student Name",
+    "otpCode":  "Verification Code",
+    "otpCodeHint":  "Enter the code sent to your email",
+    "otpSentTitle":  "Check Your Email",
+    "otpSentBody":  "We sent a verification code to {submittedEmail}",
+    "@otpSentBody":  {
+      "placeholders":  {
+        "submittedEmail":  {"type":  "String"}
+      }
+    },
+    "passwordChangeNotAvailable":  "Password change is not available in demo mode",
+    "passwordDemoNote":  "This is a demo account. Password changes are disabled.",
+    "passwordTooShort":  "Password must be at least 8 characters",
+    "passwordUpdated":  "Password Updated",
+    "passwordUpdatedBody":  "Your password has been updated successfully.",
+    "passwordUpdateFailed":  "Failed to update password. Please try again.",
+    "pdfUploadHint":  "Upload a PDF file",
+    "preferencesAndAccount":  "Preferences & Account",
+    "questionNotFound":  "This question is no longer part of this assessment.",
+    "resendCode":  "Resend Code",
+    "resendCodeSent":  "A new code has been sent to your email.",
+    "savePassword":  "Save Password",
+    "saveQuestion":  "Save Question",
+    "scoreOverview":  "Score Recap",
+    "searchStudents":  "Search Students",
+    "securityFooterNote":  "Your security settings are managed by the administrator.",
+    "sendOtpCode":  "Send Code",
+    "setNewPasswordHeading":  "Set New Password",
+    "setNewPasswordSubtitle":  "Choose a strong password for your account",
+    "studentData":  "Student Data",
+    "studentDataOverview":  "Student Data Overview",
+    "totalAnnouncements":  "Total Announcements",
+    "verifyCode":  "Verify Code",
+    "optionLabel":  "Option {letter}",
+    "@optionLabel":  {
+      "placeholders":  {
+        "letter":  {"type":  "String"}
+      }
+    },
+    "@virtualLab":  {
+      "description":  "Virtual lab shortcut"
+    },
+    "watchAndLearn":  "Watch & learn",
+    "@watchAndLearn":  {
+      "description":  "Watch and learn subtitle"
+    },
+    "networkPractice":  "Network practice",
+    "@networkPractice":  {
+      "description":  "Network practice subtitle"
+    },
+    "accountSettings":  "Account & settings",
+    "@accountSettings":  {
+      "description":  "Account and settings subtitle"
+    },
+    "noVideoAvailable":  "No video available yet.",
+    "@noVideoAvailable":  {
+      "description":  "No video available message"
+    },
+    "videoListSubtitle":  "{count} modules · Choose a video to start learning",
+    "@videoListSubtitle":  {
+      "description":  "Video list header subtitle",
+      "placeholders":  {
+        "count":  {
+          "type":  "int"
+        }
+      }
+    },
+    "videoListWatchVideo":  "View learning video",
+    "@videoListWatchVideo":  {
+      "description":  "Video card subtitle"
+    },
+    "noVideoAvailableMessage":  "No learning videos have been published yet.",
+    "@noVideoAvailableMessage":  {
+      "description":  "No video available description"
+    },
+    "downloadCsv":  "Download CSV",
+    "@downloadCsv":  {
+      "description":  "Download student data as CSV"
+    },
+    "csvExported":  "CSV downloaded successfully.",
+    "@csvExported":  {
+      "description":  "CSV export success message"
+    },
+    "csvFailed":  "Failed to export CSV. Please try again.",
+    "@csvFailed":  {
+      "description":  "CSV export error message"
+    },
+    "videoLinkAvailable":  "Video link available",
+    "@videoLinkAvailable":  {
+      "description":  "Video card badge when the module has a usable video link"
+    },
+    "videoLinkUnavailable":  "Video not available yet",
+    "@videoLinkUnavailable":  {
+      "description":  "Video card badge when the module has no usable video link"
+    },
+    "splashTagline":  "LEARN. CONNECT. GROW.",
+    "@splashTagline":  {
+      "description":  "Splash screen tagline"
+    },
+    "splashOpening":  "Opening the application",
+    "@splashOpening":  {
+      "description":  "Accessibility label for the splash loading indicator"
+    },
+    "onboardingJourneyLabel":  "Your networking journey",
+    "@onboardingJourneyLabel":  {
+      "description":  "Small heading above the onboarding step indicator"
+    },
+    "onboardingPageNumberSuffix":  " / 03",
+    "@onboardingPageNumberSuffix":  {
+      "description":  "Total page count after the active onboarding page number, e.g. \"01 / 03\"."
+    },
+    "onboardingIntroTitle":  "Learn Networking, Connect Everything.",
+    "@onboardingIntroTitle":  {
+      "description":  "Onboarding screen 1 headline"
+    },
+    "onboardingIntroBody":  "Build your understanding of computer networks through guided materials, learning videos, and assessments.",
+    "@onboardingIntroBody":  {
+      "description":  "Onboarding screen 1 description"
+    },
+    "onboardingModulesTitle":  "Understand the Fundamentals.",
+    "@onboardingModulesTitle":  {
+      "description":  "Onboarding screen 2 headline"
+    },
+    "onboardingModulesBody":  "Explore the core concepts of computer networking, one step at a time.",
+    "@onboardingModulesBody":  {
+      "description":  "Onboarding screen 2 description"
+    },
+    "onboardingPracticeTitle":  "Turn Knowledge into Practice.",
+    "@onboardingPracticeTitle":  {
+      "description":  "Onboarding screen 3 headline"
+    },
+    "onboardingPracticeBody":  "Study materials, watch learning videos, complete assessments, and review your results.",
+    "@onboardingPracticeBody":  {
+      "description":  "Onboarding screen 3 description"
+    },
+    "onboardingPersistFailed":  "Could not save your onboarding status. It may appear again on your next sign-in.",
+    "@onboardingPersistFailed":  {
+      "description":  "Shown when recording onboarding completion on the account fails, e.g. without a network"
+    },
+    "onboardingModuleFundamentals":  "Computer Networking Fundamentals",
+    "@onboardingModuleFundamentals":  {
+      "description":  "Onboarding module card: Dasar-Dasar Jaringan"
+    },
+    "onboardingModuleDevices":  "Network Devices",
+    "@onboardingModuleDevices":  {
+      "description":  "Onboarding module card: Perangkat Jaringan"
+    },
+    "onboardingModuleTopologies":  "Network Topologies",
+    "@onboardingModuleTopologies":  {
+      "description":  "Onboarding module card: Topologi Jaringan"
+    },
+    "onboardingModuleIpAddress":  "IP Address",
+    "@onboardingModuleIpAddress":  {
+      "description":  "Onboarding module card: IP Address"
+    },
+    "journeyStudyTitle":  "Study Materials",
+    "@journeyStudyTitle":  {
+      "description":  "Onboarding learning journey step 1 title"
+    },
+    "journeyStudySubtitle":  "Build your foundation",
+    "@journeyStudySubtitle":  {
+      "description":  "Onboarding learning journey step 1 subtitle"
+    },
+    "journeyVideosTitle":  "Watch Videos",
+    "@journeyVideosTitle":  {
+      "description":  "Onboarding learning journey step 2 title"
+    },
+    "journeyVideosSubtitle":  "See concepts in action",
+    "@journeyVideosSubtitle":  {
+      "description":  "Onboarding learning journey step 2 subtitle"
+    },
+    "journeyAssessmentsTitle":  "Take Assessments",
+    "@journeyAssessmentsTitle":  {
+      "description":  "Onboarding learning journey step 3 title"
+    },
+    "journeyAssessmentsSubtitle":  "Check your understanding",
+    "@journeyAssessmentsSubtitle":  {
+      "description":  "Onboarding learning journey step 3 subtitle"
+    },
+    "journeyReviewTitle":  "Review Results",
+    "@journeyReviewTitle":  {
+      "description":  "Onboarding learning journey step 4 title"
+    },
+    "journeyReviewSubtitle":  "Reflect on your learning",
+    "@journeyReviewSubtitle":  {
+      "description":  "Onboarding learning journey step 4 subtitle"
+    },
+    "onboardingSkip":  "Skip",
+    "@onboardingSkip":  {
+      "description":  "Onboarding skip action"
+    },
+    "onboardingGetStarted":  "Get Started",
+    "@onboardingGetStarted":  {
+      "description":  "Final onboarding action"
+    },
+    "onboardingProgressLabel":  "Onboarding progress",
+    "@onboardingProgressLabel":  {
+      "description":  "Accessibility label for the onboarding progress dots"
+    },
+    "onboardingSceneStudentLabel":  "A student exploring a computer network from a laptop, connected to a router and a desktop computer",
+    "@onboardingSceneStudentLabel":  {
+      "description":  "Accessibility description of the onboarding student scene"
+    },
+    "onboardingSceneNetworkLabel":  "Computers connected through a router with Ethernet ports",
+    "@onboardingSceneNetworkLabel":  {
+      "description":  "Accessibility description of the onboarding networking scene"
+    },
+    "manageClassesTitle": "Manage Class",
+    "manageClassesSubtitle": "Create, configure, and manage your classes and modules.",
+    "createClassTitle": "Create Class",
+    "switchClassAction": "Switch Class",
+    "archivedClassesTitle": "Archived Classes",
+    "noClassesLecturerTitle": "No active classes yet",
+    "noClassesLecturerMessage": "Create your first class from the NetLearn template or start a custom class from scratch.",
+    "classStatusDraft": "Draft",
+    "classStatusPublished": "Published",
+    "classStatusArchived": "Archived",
+    "classOriginTemplate": "NetLearn Template",
+    "classOriginCustom": "Custom Class",
+    "classMembersCount": "{count} students",
+    "@classMembersCount": {
+      "placeholders": {
+        "count": {
+          "type": "int"
+        }
+      }
+    },
+    "classModulesCount": "{count} modules",
+    "@classModulesCount": {
+      "placeholders": {
+        "count": {
+          "type": "int"
+        }
+      }
+    },
+    "classInviteCodeLabel": "Invite Code",
+    "classInviteCodeCopied": "Invite code copied to clipboard.",
+    "classManageButton": "Manage",
+    "classNameLabel": "Class Name",
+    "classNameHint": "e.g. Computer Networks — Class A",
+    "classNameRequired": "Class name is required",
+    "classDescriptionLabel": "Class Description",
+    "classDescriptionHint": "Short summary of class goals or schedule",
+    "classSemesterLabel": "Semester / Academic Period",
+    "classSemesterHint": "e.g. Odd 2026/2027",
+    "classCreationModeTitle": "Class Structure Source",
+    "classUseTemplateTitle": "Use NetLearn Template",
+    "classUseTemplateSubtitle": "Copies the 4 core modules, 5 materials, Pretest, and Posttest into your class.",
+    "classCreateCustomTitle": "Create Custom Class",
+    "classCreateCustomSubtitle": "Start with an empty class and build your own modules, materials, and assessments.",
+    "classPretestEnabledLabel": "Enable Pretest Gate",
+    "classPretestEnabledHelper": "Students must submit the Pretest before unlocking Module 1.",
+    "classPosttestEnabledLabel": "Enable Posttest Evaluation",
+    "classPosttestEnabledHelper": "Unlocks the final Posttest after all published modules are completed.",
+    "classLeaderboardEnabledLabel": "Enable Class Leaderboard",
+    "classLeaderboardEnabledHelper": "Shows ranked assessment and overall class standings to enrolled students.",
+    "classCreatedSuccess": "Class created successfully.",
+    "classUpdatedSuccess": "Class settings updated.",
+    "classPublishAction": "Publish Class",
+    "classArchiveAction": "Archive Class",
+    "classRestoreAction": "Restore to Draft",
+    "classTabModules": "Modules",
+    "classTabSettings": "Settings & Gates",
+    "classTabInviteRoster": "Invite & Roster",
+    "classTabLeaderboard": "Leaderboard",
+    "classAddModuleAction": "Add Module",
+    "classEditModuleAction": "Edit Module",
+    "classModuleTitleIdLabel": "Module Title (Indonesian)",
+    "classModuleTitleEnLabel": "Module Title (English)",
+    "classModuleDescIdLabel": "Description (Indonesian)",
+    "classModuleDescEnLabel": "Description (English)",
+    "classNoModulesEmpty": "No modules in this class yet. Add your first module to begin.",
+    "classAddMaterialToModule": "Add Material",
+    "classRotateInviteAction": "Rotate Code",
+    "classInviteActiveLabel": "Allow Joining via Invite Code",
+    "classRosterEmpty": "No students have joined this class yet.",
+    "classRemoveMemberTitle": "Remove Student from Class?",
+    "classRemoveMemberConfirm": "Their historical progress and attempt records will be preserved.",
+    "classRemoveMemberAction": "Remove",
+    "classPolicyChangeTitle": "Update Class Gate Policy?",
+    "classPolicyChangeConfirm": "Changing Pretest, Posttest, or Leaderboard settings increments the class policy version. Students who already unlocked modules keep their unlocked status.",
+    "studentMyClassesTitle": "My Classes",
+    "studentActiveClassLabel": "Active Class",
+    "studentJoinClassAction": "Join Class",
+    "studentJoinClassHint": "Enter 8-character invite code",
+    "studentJoinClassSuccess": "Successfully joined the class!",
+    "studentNoClassTitle": "Join a Class to Start Learning",
+    "studentNoClassMessage": "Ask your lecturer for an 8-character class invite code to unlock your modules, materials, and assessments.",
+    "studentLeaveClassAction": "Leave Class",
+    "studentLeaveClassConfirm": "Are you sure you want to leave this class? Your historical progress will stay saved if you rejoin later.",
+    "classEmptyMaterialsMessage": "Your lecturer is still preparing the learning modules for this class.",
+    "leaderboardTitle": "Class Leaderboard",
+    "leaderboardOverallTab": "Overall Class",
+    "leaderboardAssessmentTab": "Per Assessment",
+    "leaderboardCohortFinal": "Final (Completed All)",
+    "leaderboardCohortProvisional": "In Progress (Provisional)",
+    "leaderboardEmptyTitle": "No ranked assessments yet",
+    "leaderboardEmptyMessage": "Rankings will appear once students submit graded assessments in this class.",
+    "leaderboardFormulaNote": "Normalized 0–100 score · Highest valid attempt · Pretest excluded by default · Ties broken by earliest submission.",
+    "leaderboardYouBadge": "You",
+    "couldNotLoadData": "Could not load data.",
+    "confirm": "Confirm",
+    "onboardingSceneJourneyLabel":  "A laptop, assessment sheets, and result charts connected in one learning journey",
+    "@onboardingSceneJourneyLabel":  {
+      "description":  "Accessibility description of the onboarding learning journey scene"
+    }
+}

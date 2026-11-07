@@ -1,136 +1,165 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../core/localization/language_controller.dart';
+import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/models/student_model.dart';
 import '../../shared/widgets/nl_button.dart';
+import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
-import 'assessment_models.dart';
+import 'lecturer_students_controller.dart';
+import 'lecturer_students_csv.dart';
+import 'lecturer_students_pdf.dart';
 
-/// Tab Rekap Nilai — tabel nilai seluruh mahasiswa beserta tombol aksi ekspor CSV & PDF.
-/// Mereplika persis visual dan struktur tabel dari NetLearn 2.0.
-class LecturerScoreOverviewTab extends StatefulWidget {
-  final List<StudentScoreModel>? students;
-
-  const LecturerScoreOverviewTab({
-    super.key,
-    this.students,
-  });
+/// Tab Rekap Nilai — tabel nilai seluruh mahasiswa beserta tombol ekspor CSV dan PDF.
+class LecturerScoreOverviewTab extends ConsumerWidget {
+  const LecturerScoreOverviewTab({super.key});
 
   @override
-  State<LecturerScoreOverviewTab> createState() => _LecturerScoreOverviewTabState();
-}
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final studentsAsync = ref.watch(lecturerStudentsProvider(null));
 
-class _LecturerScoreOverviewTabState extends State<LecturerScoreOverviewTab> {
-  late List<StudentScoreModel> _students;
-
-  @override
-  void initState() {
-    super.initState();
-    _students = widget.students ?? getInitialStudents();
-  }
-
-  void _downloadCsv() {
-    NlSnackBar.show(
-      context,
-      'Rekap nilai berhasil diekspor ke CSV: rekap_nilai_mahasiswa.csv',
-      tone: NlSnackTone.success,
-    );
-  }
-
-  void _exportPdf() {
-    NlSnackBar.show(
-      context,
-      'Laporan PDF nilai berhasil dicetak: laporan_rekap_nilai_TI-3A.pdf',
-      tone: NlSnackTone.success,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(
-        NetLearnSpace.s20,
-        NetLearnSpace.s8,
-        NetLearnSpace.s20,
-        NetLearnSpace.s32,
+    return studentsAsync.when(
+      loading: () => const Center(
+        child: CircularProgressIndicator(),
       ),
-      children: [
-        Text(
-          'Rekap Nilai Mahasiswa',
-          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-                fontSize: 16,
-                color: NetLearnColors.neutral900,
+      error: (error, stackTrace) => Center(
+        child: Padding(
+          padding: const EdgeInsets.all(NetLearnSpace.s24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline,
+                size: 46,
+                color: NetLearnColors.danger,
               ),
-        ),
-        const SizedBox(height: NetLearnSpace.s12),
-        Row(
-          children: [
-            Expanded(
-              child: NlButton(
-                label: 'Unduh CSV',
-                icon: Icons.download_rounded,
-                variant: NlButtonVariant.secondary,
-                onPressed: _downloadCsv,
+              const SizedBox(height: NetLearnSpace.s12),
+              Text(
+                mapStudentsError(error).message,
+                textAlign: TextAlign.center,
               ),
-            ),
-            const SizedBox(width: 8),
-            Expanded(
-              child: NlButton(
-                label: 'Cetak Laporan PDF',
-                icon: Icons.picture_as_pdf_rounded,
-                variant: NlButtonVariant.primary,
-                onPressed: _exportPdf,
+              const SizedBox(height: NetLearnSpace.s12),
+              OutlinedButton(
+                onPressed: () {
+                  ref.invalidate(lecturerStudentsProvider(null));
+                },
+                child: Text(l10n.retry),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: NetLearnSpace.s12),
-        Text(
-          'Skala nilai 0–100. Tanda strip (—) menunjukkan mahasiswa belum mengerjakan asesmen.',
-          style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: context.mutedText,
-                fontSize: 12,
-              ),
-        ),
-        const SizedBox(height: NetLearnSpace.s16),
-
-        // Tabel nilai versi compact persis NetLearn 2.0
-        Semantics(
-          label: 'Tabel Rekap Nilai Mahasiswa',
-          container: true,
-          child: Container(
-            key: const ValueKey('score-table-card'),
-            decoration: BoxDecoration(
-              color: context.surface,
-              borderRadius: BorderRadius.circular(18),
-              border: Border.all(color: context.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Table(
-              defaultVerticalAlignment: TableCellVerticalAlignment.top,
-              columnWidths: const {
-                0: FlexColumnWidth(1.7),
-                1: IntrinsicColumnWidth(),
-                2: FlexColumnWidth(1.35),
-                3: FlexColumnWidth(1.35),
-              },
-              border: TableBorder(
-                horizontalInside: BorderSide(color: context.border),
-                bottom: BorderSide(color: context.border),
-              ),
-              children: [
-                _scoreHeaderRow(context),
-                for (final student in _students)
-                  _scoreRow(context, student),
-              ],
-            ),
+            ],
           ),
         ),
-      ],
+      ),
+      data: (students) {
+        if (students.isEmpty) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(NetLearnSpace.s24),
+              child: NlEmptyState(
+                icon: Icons.assessment_outlined,
+                title: l10n.scoreOverview,
+                message: l10n.scoreTabEmpty,
+              ),
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          color: context.accent,
+          onRefresh: () async {
+            ref.invalidate(lecturerStudentsProvider(null));
+            await ref.read(lecturerStudentsProvider(null).future);
+          },
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              NetLearnSpace.s20,
+              NetLearnSpace.s8,
+              NetLearnSpace.s20,
+              NetLearnSpace.s32,
+            ),
+            children: [
+              Text(
+                l10n.scoreOverview,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+              const SizedBox(height: NetLearnSpace.s12),
+              Row(
+                children: [
+                  Expanded(
+                    child: NlButton(
+                      label: l10n.downloadCsv,
+                      icon: Icons.download_rounded,
+                      variant: NlButtonVariant.secondary,
+                      onPressed: () => _downloadCsv(context, l10n, students),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: NlButton(
+                      label: ref.watch(languageProvider).languageCode == 'id'
+                          ? 'Cetak Laporan PDF'
+                          : 'Print PDF Report',
+                      icon: Icons.picture_as_pdf_rounded,
+                      variant: NlButtonVariant.primary,
+                      onPressed: () => _exportPdf(context, ref, students),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: NetLearnSpace.s12),
+              Text(
+                l10n.scoreScaleHint,
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: context.mutedText,
+                    ),
+              ),
+              const SizedBox(height: NetLearnSpace.s16),
+
+              Semantics(
+                label: l10n.scoreTableSemantics,
+                container: true,
+                child: Container(
+                  key: const ValueKey('score-table-card'),
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    borderRadius: BorderRadius.circular(18),
+                    border: Border.all(color: context.border),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: Table(
+                    defaultVerticalAlignment: TableCellVerticalAlignment.top,
+                    columnWidths: const {
+                      0: FlexColumnWidth(1.7),
+                      1: IntrinsicColumnWidth(),
+                      2: FlexColumnWidth(1.35),
+                      3: FlexColumnWidth(1.35),
+                    },
+                    border: TableBorder(
+                      horizontalInside: BorderSide(color: context.border),
+                      bottom: BorderSide(color: context.border),
+                    ),
+                    children: [
+                      _scoreHeaderRow(context, l10n),
+                      for (final student in students)
+                        _scoreRow(context, l10n, student),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
-  TableRow _scoreHeaderRow(BuildContext context) {
+  TableRow _scoreHeaderRow(BuildContext context, AppLocalizations l10n) {
     Widget headerCell(String label, TextAlign textAlign) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -159,26 +188,23 @@ class _LecturerScoreOverviewTabState extends State<LecturerScoreOverviewTab> {
         borderRadius: const BorderRadius.vertical(top: Radius.circular(10)),
       ),
       children: [
-        headerCell('Nama Mahasiswa', TextAlign.left),
-        headerCell('NIM', TextAlign.left),
-        headerCell('Pretest', TextAlign.center),
-        headerCell('Posttest', TextAlign.center),
+        headerCell(l10n.studentName, TextAlign.left),
+        headerCell(l10n.nim, TextAlign.left),
+        headerCell(l10n.pretestScore, TextAlign.center),
+        headerCell(l10n.posttestScore, TextAlign.center),
       ],
     );
   }
 
-  TableRow _scoreRow(BuildContext context, StudentScoreModel student) {
+  TableRow _scoreRow(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentModel student,
+  ) {
     Widget nameCell(String value) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        child: Text(
-          value,
-          style: const TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: NetLearnColors.neutral900,
-          ),
-        ),
+        child: Text(value, style: const TextStyle(fontSize: 12)),
       );
     }
 
@@ -198,10 +224,7 @@ class _LecturerScoreOverviewTabState extends State<LecturerScoreOverviewTab> {
               value,
               maxLines: 1,
               softWrap: false,
-              style: TextStyle(
-                fontSize: 12,
-                color: color ?? NetLearnColors.neutral700,
-              ),
+              style: TextStyle(fontSize: 12, color: color),
             ),
           ),
         ),
@@ -210,25 +233,25 @@ class _LecturerScoreOverviewTabState extends State<LecturerScoreOverviewTab> {
 
     Widget scoreCell(double? score) {
       if (score == null) {
-        return flatCell(
-          '—',
-          alignment: Alignment.center,
-          color: context.mutedText,
+        return Semantics(
+          label: l10n.scoreNotAvailable,
+          excludeSemantics: true,
+          child: flatCell(
+            '—',
+            alignment: Alignment.center,
+            color: context.mutedText,
+          ),
         );
       }
 
-      return flatCell(
-        formatScoreValue(score),
-        alignment: Alignment.center,
-        color: score >= 75 ? NetLearnColors.forest : NetLearnColors.danger,
-      );
+      return flatCell(formatScoreValue(score), alignment: Alignment.center);
     }
 
     return TableRow(
       children: [
         nameCell(student.name),
         flatCell(
-          student.identityNumber,
+          student.identityNumber ?? '',
           alignment: Alignment.centerLeft,
         ),
         scoreCell(student.pretestScore),
@@ -236,5 +259,85 @@ class _LecturerScoreOverviewTabState extends State<LecturerScoreOverviewTab> {
       ],
     );
   }
-}
 
+  Future<void> _downloadCsv(
+    BuildContext context,
+    AppLocalizations l10n,
+    List<StudentModel> students,
+  ) async {
+    try {
+      final path = await exportScoresToCsv(students);
+      if (!context.mounted) return;
+
+      if (path != null) {
+        NlSnackBar.show(
+          context,
+          l10n.csvExported,
+          tone: NlSnackTone.success,
+        );
+      } else {
+        NlSnackBar.show(
+          context,
+          l10n.csvFailed,
+          tone: NlSnackTone.error,
+        );
+      }
+    } catch (e) {
+      if (!context.mounted) return;
+      NlSnackBar.show(
+        context,
+        l10n.csvFailed,
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+
+  Future<void> _exportPdf(
+    BuildContext context,
+    WidgetRef ref,
+    List<StudentModel> students,
+  ) async {
+    final isId = ref.read(languageProvider).languageCode == 'id';
+
+    final user = supabase.auth.currentUser;
+    final lecturerName = user?.userMetadata?['name']?.toString() ??
+        user?.userMetadata?['full_name']?.toString() ??
+        'Rafi Ahmad Fauzan';
+
+    try {
+      final path = await LecturerStudentsPdfExporter.generateAndOpenPdf(
+        students: students,
+        activeClass: null,
+        lecturerName: lecturerName,
+      );
+
+      if (!context.mounted) return;
+
+      if (path != null) {
+        final fileName = path.contains('/')
+            ? path.split('/').last
+            : path.split(r'\').last;
+        NlSnackBar.show(
+          context,
+          isId
+              ? 'Laporan PDF berhasil dicetak: $fileName'
+              : 'PDF report generated: $fileName',
+          tone: NlSnackTone.success,
+        );
+      } else {
+        NlSnackBar.show(
+          context,
+          isId ? 'Gagal mencetak dokumen PDF' : 'Failed to generate PDF document',
+          tone: NlSnackTone.error,
+        );
+      }
+    } catch (_) {
+      if (!context.mounted) return;
+      NlSnackBar.show(
+        context,
+        isId ? 'Gagal mencetak dokumen PDF' : 'Failed to generate PDF document',
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_theme.dart';
 
 enum NetLearnStatus {
@@ -7,7 +8,9 @@ enum NetLearnStatus {
   down,
 }
 
-/// StatusBadge: badge status dengan ikon + teks + warna latar dan foreground.
+/// Badge status — selalu ikon + teks + warna.
+///
+/// Dipakai untuk status modul, kuis, dan koneksi/tracking AR.
 class StatusBadge extends StatelessWidget {
   final NetLearnStatus status;
   final String label;
@@ -20,62 +23,74 @@ class StatusBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final statusColors =
+    theme.extension<NetLearnStatusColors>();
+
     late final Color color;
     late final Color background;
     late final IconData icon;
 
     switch (status) {
       case NetLearnStatus.linked:
-        color = NetLearnColors.success;
-        background = const Color(0xFFE8F6EF);
+        color = statusColors?.positiveText ?? scheme.primary;
+        background =
+            statusColors?.positiveBg ?? scheme.primary.withValues(alpha: 0.12);
         icon = Icons.check_circle;
-        break;
+
       case NetLearnStatus.active:
-        color = NetLearnColors.primary;
-        background = NetLearnColors.primaryTint;
+        color = scheme.primary;
+        background =
+            statusColors?.neutralBg ?? scheme.primary.withValues(alpha: 0.12);
         icon = Icons.circle;
-        break;
+
       case NetLearnStatus.down:
-        color = NetLearnColors.danger;
-        background = const Color(0xFFFDF0F0);
+        color = statusColors?.dangerText ?? scheme.error;
+        background =
+            statusColors?.dangerBg ?? scheme.error.withValues(alpha: 0.12);
         icon = Icons.lock;
-        break;
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 7,
-        vertical: 5,
-      ),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(
-          NetLearnRadius.badge,
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            icon,
-            size: 13,
-            color: color,
+    return Semantics(
+      label: label,
+      child: ExcludeSemantics(
+        child: Container(
+          // `.badge` — padding 5px 7px, radius 6px, teks 8px weight 600.
+          padding: const EdgeInsets.symmetric(
+            horizontal: 7,
+            vertical: 5,
           ),
-          const SizedBox(width: 4),
-          Flexible(
-            child: Text(
-              label,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: color,
-                fontSize: 9,
-                fontWeight: FontWeight.w600,
-              ),
+          decoration: BoxDecoration(
+            color: background,
+            borderRadius: BorderRadius.circular(
+              NetLearnRadius.badge,
             ),
           ),
-        ],
+child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  icon,
+                  size: 13,
+                  color: color,
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    label,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: color,
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+        ),
       ),
     );
   }
 }
-

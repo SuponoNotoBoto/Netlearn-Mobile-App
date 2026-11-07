@@ -1,142 +1,47 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/localization/language_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_segmented_tabs.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
-import '../../shared/widgets/status_badge.dart';
-import 'assessment_models.dart';
+import '../../shared/widgets/status_badge.dart'
+    show NetLearnStatus, StatusBadge;
+import 'lecturer_assessments_controller.dart';
+import 'lecturer_bottom_navbar.dart';
 import 'lecturer_score_overview.dart';
-import 'lecturer_task_form_page.dart';
 
-class LecturerAssessmentsPage extends StatefulWidget {
-  final VoidCallback? onBack;
-  final Widget? bottomNavigationBar;
-
-  const LecturerAssessmentsPage({
-    super.key,
-    this.onBack,
-    this.bottomNavigationBar,
-  });
+class LecturerAssessmentsPage extends ConsumerStatefulWidget {
+  const LecturerAssessmentsPage({super.key});
 
   @override
-  State<LecturerAssessmentsPage> createState() => _LecturerAssessmentsPageState();
+  ConsumerState<LecturerAssessmentsPage> createState() =>
+      _LecturerAssessmentsPageState();
 }
 
-class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
+class _LecturerAssessmentsPageState
+    extends ConsumerState<LecturerAssessmentsPage> {
   static const int _assessmentsTab = 0;
   static const int _scoreOverviewTab = 1;
 
   int _selectedTab = _assessmentsTab;
 
-  late List<LecturerAssessment> _coreAssessments;
-  late List<LecturerTask> _customTasks;
-
-  @override
-  void initState() {
-    super.initState();
-    _coreAssessments = getInitialAssessments();
-    _customTasks = getInitialTasks();
-  }
-
-  void _openCreateTaskForm() async {
-    final created = await Navigator.push<LecturerTask>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LecturerTaskFormPage(
-          onSave: (newTask) {
-            setState(() {
-              _customTasks.insert(0, newTask);
-            });
-          },
-        ),
-      ),
-    );
-
-    if (created != null && mounted) {
-      setState(() {
-        if (!_customTasks.any((t) => t.id == created.id)) {
-          _customTasks.insert(0, created);
-        }
-      });
-    }
-  }
-
-  void _openEditTaskForm(LecturerTask task) async {
-    final updated = await Navigator.push<LecturerTask>(
-      context,
-      MaterialPageRoute(
-        builder: (context) => LecturerTaskFormPage(
-          task: task,
-          onSave: (edited) {
-            setState(() {
-              final idx = _customTasks.indexWhere((t) => t.id == edited.id);
-              if (idx != -1) {
-                _customTasks[idx] = edited;
-              }
-            });
-          },
-        ),
-      ),
-    );
-
-    if (updated != null && mounted) {
-      setState(() {
-        final idx = _customTasks.indexWhere((t) => t.id == updated.id);
-        if (idx != -1) {
-          _customTasks[idx] = updated;
-        }
-      });
-    }
-  }
-
-  void _toggleAssessmentPublish(LecturerAssessment assessment) {
-    final isPub = assessment.isPublished;
-    final nextStatus = isPub ? 'draft' : 'published';
-
-    setState(() {
-      final index = _coreAssessments.indexWhere((a) => a.id == assessment.id);
-      if (index != -1) {
-        _coreAssessments[index] = assessment.copyWith(status: nextStatus);
-      }
-    });
-
-    NlSnackBar.show(
-      context,
-      isPub
-          ? 'Asesmen "${assessment.title}" telah disembunyikan (Draft)'
-          : 'Asesmen "${assessment.title}" berhasil diterbitkan',
-      tone: NlSnackTone.success,
-    );
-  }
-
-  void _toggleTaskPublish(LecturerTask task) {
-    final isPub = task.isPublished;
-    final nextStatus = isPub ? 'draft' : 'published';
-
-    setState(() {
-      final index = _customTasks.indexWhere((t) => t.id == task.id);
-      if (index != -1) {
-        _customTasks[index] = task.copyWith(status: nextStatus);
-      }
-    });
-
-    NlSnackBar.show(
-      context,
-      isPub
-          ? 'Tugas "${task.title}" telah disembunyikan (Draft)'
-          : 'Tugas "${task.title}" berhasil diterbitkan',
-      tone: NlSnackTone.success,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
     return Scaffold(
       backgroundColor: context.background,
+
       appBar: NlTopBar(
-        title: 'Asesmen',
-        onBack: widget.onBack ?? (Navigator.canPop(context) ? () => Navigator.pop(context) : null),
+        title: l10n.assessment,
+        onBack: () => context.pop(),
       ),
+
       body: Column(
         children: [
           Padding(
@@ -147,9 +52,9 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
               0,
             ),
             child: NlSegmentedTabs(
-              labels: const ['Asesmen Utama', 'Rekap Nilai'],
+              labels: [l10n.assessmentCoreTab, l10n.scoreOverview],
               selectedIndex: _selectedTab,
-              semanticLabel: 'Asesmen & Rekap Nilai',
+              semanticLabel: l10n.assessment,
               onChanged: (index) {
                 setState(() {
                   _selectedTab = index;
@@ -157,68 +62,123 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
               },
             ),
           ),
+
           const SizedBox(height: NetLearnSpace.s16),
+
           Expanded(
             child: _selectedTab == _scoreOverviewTab
                 ? const LecturerScoreOverviewTab()
-                : _buildAssessmentsTab(context),
+                : _buildAssessmentsTab(context, l10n),
           ),
         ],
       ),
+
       floatingActionButton: _selectedTab == _assessmentsTab
           ? FloatingActionButton.extended(
               backgroundColor: context.accent,
               foregroundColor: Colors.white,
               icon: const Icon(Icons.add_rounded),
-              label: const Text(
-                'Tambah Asesmen',
-                style: TextStyle(fontWeight: FontWeight.w700),
+              label: Text(
+                ref.watch(languageProvider).languageCode == 'id'
+                    ? 'Tambah Asesmen'
+                    : 'Add Assessment',
+                style: const TextStyle(fontWeight: FontWeight.w700),
               ),
-              onPressed: _openCreateTaskForm,
+              onPressed: () => context.push('/lecturer/assessments/task/create'),
             )
           : null,
-      bottomNavigationBar: widget.bottomNavigationBar,
+
+      bottomNavigationBar: const LecturerBottomNavbar(currentIndex: 2),
     );
   }
 
-  Widget _buildAssessmentsTab(BuildContext context) {
+  /// Tab pertama — mengelola asesmen utama (Pretest/Posttest) serta tugas & kuis kustom.
+  Widget _buildAssessmentsTab(BuildContext context, AppLocalizations l10n) {
+    final isId = ref.watch(languageProvider).languageCode == 'id';
     final theme = Theme.of(context);
+    final assessments = ref.watch(lecturerAssessmentsProvider);
+    final tasksAsync = ref.watch(lecturerTasksProvider);
 
     return RefreshIndicator(
       color: context.accent,
       onRefresh: () async {
-        await Future.delayed(const Duration(milliseconds: 400));
-        setState(() {
-          _coreAssessments = getInitialAssessments();
-          _customTasks = getInitialTasks();
-        });
+        ref.invalidate(lecturerAssessmentsProvider);
+        ref.invalidate(lecturerTasksProvider);
+        await Future.wait([
+          ref.read(lecturerAssessmentsProvider.future),
+          ref.read(lecturerTasksProvider.future),
+        ]);
       },
       child: ListView(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.fromLTRB(
           NetLearnSpace.s20,
-          NetLearnSpace.s8,
+          NetLearnSpace.s16,
           NetLearnSpace.s20,
           NetLearnSpace.s32 + 64,
         ),
         children: [
           // Section 1: Core Assessments (Pretest & Posttest)
           Text(
-            'Asesmen Utama (Gerbang)',
+            isId ? 'Asesmen Utama (Gerbang)' : 'Core Gate Assessments',
             style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
               fontSize: 16,
-              color: NetLearnColors.neutral900,
             ),
           ),
           const SizedBox(height: NetLearnSpace.s12),
-          for (final assessment in _coreAssessments)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 16),
-              child: _buildCoreAssessmentCard(context, assessment),
+          assessments.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(NetLearnSpace.s24),
+                child: CircularProgressIndicator(),
+              ),
             ),
+            error: (error, stackTrace) => Padding(
+              padding: const EdgeInsets.all(NetLearnSpace.s24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 46,
+                    color: NetLearnColors.danger,
+                  ),
+                  const SizedBox(height: NetLearnSpace.s12),
+                  Text(l10n.failedToLoad, textAlign: TextAlign.center),
+                  const SizedBox(height: NetLearnSpace.s12),
+                  OutlinedButton(
+                    onPressed: () =>
+                        ref.invalidate(lecturerAssessmentsProvider),
+                    child: Text(l10n.retry),
+                  ),
+                ],
+              ),
+            ),
+            data: (items) {
+              if (items.isEmpty) {
+                return NlEmptyState(
+                  icon: Icons.quiz_outlined,
+                  title: l10n.noAssessments,
+                  message: l10n.noAssessmentsDescription,
+                );
+              }
 
-          const SizedBox(height: NetLearnSpace.s16),
+              return Column(
+                children: [
+                  for (final assessment in orderAssessments(items))
+                    Padding(
+                      padding: const EdgeInsets.only(
+                        bottom: 16,
+                      ),
+                      child: _AssessmentCard(assessment: assessment),
+                    ),
+                ],
+              );
+            },
+          ),
+
+          const SizedBox(height: NetLearnSpace.s24),
 
           // Section 2: Custom Tasks & LMS Assessments
           Row(
@@ -226,78 +186,114 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
             children: [
               Expanded(
                 child: Text(
-                  'Tugas & Kuis Kustom',
+                  isId ? 'Tugas & Kuis Kustom' : 'Custom Tasks & Quizzes',
                   style: theme.textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
-                    color: NetLearnColors.neutral900,
                   ),
                 ),
               ),
               const SizedBox(width: NetLearnSpace.s8),
               TextButton.icon(
-                onPressed: _openCreateTaskForm,
+                onPressed: () => context.push('/lecturer/assessments/task/create'),
                 icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
-                label: const Text(
-                  'Buat Baru',
-                  style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
+                label: Text(
+                  isId ? 'Buat Baru' : 'Create New',
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
                 ),
               ),
             ],
           ),
           const SizedBox(height: NetLearnSpace.s12),
-
-          if (_customTasks.isEmpty)
-            Container(
+          tasksAsync.when(
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(NetLearnSpace.s24),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+            error: (error, stackTrace) => Padding(
               padding: const EdgeInsets.all(NetLearnSpace.s24),
-              decoration: BoxDecoration(
-                color: context.surface,
-                borderRadius: BorderRadius.circular(NetLearnRadius.card),
-                border: Border.all(color: context.border),
+              child: Text(
+                isId ? 'Gagal memuat tugas kustom' : 'Failed to load custom tasks',
+                textAlign: TextAlign.center,
               ),
-              child: Column(
+            ),
+            data: (tasks) {
+              if (tasks.isEmpty) {
+                return Container(
+                  padding: const EdgeInsets.all(NetLearnSpace.s24),
+                  decoration: BoxDecoration(
+                    color: context.surface,
+                    borderRadius: BorderRadius.circular(NetLearnRadius.card),
+                    border: Border.all(color: context.border),
+                  ),
+                  child: Column(
+                    children: [
+                      Icon(Icons.assignment_outlined, size: 40, color: context.mutedText),
+                      const SizedBox(height: NetLearnSpace.s8),
+                      Text(
+                        isId ? 'Belum Ada Asesmen Kustom' : 'No Custom Assessments Yet',
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isId
+                            ? 'Buat asesmen kustom bebas atau kuis terikat modul untuk mahasiswa di kelas Anda.'
+                            : 'Create standalone LMS tasks or module quizzes for students in your class.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: context.mutedText, fontSize: 12),
+                      ),
+                      const SizedBox(height: NetLearnSpace.s16),
+                      FilledButton.icon(
+                        icon: const Icon(Icons.add_rounded, size: 18),
+                        label: Text(isId ? 'Tambah Asesmen Sekarang' : 'Add Assessment Now'),
+                        style: FilledButton.styleFrom(
+                          backgroundColor: context.accent,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: () => context.push('/lecturer/assessments/task/create'),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return Column(
                 children: [
-                  Icon(Icons.assignment_outlined, size: 40, color: context.mutedText),
-                  const SizedBox(height: NetLearnSpace.s8),
-                  const Text(
-                    'Belum Ada Asesmen Kustom',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Buat asesmen kustom bebas atau kuis terikat modul untuk mahasiswa di kelas Anda.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: context.mutedText, fontSize: 12),
-                  ),
-                  const SizedBox(height: NetLearnSpace.s16),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.add_rounded, size: 18),
-                    label: const Text('Tambah Asesmen Sekarang'),
-                    style: FilledButton.styleFrom(
-                      backgroundColor: context.accent,
-                      foregroundColor: Colors.white,
+                  for (final task in tasks)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 16),
+                      child: _TaskCard(task: task),
                     ),
-                    onPressed: _openCreateTaskForm,
-                  ),
                 ],
-              ),
-            )
-          else
-            for (final task in _customTasks)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: _buildTaskCard(context, task),
-              ),
+              );
+            },
+          ),
         ],
       ),
     );
   }
+}
 
-  Widget _buildCoreAssessmentCard(BuildContext context, LecturerAssessment assessment) {
+class _AssessmentCard extends ConsumerWidget {
+  final LecturerAssessment assessment;
+
+  const _AssessmentCard({required this.assessment});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
     final bool isPublished = assessment.isPublished;
     final bool isPretest = assessment.isPretest;
 
-    final Color typeAccent = isPretest ? NetLearnAccents.purple : NetLearnAccents.pink;
+    final String statusLabel = isPublished ? l10n.published : l10n.draft;
+
+    final Color typeAccent = isPretest
+        ? NetLearnAccents.purple
+        : NetLearnAccents.pink;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -326,32 +322,41 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                   color: Colors.white,
                 ),
               ),
+
               StatusBadge(
-                status: isPublished ? NetLearnStatus.linked : NetLearnStatus.active,
-                label: isPublished ? 'Terbit' : 'Draft',
+                status: isPublished
+                    ? NetLearnStatus.linked
+                    : NetLearnStatus.active,
+                label: statusLabel,
               ),
             ],
           ),
+
           const SizedBox(height: NetLearnSpace.s10),
+
           Text(
             assessment.title,
-            style: const TextStyle(
-              fontSize: 16,
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: NetLearnColors.neutral900,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
+
           const SizedBox(height: NetLearnSpace.s10),
+
           Text(
-            '${assessment.questionCount} Soal · ${assessment.durationMinutes} Mnt',
-            style: TextStyle(
-              fontSize: 12,
+            l10n.assignmentMeta(
+              assessment.questionCount.toString(),
+              assessment.durationMinutes.toString(),
+            ),
+            style: theme.textTheme.bodySmall?.copyWith(
               color: context.mutedText,
             ),
           ),
+
           const SizedBox(height: NetLearnSpace.s4),
+
           Row(
             children: [
               const Icon(
@@ -362,9 +367,11 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
               const SizedBox(width: NetLearnSpace.s6),
               Expanded(
                 child: Text(
-                  'Kunci jawaban dikonfigurasi (${assessment.answeredCount}/${assessment.questionCount})',
-                  style: TextStyle(
-                    fontSize: 12,
+                  l10n.answerKeysConfigured(
+                    assessment.answeredCount,
+                    assessment.questionCount,
+                  ),
+                  style: theme.textTheme.bodySmall?.copyWith(
                     color: context.mutedText,
                   ),
                   maxLines: 1,
@@ -373,7 +380,32 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
               ),
             ],
           ),
+
+          if (!isPublished && assessment.unansweredCount > 0) ...[
+            const SizedBox(height: NetLearnSpace.s12),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.info_outline,
+                  size: 14,
+                  color: context.mutedText,
+                ),
+                const SizedBox(width: NetLearnSpace.s8),
+                Expanded(
+                  child: Text(
+                    l10n.answerKeyMissing(assessment.unansweredCount),
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: context.mutedText,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+
           const SizedBox(height: NetLearnSpace.s16),
+
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -382,10 +414,8 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                 height: 48,
                 child: FilledButton(
                   onPressed: () {
-                    NlSnackBar.show(
-                      context,
-                      'Membuka bank soal untuk ${assessment.title}',
-                      tone: NlSnackTone.info,
+                    context.push(
+                      '/lecturer/assessments/${assessment.id}/questions',
                     );
                   },
                   style: FilledButton.styleFrom(
@@ -396,32 +426,35 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                       borderRadius: BorderRadius.circular(NetLearnRadius.button),
                     ),
                   ),
-                  child: const Row(
+                  child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Flexible(
                         child: Text(
-                          'Kelola Soal',
+                          l10n.manageQuestions,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward_rounded, size: 18),
+                      const SizedBox(width: 8),
+                      const Icon(Icons.arrow_forward_rounded, size: 18),
                     ],
                   ),
                 ),
               ),
+
               const SizedBox(height: NetLearnSpace.s12),
+
               SizedBox(
                 width: double.infinity,
                 height: 48,
                 child: FilledButton(
-                  onPressed: () => _toggleAssessmentPublish(assessment),
+                  onPressed: isPublished || assessment.canPublish
+                      ? () => _togglePublished(context, ref)
+                      : null,
                   style: FilledButton.styleFrom(
-                    backgroundColor: isPublished ? context.raisedSurface : context.accent,
-                    foregroundColor: isPublished ? NetLearnColors.neutral900 : Colors.white,
+                    backgroundColor: context.accent,
+                    foregroundColor: theme.colorScheme.onPrimary,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(NetLearnRadius.button),
                     ),
@@ -430,16 +463,17 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Icon(
-                        isPublished ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                        isPublished
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
                         size: 18,
                       ),
                       const SizedBox(width: 8),
                       Flexible(
                         child: Text(
-                          isPublished ? 'Sembunyikan' : 'Terbitkan',
+                          isPublished ? l10n.unpublish : l10n.publish,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -453,10 +487,61 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, LecturerTask task) {
+  Future<void> _togglePublished(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context)!;
+    final next = !assessment.isPublished;
+
+    try {
+      await setAssessmentPublished(ref, assessment, next);
+
+      if (!context.mounted) return;
+
+      NlSnackBar.show(
+        context,
+        next ? l10n.assessmentPublished : l10n.assessmentUnpublished,
+        tone: NlSnackTone.success,
+      );
+    } on AssessmentWriteException catch (error) {
+      if (!context.mounted) return;
+
+      NlSnackBar.show(
+        context,
+        switch (error.failure) {
+          AssessmentWriteFailure.missingAnswerKey => l10n.answerKeyMissing(
+            assessment.unansweredCount,
+          ),
+          AssessmentWriteFailure.quizIncomplete =>
+            l10n.assessmentQuizIncomplete,
+          AssessmentWriteFailure.notPermitted => l10n.notPermittedError,
+          AssessmentWriteFailure.unknown => l10n.assessmentSaveFailed,
+        },
+        tone: NlSnackTone.error,
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      NlSnackBar.show(
+        context,
+        l10n.assessmentSaveFailed,
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+}
+
+class _TaskCard extends ConsumerWidget {
+  final LecturerTask task;
+
+  const _TaskCard({required this.task});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final isId = ref.watch(languageProvider).languageCode == 'id';
+
     final bool isPublished = task.isPublished;
     final bool isModuleQuiz = task.module != null;
-    final String statusLabel = isPublished ? 'Terbit' : 'Draft';
+    final String statusLabel = isPublished ? l10n.published : l10n.draft;
 
     final Color accentColor = isModuleQuiz ? const Color(0xFF00B4D8) : const Color(0xFF8C52FF);
 
@@ -496,17 +581,14 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
           const SizedBox(height: NetLearnSpace.s10),
           Text(
             task.localizedTitle,
-            style: const TextStyle(
-              fontSize: 16,
+            style: theme.textTheme.titleLarge?.copyWith(
               fontWeight: FontWeight.w800,
-              color: NetLearnColors.neutral900,
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: NetLearnSpace.s8),
 
-          // Category & configuration chips
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -534,7 +616,7 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
-                    task.required ? 'Wajib Buka Modul' : 'Kuis Opsional',
+                    task.required ? (isId ? 'Wajib Buka Modul' : 'Required Gate') : (isId ? 'Kuis Opsional' : 'Optional Quiz'),
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
@@ -549,9 +631,9 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                     color: const Color(0xFF8C52FF).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
-                    'Asesmen Bebas (LMS)',
-                    style: TextStyle(
+                  child: Text(
+                    isId ? 'Asesmen Bebas (LMS)' : 'Standalone LMS Task',
+                    style: const TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: Color(0xFF6C2CE2),
@@ -580,21 +662,20 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
 
           const SizedBox(height: NetLearnSpace.s10),
 
-          // Meta info
           Row(
             children: [
               Icon(Icons.help_outline_rounded, size: 15, color: context.mutedText),
               const SizedBox(width: 4),
               Text(
-                '${task.questionCount} Soal',
-                style: TextStyle(fontSize: 12, color: context.mutedText),
+                '${task.questionCount} ${l10n.questions}',
+                style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
               ),
               const SizedBox(width: 14),
               Icon(Icons.timer_outlined, size: 15, color: context.mutedText),
               const SizedBox(width: 4),
               Text(
-                '${task.durationMinutes} Mnt',
-                style: TextStyle(fontSize: 12, color: context.mutedText),
+                '${task.durationMinutes} ${l10n.minutesShort}',
+                style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
               ),
               if (task.deadline != null) ...[
                 const SizedBox(width: 14),
@@ -603,7 +684,7 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                 Expanded(
                   child: Text(
                     '${task.deadline!.day}/${task.deadline!.month}/${task.deadline!.year}',
-                    style: TextStyle(fontSize: 12, color: context.mutedText),
+                    style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -614,7 +695,6 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
 
           const SizedBox(height: NetLearnSpace.s16),
 
-          // Action buttons
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -623,11 +703,7 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                 height: 44,
                 child: FilledButton(
                   onPressed: () {
-                    NlSnackBar.show(
-                      context,
-                      'Membuka bank soal untuk ${task.title}',
-                      tone: NlSnackTone.info,
-                    );
+                    context.push('/lecturer/assessments/${task.id}/questions');
                   },
                   style: FilledButton.styleFrom(
                     backgroundColor: NetLearnColors.primaryTint,
@@ -640,7 +716,7 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(
-                        'Kelola Soal (${task.questionCount})',
+                        isId ? 'Kelola Soal (${task.questionCount})' : 'Manage Questions (${task.questionCount})',
                         style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(width: 6),
@@ -657,11 +733,13 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                       height: 42,
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.settings_outlined, size: 16),
-                        label: const Text(
-                          'Pengaturan',
-                          style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                        label: Text(
+                          isId ? 'Pengaturan' : 'Settings',
+                          style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
-                        onPressed: () => _openEditTaskForm(task),
+                        onPressed: () {
+                          context.push('/lecturer/assessments/task/${task.id}');
+                        },
                       ),
                     ),
                   ),
@@ -675,14 +753,16 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
                           size: 16,
                         ),
                         label: Text(
-                          isPublished ? 'Sembunyikan' : 'Terbitkan',
+                          isPublished ? l10n.unpublish : l10n.publish,
                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
                         ),
                         style: FilledButton.styleFrom(
                           backgroundColor: isPublished ? context.raisedSurface : context.accent,
-                          foregroundColor: isPublished ? NetLearnColors.neutral900 : Colors.white,
+                          foregroundColor: isPublished ? context.onSurface : Colors.white,
                         ),
-                        onPressed: () => _toggleTaskPublish(task),
+                        onPressed: isPublished || task.canPublish
+                            ? () => _togglePublished(context, ref)
+                            : null,
                       ),
                     ),
                   ),
@@ -693,5 +773,42 @@ class _LecturerAssessmentsPageState extends State<LecturerAssessmentsPage> {
         ],
       ),
     );
+  }
+
+  Future<void> _togglePublished(BuildContext context, WidgetRef ref) async {
+    final l10n = AppLocalizations.of(context)!;
+    final next = !task.isPublished;
+
+    try {
+      await setTaskPublished(ref, task, next);
+
+      if (!context.mounted) return;
+
+      NlSnackBar.show(
+        context,
+        next ? l10n.assessmentPublished : l10n.assessmentUnpublished,
+        tone: NlSnackTone.success,
+      );
+    } on AssessmentWriteException catch (error) {
+      if (!context.mounted) return;
+
+      NlSnackBar.show(
+        context,
+        switch (error.failure) {
+          AssessmentWriteFailure.missingAnswerKey => l10n.answerKeyMissing(task.unansweredCount),
+          AssessmentWriteFailure.quizIncomplete => l10n.assessmentQuizIncomplete,
+          AssessmentWriteFailure.notPermitted => l10n.notPermittedError,
+          AssessmentWriteFailure.unknown => l10n.assessmentSaveFailed,
+        },
+        tone: NlSnackTone.error,
+      );
+    } catch (_) {
+      if (!context.mounted) return;
+      NlSnackBar.show(
+        context,
+        l10n.assessmentSaveFailed,
+        tone: NlSnackTone.error,
+      );
+    }
   }
 }

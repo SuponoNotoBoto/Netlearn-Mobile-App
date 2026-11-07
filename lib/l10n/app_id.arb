@@ -1,0 +1,1591 @@
+{
+    "@@locale":  "id",
+    "appName":  "NetLearn",
+    "appDescription":  "Aplikasi Pembelajaran AR Jaringan Komputer",
+    "dashboard":  "Dashboard",
+    "materials":  "Materi",
+    "arScanner":  "AR Scanner",
+    "quizzes":  "Kuis",
+    "profile":  "Profil",
+    "login":  "Login",
+    "logout":  "Keluar",
+    "cancel":  "Batal",
+    "save":  "Simpan",
+    "back":  "Kembali",
+    "next":  "Selanjutnya",
+    "previous":  "Sebelumnya",
+    "continueText":  "Lanjutkan",
+    "close":  "Tutup",
+    "retry":  "Coba Lagi",
+    "refresh":  "Muat Ulang",
+    "loading":  "Memuat",
+    "welcome":  "Selamat Datang",
+    "hello":  "Halo",
+    "student":  "Mahasiswa",
+    "lecturer":  "Dosen",
+    "studentDashboard":  "Dashboard Mahasiswa",
+    "lecturerDashboard":  "Dashboard Dosen",
+    "learningMaterials":  "Materi Pembelajaran",
+    "learningModule":  "Modul Pembelajaran",
+    "module":  "Modul",
+    "modules":  "Modul",
+    "moduleList":  "Daftar Modul",
+    "computerNetworks":  "Jaringan Komputer",
+    "learningProgress":  "Progres Pembelajaran",
+    "weeklyProgress":  "Progres Mingguan",
+    "upcomingTasks":  "Tugas Mendatang",
+    "noUpcomingTasks":  "Tidak ada tugas mendatang",
+    "noUpcomingTasksDescription":  "Semua tugas yang memiliki deadline akan muncul di sini.",
+    "viewAll":  "Lihat Semua",
+    "deadline":  "Deadline",
+    "duration":  "Durasi",
+    "minutes":  "menit",
+    "available":  "Tersedia",
+    "locked":  "Terkunci",
+    "unlocked":  "Terbuka",
+    "completed":  "Selesai",
+    "inProgress":  "Sedang Berjalan",
+    "notStarted":  "Belum Dimulai",
+    "readingMaterial":  "Materi Bacaan",
+    "reading":  "Bacaan",
+    "video":  "Video",
+    "learningVideo":  "Video Pembelajaran",
+    "videoLearning":  "Video Pembelajaran",
+    "markAsCompleted":  "Tandai Selesai",
+    "markAsRead":  "Tandai sebagai Dibaca",
+    "@markAsRead":  {
+                                "description":  "Label of the reading completion action in the material reader. The PRD calls the student-facing action \"Mark as Read\"; the RPC behind it is still mark_reading_completed, so only the wording changed."
+                            },
+    "readLabel":  "Sudah Dibaca",
+    "overallProgress":  "Progres Keseluruhan",
+    "materialsCount":  "{count} materi",
+    "@materialsCount":  {
+                                "description":  "Jumlah materi di dalam sebuah modul, mis. \"4 materi\".",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "moduleEyebrow":  "Modul {number}",
+    "@moduleEyebrow":  {
+                                "description":  "Label kecil di atas kartu modul, mis. \"Modul 01\"."
+                            },
+    "materialArtExampleIp":  "CONTOH IP",
+    "@materialArtExampleIp":  {
+                                "description": "Label kecil yang digambar di dalam ilustrasi thumbnail materi IP Address. Kuncinya lokal bukan konstanta karena desain Figma menyesuaikannya bahasa (EXAMPLE IP di Inggris)."
+                            },
+    "readingProgressLabel":  "Progres Bacaan",
+    "downloadPdf":  "Unduh PDF",
+    "nextVideo":  "Selanjutnya: Video",
+    "nextQuiz":  "Selanjutnya: Kuis",
+    "evaluation":  "Evaluasi",
+    "quizList":  "Daftar Kuis",
+    "startQuiz":  "Mulai Kuis",
+    "resumeQuiz":  "Lanjutkan Kuis",
+    "submitAnswer":  "Kirim Jawaban",
+    "submitQuiz":  "Kirim Kuis",
+    "question":  "Soal",
+    "questions":  "Soal",
+    "fromTotal":  "dari",
+    "timeRemaining":  "Waktu Tersisa",
+    "quizCompleted":  "Kuis Telah Selesai",
+    "score":  "Nilai",
+    "correct":  "Benar",
+    "wrong":  "Salah",
+    "passed":  "Lulus",
+    "failed":  "Tidak Lulus",
+    "returnDashboard":  "Kembali ke Dashboard",
+    "backToQuizList":  "Kembali ke Daftar Kuis",
+    "academicInformation":  "Informasi Akademik",
+    "name":  "Nama",
+    "identityNumber":  "Nomor Identitas",
+    "email":  "Email",
+    "program":  "Program Studi",
+    "accountStatus":  "Status Akun",
+    "active":  "Aktif",
+    "inactive":  "Tidak Aktif",
+    "settings":  "Pengaturan",
+    "language":  "Bahasa",
+    "english":  "Bahasa Inggris",
+    "indonesian":  "Bahasa Indonesia",
+    "languageEnglish":  "Bahasa Inggris",
+    "languageIndonesian":  "Bahasa Indonesia",
+    "logoutConfirmation":  "Apakah Anda yakin ingin keluar?",
+    "yesLogout":  "Ya, Keluar",
+    "error":  "Kesalahan",
+    "somethingWentWrong":  "Terjadi kesalahan.",
+    "pageNotFound":  "Halaman tidak ditemukan.",
+    "failedToLoad":  "Gagal memuat data.",
+    "sessionNotFound":  "Sesi tidak ditemukan.",
+    "profileNotFound":  "Profil tidak ditemukan.",
+    "arComingSoon":  "AR Scanner akan segera tersedia.",
+    "arScannerTitle":  "AR Scanner",
+    "arStatusInitializing":  "Menyiapkan kamera AR…",
+    "arStatusSearching":  "Arahkan kamera ke salah satu marker NetLearn.",
+    "arMarkerDetected":  "Marker dikenali",
+    "arScanPermissionDenied":  "Izin kamera diperlukan untuk memindai marker. Aktifkan izin kamera lalu coba lagi.",
+    "arInitFailed":  "Kamera AR gagal disiapkan. Perangkat mungkin tidak mendukung ARCore.",
+    "arRescanTooltip":  "Scan ulang",
+    "arHelpTooltip":  "Bantuan",
+    "arHelpTitle":  "Cara memindai marker",
+    "arHelpBody":  "1. Cetak kartu marker NetLearn.\n2. Letakkan kartu di permukaan datar.\n3. Arahkan kamera ke seluruh bagian kartu.\n4. Tahan kartu sampai informasi objek muncul.",
+    "arModuleBadge":  "Modul {number}",
+    "@arModuleBadge":  {
+        "description":  "Badge pada kartu informasi objek, misalnya \"Modul 2\".",
+        "placeholders":  {
+            "number":  {
+                "type":  "int"
+            }
+        }
+    },
+    "arObjKomputerName":  "Komputer Desktop",
+    "arObjKomputerDesc":  "Perangkat akhir (end device) yang mengirim dan menerima data melalui jaringan.",
+    "arObjSwitchName":  "Switch",
+    "arObjSwitchDesc":  "Menghubungkan perangkat pada jaringan lokal dan meneruskan frame ke port tujuan berdasarkan alamat MAC.",
+    "arObjHubName":  "Hub",
+    "arObjHubDesc":  "Menghubungkan perangkat dan meneruskan data yang masuk ke semua port, berbeda dengan switch yang hanya mengirim ke perangkat tujuan.",
+    "arObjRouterName":  "Router",
+    "arObjRouterDesc":  "Menghubungkan jaringan yang berbeda dan meneruskan paket antajaringan menggunakan alamat IP dan tabel routing.",
+    "arObjTopologiName":  "Topologi Star",
+    "arObjTopologiDesc":  "Topologi dengan setiap perangkat terhubung ke switch pusat. Perangkat pusat sangat penting: jika gagal, seluruh jaringan terdampak.",
+    "arObjIpAddressName":  "Simulasi IP Address",
+    "arObjIpAddressDesc":  "Konfigurasi alamat IPv4 dan subnet mask dua komputer yang terhubung melalui satu switch.",
+    "arDetailHeaderLabel":  "Informasi Lengkap",
+    "arDetailSectionDefinition":  "Pengertian",
+    "arDetailSectionFunction":  "Fungsi",
+    "arDetailExtraKomputer":  "Contoh Aktivitas",
+    "arDetailExtraSwitch":  "Cara Kerja",
+    "arDetailExtraHub":  "Perbedaan dengan Switch",
+    "arDetailExtraRouter":  "Cara Kerja",
+    "arDetailExtraTopologi":  "Kelebihan dan Keterbatasan",
+    "arDetailOpenButton":  "Lihat Info Lengkap",
+    "arNarrationMute":  "Matikan narasi",
+    "arNarrationReplay":  "Dengarkan lagi",
+    "arNarrationUnmute":  "Nyalakan narasi",
+    "arObjKomputerDetailDef":  "Komputer adalah perangkat akhir (end device) yang digunakan pengguna untuk mengirim dan menerima data melalui jaringan.",
+    "arObjKomputerDetailFunction":  "Dalam jaringan, komputer berperan sebagai sumber atau tujuan data: komputer membuat permintaan, mengirim data ke perangkat lain, dan menerima data dari perangkat lain.",
+    "arObjKomputerDetailExtra":  "Contoh aktivitas komputer dalam jaringan: membuka halaman web, mengirim email, mengunggah file, dan menonton video streaming. Semua itu pada dasarnya adalah proses mengirim dan menerima data.",
+    "arObjSwitchDetailDef":  "Perangkat jaringan yang menghubungkan banyak perangkat dalam satu jaringan lokal (LAN).",
+    "arObjSwitchDetailFunction":  "Switch berfungsi menghubungkan perangkat dalam jaringan lokal dan meneruskan data hanya ke perangkat tujuan, sehingga lalu lintas jaringan lebih efisien dibandingkan hub.",
+    "arObjSwitchDetailExtra":  "Cara kerja: switch membaca alamat MAC tujuan pada setiap frame dan meneruskannya ke port yang terhubung ke perangkat tujuan menggunakan tabel MAC.",
+    "arObjHubDetailDef":  "Perangkat jaringan sederhana yang menghubungkan beberapa perangkat dalam satu jaringan.",
+    "arObjHubDetailFunction":  "Hub berfungsi menghubungkan perangkat dan meneruskan data yang masuk ke semua port yang terhubung, tanpa mengetahui perangkat tujuan.",
+    "arObjHubDetailExtra":  "Perbedaan dengan switch: hub menyiarkan data ke semua perangkat, sedangkan switch meneruskan data hanya ke perangkat tujuan berdasarkan alamat MAC. Karena itu hub kurang efisien dan lebih rentan terhadap tabrakan data (collision).",
+    "arObjRouterDetailDef":  "Perangkat jaringan yang menghubungkan dua jaringan atau lebih yang berbeda.",
+    "arObjRouterDetailFunction":  "Router berfungsi meneruskan paket data antarjaringan dan memilih jalur terbaik menuju jaringan tujuan.",
+    "arObjRouterDetailExtra":  "Cara kerja: router membaca alamat IP tujuan pada paket dan menentukan jalur penerusan berdasarkan tabel routing. Router memungkinkan perangkat dari jaringan berbeda saling berkomunikasi, misalnya antara LAN rumah dan internet.",
+    "arObjTopologiDetailDef":  "Susunan jaringan di mana setiap perangkat terhubung langsung ke satu perangkat pusat, biasanya switch atau hub.",
+    "arObjTopologiDetailFunction":  "Perangkat pusat berfungsi sebagai titik koneksi bersama: semua data antarperangkat melewati perangkat pusat sebelum diteruskan ke tujuan.",
+    "arObjTopologiDetailExtra":  "Kelebihan: mudah menambah perangkat dan mudah mendeteksi kabel yang bermasalah. Keterbatasan: jika perangkat pusat gagal, seluruh jaringan berhenti berfungsi (single point of failure).",
+    "arIpComputerA":  "Komputer A",
+    "arIpComputerB":  "Komputer B",
+    "arIpSwitch":  "Switch",
+    "arIpAddressLabel":  "Alamat IP",
+    "arIpSubnetLabel":  "Subnet Mask",
+    "arIpTestButton":  "Uji Koneksi",
+    "arIpResetButton":  "Atur Ulang",
+    "arIpInitialHint":  "Masukkan alamat IPv4 dan subnet mask setiap komputer, lalu uji koneksi.",
+    "arIpSuccessTitle":  "Koneksi Berhasil",
+    "arIpSuccessReason":  "Kedua komputer berada dalam subnet yang sama ({network}).",
+    "@arIpSuccessReason":  {
+        "description":  "Ditampilkan setelah uji konektivitas Modul 4 berhasil.",
+        "placeholders":  {
+            "network":  {
+                "type":  "String"
+            }
+        }
+    },
+    "arIpFailureTitle":  "Koneksi Gagal",
+    "arIpErrInvalidIpA":  "Alamat IP Komputer A bukan alamat IPv4 yang valid.",
+    "arIpErrInvalidMaskA":  "Subnet mask Komputer A tidak valid.",
+    "arIpErrUnusableHostA":  "Alamat Komputer A tidak dapat dipakai sebagai alamat host.",
+    "arIpErrInvalidIpB":  "Alamat IP Komputer B bukan alamat IPv4 yang valid.",
+    "arIpErrInvalidMaskB":  "Subnet mask Komputer B tidak valid.",
+    "arIpErrUnusableHostB":  "Alamat Komputer B tidak dapat dipakai sebagai alamat host.",
+    "arIpErrDuplicate":  "Kedua komputer memakai alamat IP yang sama.",
+    "arIpErrDifferentSubnet":  "Kedua komputer berada pada subnet yang berbeda, sehingga tidak dapat berkomunikasi melalui switch tanpa routing.",
+    "loginTitle":  "Selamat Datang di NetLearn!",
+    "loginSubtitle":  "Masuk menggunakan email pribadi, email institusi, atau NIM.",
+    "welcomeBack": "Selamat kembali",
+    "emailOrStudentId": "Email atau NIM",
+    "enterEmailOrStudentId": "Masukkan NIM atau Email Anda",
+    "emailOrLecturerId": "Email atau NIP",
+    "enterEmailOrLecturerId": "Masukkan NIP atau Email Anda",
+    "password":  "Kata Sandi",
+    "forgotPassword":  "Lupa kata sandi?",
+    "signIn":  "Masuk",
+    "loginAsStudent":  "Login sebagai Mahasiswa",
+    "loginAsLecturer":  "Login sebagai Dosen",
+    "loginAsAdmin":  "Login sebagai Admin",
+    "studentId":  "NIM",
+    "lecturerId":  "NIP",
+    "enterStudentId":  "Masukkan NIM Anda",
+    "enterLecturerId":  "Masukkan NIP Anda",
+    "enterEmail":  "Masukkan Email Anda",
+    "enterPassword":  "Masukkan Password",
+    "invalidCredentials":  "Identitas atau kata sandi tidak valid.",
+    "accountInactive":  "Akun Anda tidak aktif.",
+    "forgotPasswordTitle":  "Lupa Kata Sandi",
+    "forgotPasswordSubtitle":  "Masukkan alamat email terdaftar untuk menerima kode pengaturan ulang kata sandi.",
+    "sendResetLink":  "Kirim Tautan Reset",
+    "resetPasswordHeading":  "Atur Ulang\nKata Sandi",
+    "backToLogin":  "Kembali ke Login",
+    "requiredField":  "Kolom ini wajib diisi",
+    "invalidEmail":  "Masukkan alamat email yang valid.",
+
+
+    "emailSent":  "Email Terkirim",
+    "passwordResetEmailSent":  "Jika email tersebut terdaftar, tautan reset kata sandi sudah dikirim. Periksa kotak masuk Anda.",
+    "registerTitle":  "Daftar Akun",
+    "registerHeading": "Daftar",
+     "registerSubtitle":  "Buat akun untuk mulai belajar bersama NetLearn.",
+    "register":  "Daftar",
+    "fullName":  "Nama Lengkap",
+    "enterFullName":  "Masukkan Nama Lengkap Anda",
+    "studentIdOrEmployeeId": "NIM / NIP",
+    "enterStudentOrEmployeeId": "Masukkan NIM Anda",
+    "userEmail": "Email Pengguna",
+    "confirmPassword":  "Konfirmasi Kata Sandi",
+    "confirmPasswordPlaceholder":  "Konfirmasi Password Anda",
+    "passwordMismatch":  "Konfirmasi password tidak cocok.",
+    "passwordMinLength":  "Kata sandi minimal 8 karakter",
+    "authIdentifierRequired": "NIM atau Email wajib diisi.",
+    "authPasswordRequired": "Password wajib diisi.",
+    "fullNameRequired": "Nama lengkap wajib diisi.",
+    "studentIdRequired": "NIM wajib diisi.",
+    "emailRequired": "Email wajib diisi.",
+    "confirmPasswordRequired": "Konfirmasi password wajib diisi.",
+    "bannerConnectionFailed": "Koneksi bermasalah. Periksa internet Anda dan coba lagi.",
+    "bannerServerProblem": "Terjadi masalah pada server. Silakan coba lagi.",
+    "bannerUnknownError": "Terjadi kesalahan. Silakan coba lagi.",
+    "resetRequestSent": "Instruksi reset password berhasil diminta. Periksa email Anda.",
+    "registerSuccessTitle":  "Pendaftaran Berhasil",
+     "registerSuccessMessage":  "Tautan konfirmasi telah dikirim ke email Anda. Periksa kotak masuk dan folder spam, konfirmasi tautan tersebut, lalu masuk menggunakan akun baru Anda.",
+    "registerSuccessLoginPrompt":  "Pendaftaran berhasil. Silakan masuk menggunakan email dan kata sandi Anda.",
+    "alreadyHaveAccount":  "Sudah memiliki akun? Masuk",
+    "noAccountYet":  "Belum memiliki akun? Daftar",
+    "chooseYourLanguage": "Pilih Bahasa Anda",
+    "onboardingDescription": "Pilih bahasa yang ingin Anda gunakan saat belajar dengan NetLearn.",
+    "continueButton": "Lanjutkan",
+    "prototypeMode": "Mode prototipe · Pemilihan bahasa muncul setelah setiap login berhasil.",
+    "computerNetworkingLMS": "LMS Jaringan Komputer",
+    "unreadNotifications": "{count} notifikasi belum dibaca",
+    "@unreadNotifications": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "studentList": "Daftar Mahasiswa",
+    "studentScoreSummary": "Rekap Nilai Mahasiswa",
+    "tasksAwaitingReview": "{count} tugas menunggu tinjauan",
+    "@tasksAwaitingReview": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "reviewStudentSubmissions": "Tinjau submission mahasiswa",
+    "tasksApproachingDeadline": "{count} tugas mendekati batas waktu",
+    "@tasksApproachingDeadline": {
+        "placeholders": {
+            "count": {"type": "int"}
+        }
+    },
+    "trackActiveTasks": "Lacak tugas aktif",
+    "moduleNotPublished": "Modul {number} belum dipublikasikan",
+    "@moduleNotPublished": {
+        "placeholders": {
+            "number": {"type": "int"}
+        }
+    },
+    "completeTheMaterial": "Selesaikan materi {title}",
+    "@completeTheMaterial": {
+        "placeholders": {
+            "title": {"type": "String"}
+        }
+    },
+    "viewMaterial": "Lihat Materi",
+    "notifications": "Notifikasi",
+     "registerButton":  "Daftar",
+     "registerLecturerNotice":  "Akun dosen dibuat oleh admin. Pilih Mahasiswa untuk mendaftar.",
+    "accountManagedBy":  "Akun dikelola oleh ",
+    "campusAdministrator":  "administrator kampus",
+    "today":  "Hari Ini",
+    "yesterday":  "Kemarin",
+    "tomorrow":  "Besok",
+    "minutesShort":  "mnt",
+    "lockedModuleMessage":  "Modul ini masih terkunci.",
+    "lockedNeedsPretest":  "Selesaikan Pretest",
+    "dashboardLoadError":  "Data dashboard gagal dimuat.",
+    "moduleProgressLoadError":  "Gagal memuat progres modul.",
+    "noModules":  "Belum ada modul",
+    "noModulesDescription":  "Modul yang telah dipublikasikan akan muncul di sini.",
+    "moduleNumber":  "{number}",
+    "@moduleNumber":  {
+                          "description":  "Nomor modul"
+                      },
+    "questionNumber":  "Soal {number}",
+    "@questionNumber":  {
+                            "description":  "Nomor soal"
+                        },
+    "questionsProgress":  "{current} dari {total}",
+    "@questionsProgress":  {
+                               "description":  "Progres soal"
+                           },
+    "durationMinutes":  "{minutes} menit",
+    "@durationMinutes":  {
+                             "description":  "Durasi dalam menit"
+                         },
+    "progressPercentage":  "{percentage}%",
+    "@progressPercentage":  {
+                                "description":  "Persentase progres"
+                            },
+    "materialNotFound":  "Materi tidak ditemukan.",
+    "learningMaterial":  "Materi Pembelajaran",
+    "coreMaterial":  "Inti",
+    "summary":  "Ringkasan",
+"readMaterial":  "Baca Materi",
+    "readMaterialDescription":  "Pelajari materi sebelum melanjutkan ke tahap berikutnya.",
+    "materialContentUnavailable":  "Materi bacaan belum tersedia.",
+    "readingCompletedMessage":  "Materi bacaan berhasil diselesaikan.",
+    "progressSaveFailed":  "Gagal menyimpan progress: {error}",
+    "@progressSaveFailed":  {
+                                "description":  "Pesan yang ditampilkan ketika penyimpanan progres pembelajaran gagal.",
+                                "placeholders":  {
+                                                      "error":  {
+                                                                    "type":  "String",
+                                                                    "description":  "Pesan error yang dikembalikan aplikasi."
+                                                                }
+                                                  }
+                            },
+    "learningVideoDescription":  "Tonton video pembelajaran untuk memperkuat pemahaman.",
+    "videoUnavailable":  "Video untuk materi ini belum tersedia.",
+    "watched":  "Sudah ditonton",
+    "videoPlayerComingSoon":  "Video player akan tersedia pada tahap berikutnya.",
+    "evaluationDescription":  "Kerjakan kuis setelah menyelesaikan komponen pembelajaran.",
+    "materialLocked":  "Materi terkunci",
+    "completePreviousModule":  "Selesaikan modul sebelumnya terlebih dahulu untuk membuka materi ini.",
+    "readMaterialTitle":  "Baca Materi",
+    "materialIdMissing":  "ID materi tidak ditemukan.",
+    "videoMaterialIdMissing":  "ID materi video tidak ditemukan.",
+    "assessmentTypeMissing":  "Jenis asesmen tidak ditemukan.",
+    "assessmentTypeInvalid":  "Jenis asesmen tidak valid.",
+    "assessmentResultIdMissing":  "ID hasil asesmen tidak ditemukan.",
+    "readingProgress":  "Progres pembelajaran",
+    "videoOptional":  "Video Pendukung (Opsional)",
+"viewPdf": "Lihat PDF",
+    "materialResources": "Sumber Materi",
+    "@materialResources": {
+      "description": "Judul bagian untuk aksi lihat/unduh PDF di halaman baca materi."
+    },
+    "markAllAsRead": "Tandai Semua sebagai Dibaca",
+    "@markAllAsRead": {
+      "description": "Tombol untuk menandai semua materi di modul saat ini sebagai sudah dibaca."
+    },
+    "markAllAsReadDescription": "Tandai semua materi bacaan di modul ini sebagai selesai.",
+    "@markAllAsReadDescription": {
+      "description": "Deskripsi untuk tombol Tandai Semua sebagai Dibaca."
+    },
+    "noPdfAvailable": "Tidak ada PDF tersedia untuk materi ini.",
+    "@noPdfAvailable": {
+      "description": "Ditampilkan ketika materi tidak memiliki file PDF terkait."
+    },
+    "pdfOpenFailed": "PDF ini tidak dapat ditampilkan. Coba unduh filenya.",
+    "@pdfOpenFailed": {
+      "description": "Ditampilkan ketika penampil PDF dalam aplikasi gagal membuka file; tombol unduh tetap jadi jalan keluarnya."
+    },
+    "materialResourcesDescription": "Materi ini menyertakan PDF yang bisa dilihat atau diunduh.",
+    "@materialResourcesDescription": {
+      "description": "Deskripsi di bawah judul Sumber Materi ketika materi punya PDF."
+    },
+    "pdfDownloadSuccess": "PDF berhasil diunduh.",
+    "@pdfDownloadSuccess": {
+      "description": "Pesan sukses ketika unduhan PDF selesai."
+    },
+    "pdfDownloadFailed": "Gagal mengunduh PDF. Silakan coba lagi.",
+    "@pdfDownloadFailed": {
+      "description": "Pesan error ketika unduhan PDF gagal."
+    },
+    "videoLearningSection": "Video Pembelajaran",
+    "@videoLearningSection": {
+      "description": "Judul bagian untuk sumber video di halaman baca materi."
+    },
+    "assessmentListIntroTitle": "Asesmen Anda",
+    "@assessmentListIntroTitle":  {
+                                "description":  "Judul di atas kartu daftar assessment."
+                            },
+    "assessmentListIntroSubtitle":  "Ukur pemahamanmu, dari awal hingga akhir.",
+    "@assessmentListIntroSubtitle":  {
+                                "description":  "Sub-judul di atas kartu daftar assessment."
+                            },
+    "assessmentListIntroBody":  "Selesaikan Pretest sebelum memulai materi. Post Test tersedia setelah seluruh modul selesai.",
+    "@assessmentListIntroBody":  {
+                                "description":  "Menjelaskan urutan dua assessment inti di atas daftar."
+                            },
+    "assessmentInitialTag":  "Asesmen awal",
+    "assessmentFinalTag":  "Evaluasi akhir",
+    "startPretest":  "Mulai Pretest",
+    "startPostTestLabel":  "Mulai Post Test",
+    "@startPostTestLabel":  {
+                                "description":  "Tombol yang membuka post test. Berbeda dari startPostTest yang berbunyi \"Mulai Post-test\" dan dipakai di dashboard."
+                            },
+    "viewPretestInstructions":  "Lihat Instruksi Pretest",
+    "@viewPretestInstructions":  {
+                                    "description":  "Tombol untuk membuka instruksi pretest, bukan langsung memulai."
+                                },
+    "viewPosttestInstructions":  "Lihat Instruksi Posttest",
+    "@viewPosttestInstructions":  {
+                                     "description":  "Tombol untuk membuka instruksi posttest, bukan langsung memulai."
+                                 },
+    "assignmentMeta":  "{count} Soal · {minutes} Menit",
+    "@assignmentMeta":  {
+                            "description":  "Baris meta yang menampilkan jumlah soal dan durasi pada kartu assessment.",
+                            "placeholders":  {
+                                              "count":  {"type": "String"},
+                                              "minutes":  {"type": "String"}
+                                            }
+                          },
+    "assessmentInitialDesc":  "Periksa pemahaman awal Anda sebelum belajar.",
+    "@assessmentInitialDesc":  {
+                                    "description":  "Deskripsi untuk kartu pretest."
+                                  },
+    "assessmentFinalDesc":  "Evaluasi pemahaman Anda setelah menyelesaikan semua modul.",
+    "@assessmentFinalDesc":  {
+                                    "description":  "Deskripsi untuk kartu posttest."
+                                  },
+    "assignments":  "Asesmen",
+    "@assignments":  {
+                          "description":  "Judul top bar untuk halaman assessment dosen."
+                        },
+    "assignmentsTab":  "Asesmen",
+    "@assignmentsTab":  {
+                          "description":  "Label bottom navigation tab untuk assessment (hanya mahasiswa)."
+                        },
+    "viewAssessmentHistory":  "Lihat Riwayat Asesmen",
+    "@viewAssessmentHistory":  {
+                                    "description":  "Tautan di bagian bawah daftar assessment untuk membuka halaman riwayat."
+                                },
+    "pretestInstructionsTopBar":  "Asesmen - Pretest",
+    "@pretestInstructionsTopBar":  {
+                                      "description":  "Judul top bar pada halaman instruksi Pretest."
+                                  },
+    "pretestInstructionsArtLabel":  "KNOW YOUR STARTING POINT",
+    "@pretestInstructionsArtLabel":  {
+                                        "description":  "Label huruf kapital di dalam ilustrasi halaman instruksi Pretest."
+                                    },
+    "pretestInstructionsTitle":  "Kenali kemampuan awalmu",
+    "@pretestInstructionsTitle":  {
+                                      "description":  "Judul utama halaman instruksi Pretest."
+                                  },
+    "pretestInstructionsBody":  "Sebelum mulai belajar, yuk ukur pemahamanmu tentang jaringan komputer.",
+    "@pretestInstructionsBody":  {
+                                     "description":  "Paragraf pengantar halaman instruksi Pretest."
+                                 },
+    "pretestInstructionsQuestionsLabel":  "Jumlah soal",
+    "pretestInstructionsQuestionsValue":  "{count} pertanyaan",
+    "@pretestInstructionsQuestionsValue":  {
+                                              "description":  "Jumlah soal Pretest pada kartu instruksi.",
+                                              "placeholders":  {
+                                                                   "count":  {"type": "String"}
+                                                               }
+                                          },
+    "pretestInstructionsDurationLabel":  "Waktu pengerjaan",
+    "pretestInstructionsTypeLabel":  "Jenis soal",
+    "pretestInstructionsTypeValue":  "Pilihan ganda",
+    "pretestInstructionsWarningPrefix":  "Pretest hanya dapat dikerjakan ",
+    "pretestInstructionsWarningEmphasis":  "satu kali",
+    "pretestInstructionsWarningSuffix":  ". Pastikan koneksi internet stabil dan kamu siap sebelum memulai.",
+    "pretestInstructionsLockTitle":  "Kunci untuk mulai belajar",
+    "pretestInstructionsLockBody":  "Selesaikan pretest untuk membuka Modul 1. Nilai tidak memengaruhi nilai akhir.",
+    "startPretestNow":  "Mulai Pretest Sekarang",
+    "@startPretestNow":  {
+                             "description":  "Tombol utama pada halaman instruksi Pretest yang membuka layar pengerjaan soal."
+                         },
+    "posttestInstructionsTopBar":  "Asesmen - Post Test",
+    "@posttestInstructionsTopBar":  {
+                                       "description":  "Judul top bar pada halaman instruksi Posttest."
+                                   },
+    "posttestInstructionsArtLabel":  "TUNJUKKAN HASIL BELAJARMU",
+    "@posttestInstructionsArtLabel":  {
+                                         "description":  "Label huruf besar di dalam ilustrasi halaman instruksi Posttest."
+                                     },
+    "posttestInstructionsTitle":  "Instruksi Posttest",
+    "@posttestInstructionsTitle":  {
+                                       "description":  "Judul utama pada halaman instruksi Posttest."
+                                   },
+    "posttestInstructionsBody":  "Semua modul sudah selesai. Yuk ukur sejauh mana pemahamanmu tentang jaringan komputer berkembang.",
+    "@posttestInstructionsBody":  {
+                                      "description":  "Paragraf pembuka pada halaman instruksi Posttest."
+                                  },
+    "posttestInstructionsWarningPrefix":  "Post Test hanya dapat dikerjakan ",
+    "posttestInstructionsLockTitle":  "Pemeriksaan akhir",
+    "posttestInstructionsLockBody":  "Post Test baru tersedia setelah seluruh 4 modul selesai dipelajari. Nilainya tidak memengaruhi nilai akhir.",
+    "startPosttestNow":  "Mulai Post Test Sekarang",
+    "@startPosttestNow":  {
+                              "description":  "Tombol utama pada halaman instruksi Posttest yang membuka layar pengerjaan soal."
+                          },
+    "continueLearning":  "Continue Learning",
+    "@continueLearning":  {
+                              "description":  "Tombol utama di dashboard mahasiswa untuk melanjutkan langkah belajar berikutnya. Label dipertahankan persis seperti ketentuan."
+                          },
+    "allMaterialsCompleted":  "Semua materi selesai",
+    "@allMaterialsCompleted":  {
+                                   "description":  "Menggantikan tombol Continue Learning ketika seluruh alur belajar sudah tuntas."
+                               },
+    "assessmentCompletedTitle":  "Sudah Dikerjakan",
+    "assessmentCompletedBody":  "Asesmen ini sudah Anda selesaikan.",
+    "assessmentCompletedWithScore":  "Asesmen ini sudah Anda selesaikan dengan nilai {score}.",
+    "@assessmentCompletedWithScore":  {
+                                "description":  "Ditampilkan pada dialog assessment selesai ketika nilai tersedia.",
+                                "placeholders":  {
+                                                     "score":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "assessmentCompletedOnlyOnce":  "{assessment} hanya dapat dikerjakan satu kali dan tidak bisa diulang.",
+    "@assessmentCompletedOnlyOnce":  {
+                                "description":  "Menjelaskan kenapa tombol mulai hilang: tes ini sekali jalan.",
+                                "placeholders":  {
+                                                     "assessment":  {
+                                                                   "type":  "String"
+                                                               }
+                                                 }
+                            },
+    "assessmentCompletedStatusPassed":  "Hasil: Lulus",
+    "assessmentCompletedStatusFailed":  "Hasil: Belum lulus",
+    "assessmentCompletedBreakdown":  "{correct} benar · {wrong} salah",
+    "@assessmentCompletedBreakdown":  {
+                                "description":  "Rincian jumlah jawaban benar/salah pada dialog assessment selesai.",
+                                "placeholders":  {
+                                                     "correct":  {
+                                                                   "type":  "int"
+                                                               },
+                                                     "wrong":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "viewAssessmentResult":  "Lihat Hasil",
+    "assessmentLockedTitle":  "Asesmen Terkunci",
+    "assessmentLockedPosttest":  "Post Test baru dapat dikerjakan setelah seluruh 4 modul selesai dipelajari.",
+    "assessmentLockedGeneric":  "Asesmen ini belum dapat dikerjakan.",
+    "assessmentLoadFailed":  "Asesmen gagal dimuat",
+    "assessmentLoadFailedBody":  "Periksa koneksi internet Anda lalu coba lagi.",
+    "assessmentResult":  "Hasil Asesmen",
+    "assessmentTotalQuestions":  "Total Soal",
+    "pretestCompletedMessage":  "Pretest telah selesai. Anda dapat melanjutkan ke materi pembelajaran.",
+    "posttestCompletedMessage":  "Post Test telah selesai. Seluruh rangkaian pembelajaran telah diselesaikan.",
+    "backToAssessment":  "Kembali ke Asesmen",
+    "backToDashboard":  "Kembali ke Dashboard",
+    "videoNotAvailable":  "Video untuk materi ini belum tersedia.",
+    "materialNotPublished":  "Materi belum dipublikasikan.",
+    "materialLockedMessage":  "Materi ini masih terkunci.",
+    "markVideoDone":  "Tandai Selesai",
+    "videoDone":  "Video Selesai",
+    "videoMarkedDone":  "Video berhasil ditandai selesai.",
+    "videoCannotOpen":  "Video tidak dapat dibuka",
+    "startReading":  "Mulai Baca",
+    "continueReading":  "Lanjutkan",
+    "noReadingContent":  "Isi bacaan materi ini belum tersedia. Silakan hubungi dosen atau admin.",
+    "readingMarked":  "Materi ditandai sudah dibaca.",
+    "assessmentQuestionProgress":  "Soal {current} dari {total}",
+    "@assessmentQuestionProgress":  {
+                                "description":  "Header progres di atas soal assessment yang sedang dikerjakan.",
+                                "placeholders":  {
+                                                     "current":  {
+                                                                   "type":  "int"
+                                                               },
+                                                     "total":  {
+                                                                  "type":  "int"
+                                                              }
+                                                 }
+                            },
+    "assessmentAnsweredCount":  "{count} dijawab",
+    "@assessmentAnsweredCount":  {
+                                "description":  "Berapa soal yang sudah dijawab mahasiswa sejauh ini.",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "assessmentQuestionNavigation":  "Navigasi Soal",
+    "assessmentCurrentQuestion":  "Soal saat ini",
+    "assessmentAnsweredQuestion":  "Sudah dijawab",
+    "assessmentUnansweredQuestion":  "Belum dijawab",
+    "assessmentYourAnswer":  "Jawaban Anda",
+    "assessmentPreviousQuestion":  "Soal sebelumnya",
+    "assessmentNextQuestion":  "Soal berikutnya",
+    "assessmentSubmitTitle":  "Kumpulkan Asesmen?",
+    "assessmentSubmitWithUnanswered":  "Masih ada {count} soal yang belum dijawab. Apakah Anda yakin ingin mengumpulkan asesmen?",
+    "@assessmentSubmitWithUnanswered":  {
+                                "description":  "Konfirmasi 수집 saat masih ada soal yang belum dijawab.",
+                                "placeholders":  {
+                                                     "count":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "assessmentSubmitAllAnswered":  "Semua soal sudah dijawab. Apakah Anda yakin ingin mengumpulkan asesmen?",
+    "assessmentLeaveTitle":  "Keluar dari Asesmen?",
+    "assessmentLeaveBody":  "Jawaban yang sudah tersimpan tetap tersimpan, tetapi asesmen belum dianggap selesai sampai Anda mengumpulkannya.",
+    "stay":  "Tetap",
+    "leave":  "Keluar",
+    "assessmentSubmit":  "Kumpulkan",
+    "assessmentTimeWarning":  "Waktu asesmen tersisa kurang dari 1 menit.",
+    "assessmentNextAction":  "Berikutnya",
+    "assessmentSubmitAction":  "Kumpulkan Asesmen",
+    "assessmentErrorNotFound":  "Asesmen tidak ditemukan.",
+    "assessmentErrorNotPublished":  "Asesmen belum dipublikasikan.",
+    "assessmentErrorNoQuestions":  "Asesmen belum memiliki soal.",
+    "assessmentErrorAttemptNotFound":  "Percobaan asesmen tidak ditemukan.",
+    "assessmentErrorLocked":  "Asesmen masih terkunci.",
+    "assessmentErrorLockedOrCompleted":  "Tes ini sudah dikerjakan atau belum terbuka.",
+    "assessmentErrorPretestRequired":  "Pretest harus diselesaikan terlebih dahulu.",
+    "assessmentErrorModulesIncomplete":  "Semua modul harus diselesaikan terlebih dahulu.",
+    "assessmentErrorAlreadyCompleted":  "Asesmen ini sudah selesai.",
+    "assessmentErrorDeadlinePassed":  "Tenggat asesmen ini sudah lewat.",
+    "assessmentErrorAttemptsExhausted":  "Kesempatan mengerjakan asesmen ini sudah habis.",
+    "assessmentErrorNotEnrolled":  "Anda tidak terdaftar di kelas pemilik asesmen ini.",
+    "assessmentErrorNoSession":  "Sesi login tidak ditemukan.",
+    "assessmentErrorGeneric":  "Terjadi kesalahan. Silakan coba lagi.",
+    "backToMaterial":  "Kembali ke Materi",
+    "nextToVideo":  "Lanjut ke Video",
+    "posttestUnlockedTitle":  "Semua modul selesai!",
+    "posttestUnlockedMessage":  "Anda telah menyelesaikan seluruh modul. Kerjakan Post-test untuk menuntaskan course.",
+    "notNow":  "Nanti Saja",
+    "startPosttest":  "Mulai Post-test",
+    "pretestLockedTitle":  "Belum Mengerjakan Pretest",
+    "pretestLockedMessage":  "Modul ini akan terbuka setelah Anda menyelesaikan Pretest. Kerjakan Pretest terlebih dahulu untuk membuka materi ini.",
+    "startPretest":  "Kerjakan Pretest",
+    "readyToStart":  "Siap dikerjakan",
+    "darkMode":  "Mode Gelap",
+    "assessment":  "Asesmen",
+    "on":  "Aktif",
+    "off":  "Nonaktif",
+    "lecturerDashboardSubtitle":  "Pendidikan Teknologi Informasi",
+    "contentManagement":  "Manajemen Konten",
+    "manageMaterials":  "Kelola Materi",
+    "manageMaterialsDescription":  "Tambah dan ubah materi pembelajaran",
+    "manageAssessments":  "Kelola Asesmen",
+    "manageAssessmentsDescription":  "Soal dan kunci jawaban",
+    "addMaterial":  "Tambah Materi",
+    "addMaterialDescription":  "Buat materi pembelajaran baru",
+    "totalStudents":  "Total Mahasiswa",
+    "totalClasses":  "Total Kelas",
+    "averageScore":  "Rata-rata Nilai",
+    "noClassData":  "Belum ada data kelas",
+
+    "publishedOfTotal":  "{count} dari {total} dipublikasikan",
+    "@publishedOfTotal":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             },
+                                                   "total":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "scorePercent":  "{value}%",
+    "@scorePercent":  {
+                          "placeholders":  {
+                                               "value":  {
+                                                             "type":  "String"
+                                                         }
+                                           }
+                      },
+    "searchMaterials":  "Cari materi",
+    "allModules":  "Semua Modul",
+    "noVideo":  "Tanpa video",
+    "createdAt":  "Dibuat {date}",
+    "@createdAt":  {
+                       "placeholders":  {
+                                            "date":  {
+                                                         "type":  "String"
+                                                     }
+                                        }
+                   },
+    "coreMaterialProtected":  "Materi inti tidak dapat dihapus",
+    "coreModuleLocked":  "Hanya materi inti yang dapat ditempatkan di modul",
+    "noMaterials":  "Belum ada materi",
+    "noMaterialsDescription":  "Tekan Tambah Materi untuk membuat materi pertama Anda.",
+    "edit":  "Ubah",
+    "delete":  "Hapus",
+    "publish":  "Publikasikan",
+    "unpublish":  "Tarik Publikasi",
+    "published":  "Dipublikasikan",
+    "draft":  "Draf",
+    "deleteMaterial":  "Hapus Materi",
+    "deleteMaterialConfirmBody":  "Materi ini akan dihapus permanen. Progres mahasiswa terkait materi ini juga terhapus.",
+    "materialDeleted":  "Materi dihapus.",
+    "materialPublished":  "Materi dipublikasikan.",
+    "materialUnpublished":  "Materi ditarik dari publikasi.",
+    "materialCreated":  "Materi dibuat.",
+    "materialUpdated":  "Materi diperbarui.",
+    "materialSaveFailed":  "Materi tidak dapat disimpan.",
+    "coreProtectedError":  "Ini adalah materi inti dan tidak dapat diubah.",
+    "invalidVideoUrlError":  "URL video tersebut bukan tautan YouTube yang valid.",
+    "notPermittedError":  "Anda tidak memiliki izin untuk melakukan itu.",
+    "addMaterialTitle":  "Tambah Materi",
+    "editMaterial":  "Ubah Materi",
+    "materialTitleSection":  "Judul",
+    "titleIndonesian":  "Judul (Indonesia)",
+    "titleIndonesianHint":  "Judul yang dilihat mahasiswa",
+    "titleEnglish":  "Judul (Inggris)",
+    "titleEnglishHint":  "Opsional, ditampilkan saat aplikasi berbahasa Inggris",
+    "materialPlacementSection":  "Penempatan",
+    "orderIndex":  "Urutan",
+    "orderIndexInvalid":  "Masukkan nomor urut yang valid (1 atau lebih)",
+    "summaryHint":  "Ringkasan singkat pada kartu materi",
+    "description":  "Deskripsi",
+    "descriptionHint":  "Jelaskan tujuan tugas",
+    "content":  "Konten",
+    "materialContentSection":  "Konten",
+    "materialContentHint":  "Teks biasa. Gunakan tiga backtick untuk blok monospace, \u0027- \u0027 untuk bullet dan \u00271. \u0027 untuk judul bagian.",
+    "contentHint":  "Isi bacaan",
+    "videoUrl":  "URL Video",
+    "durationMinutesLabel":  "Durasi (menit)",
+    "studyTimeLabel":  "Estimasi waktu belajar (menit)",
+    "studyTimeHint":  "Perkiraan waktu membaca materi + menonton video. Ini bukan durasi video YouTube.",
+    "durationInvalid":  "Masukkan durasi yang valid",
+    "publishOn":  "Langsung publikasikan",
+    "publishOff":  "Simpan sebagai draf",
+    "assessmentIntro":  "Kedua asesmen dipakai bersama oleh semua mahasiswa. Setiap soal harus memiliki kunci jawaban sebelum dapat dipublikasikan.",
+    "noAssessments":  "Belum ada Asesmen",
+    "noAssessmentsDescription":  "Belum ada Asesmen pada course ini.",
+    "pretest":  "Pre-test",
+    "posttest":  "Post-test",
+    "questionsShort":  "soal",
+    "answerKeysShort":  "kunci jawaban",
+    "answerKeyMissing":  "{count} soal belum punya kunci jawaban",
+    "@answerKeyMissing":  {
+                              "placeholders":  {
+                                                   "count":  {
+                                                                 "type":  "int"
+                                                             }
+                                               }
+                          },
+    "manageQuestions":  "Kelola Soal",
+    "assessmentPublished":  "Asesmen dipublikasikan.",
+    "assessmentUnpublished":  "Asesmen ditarik dari publikasi.",
+    "assessmentQuizIncomplete":  "Tidak bisa mempublikasikan: setiap soal butuh kunci jawaban.",
+    "assessmentSaveFailed":  "Gagal menyimpan asesmen.",
+    "addQuestion":  "Tambah Soal",
+    "editQuestion":  "Ubah Soal",
+    "noQuestions":  "Belum ada soal",
+    "noQuestionsDescription":  "Tekan Tambah Soal untuk menyusun asesmen ini.",
+    "questionText":  "Soal",
+    "questionTextHint":  "Masukkan teks soal",
+    "answerOptions":  "Pilihan Jawaban",
+    "optionHint":  "Masukkan teks pilihan",
+    "correctAnswer":  "Jawaban Benar",
+    "answerKeyHint":  "Pilih jawaban yang benar",
+    "pickAnswerKey":  "Pilih jawaban benar terlebih dahulu.",
+    "noAnswerKey":  "Belum ada kunci jawaban",
+    "questionImage":  "URL Gambar Soal",
+    "questionAdded":  "Soal ditambahkan.",
+    "questionUpdated":  "Soal diperbarui.",
+    "questionDeleted":  "Soal dihapus.",
+    "questionSaveFailed":  "Soal tidak dapat disimpan.",
+    "deleteQuestion":  "Hapus Soal",
+    "deleteQuestionConfirmBody":  "Kunci jawaban dan jawaban mahasiswa atas soal ini ikut terhapus dan tidak dapat dikembalikan.",
+    "nip":  "NIP",
+    "role":  "Peran",
+    "roleLecturer":  "Dosen",
+    "accountInformation":  "Informasi akun",
+    "profileReadOnlyNote":  "Nama, NIP, dan email Anda dikelola oleh admin. Hubungi admin untuk mengubahnya.",
+    "myProfile":  "Profil Saya",
+    "joinedSince":  "Bergabung sejak",
+    "users":  "Pengguna",
+    "tasks":  "Tugas",
+    "status":  "Status",
+    "manage":  "Kelola",
+    "overview":  "Ringkasan",
+    "all":  "Semua",
+    "lockStatus":  "Status Kunci",
+    "materialAccessLabel": "Akses materi",
+    "materialAccessOptionProgress": "Progres",
+    "materialAccessOptionOpen": "Terbuka",
+    "materialAccessOptionLocked": "Terkunci",
+    "materialAccessHelp": "Ikuti progres: dihitung sebagai syarat modul selesai, seperti materi lain. Terbuka / Terkunci: aturan khusus dosen — opsional bagi mahasiswa dan tidak menahan modul berikutnya.",
+    "materialAccessForcedOpenBadge": "Buka paksa",
+    "materialAccessForcedLockedBadge": "Kunci paksa",
+    "materialAccessLockedItemMessage": "Materi ini dikunci oleh dosen.",
+    "statusPublished":  "Dipublikasikan",
+    "statusDraft":  "Draft",
+    "studyProgram":  "Program Studi",
+    "notFilledYet":  "(belum diisi)",
+"academicTag": "Pendidikan Teknologi Informasi",
+    "studentAcademicTag": "Pendidikan Teknologi Informasi",
+    "@studentAcademicTag": {
+      "description": "Tag akademik di profil mahasiswa, mis. nama program studi."
+    },
+    "settingsAndActivity": "Pengaturan & aktivitas",
+    "profileInfo": "Informasi Profil",
+    "academicInfo": "Informasi Akademik",
+    "academicInfoStudentSubtitle": "Detail NIM, Semester, dan Program Studi",
+    "@academicInfoStudentSubtitle": {
+      "description": "Subtitle untuk item menu informasi akademik mahasiswa."
+    },
+    "assessmentHistory": "Riwayat Asesmen",
+    "@assessmentHistory": {
+      "description": "Judul item menu untuk riwayat assessment mahasiswa."
+    },
+    "assessmentCoreTab": "Pretest & Post Test",
+    "@assessmentCoreTab": {
+      "description": "Tab pertama halaman assessment dua tab: daftar Pretest dan Post Test."
+    },
+    "assessmentHistorySubtitle": "Transkrip Pretest & Post Test",
+    "@assessmentHistorySubtitle": {
+      "description": "Subtitle untuk item menu riwayat assessment."
+    },
+    "studentProgressLabel": "Progress",
+    "@studentProgressLabel": {
+      "description": "Label metrik untuk persentase progress mahasiswa."
+    },
+    "studentModulesLabel": "Modul",
+    "@studentModulesLabel": {
+      "description": "Label metrik untuk modul yang diselesaikan mahasiswa."
+    },
+    "studentAverageScoreLabel": "Nilai Rata-rata",
+    "@studentAverageScoreLabel": {
+      "description": "Label metrik untuk nilai rata-rata mahasiswa."
+    },
+    "securityAndPassword": "Keamanan & Kata Sandi",
+    "appVersion":  "NetLearn v1.0.0 \u00b7 Belajar. Terhubung. Bertumbuh.",
+    "themeLight":  "Tema Terang",
+    "themeDark":  "Tema Gelap",
+    "changePasswordNotAvailable":  "Pengubahan kata sandi belum tersedia. Gunakan tautan di bawah untuk menyetel ulang.",
+    "usePasswordReset":  "Lupa Kata Sandi",
+    "passwordResetEmailFailed":  "Gagal mengirim tautan reset kata sandi. Pastikan email Anda valid.",
+    "@passwordResetEmailFailed": {
+      "description": "Ditampilkan saat email reset kata sandi gagal dikirim dari dialog keamanan profil."
+    },
+    "assessmentHistoryEmpty":  "Belum ada riwayat asesmen. Kerjakan asesmen pertamamu untuk melihat hasilnya di sini.",
+    "@assessmentHistoryEmpty": {
+      "description": "State kosong untuk halaman riwayat assessment mahasiswa."
+    },
+    "historyStudentId":  "NIM",
+    "@historyStudentId": {
+      "description": "Label untuk NIM pada kartu identitas halaman riwayat assessment."
+    },
+    "historyPretestTitle":  "Pretest",
+    "@historyPretestTitle": {
+      "description": "Judul kartu status Pretest di halaman riwayat assessment, ejaannya mengikuti referensi Figma."
+    },
+    "historyPosttestTitle":  "Posttest",
+    "@historyPosttestTitle": {
+      "description": "Judul kartu status Posttest di halaman riwayat assessment, ejaannya mengikuti referensi Figma."
+    },
+    "historyCompletedLabel":  "Asesmen selesai",
+    "@historyCompletedLabel": {
+      "description": "Label metrik jumlah assessment selesai pada ringkasan riwayat assessment."
+    },
+    "historyAverageLabel":  "Rata-rata nilai tersedia",
+    "@historyAverageLabel": {
+      "description": "Label metrik rata-rata nilai pada ringkasan riwayat assessment."
+    },
+    "historyScoreLabel":  "Nilai:",
+    "@historyScoreLabel": {
+      "description": "Label baris nilai pada kartu riwayat assessment."
+    },
+    "historyCoreIncomplete":  "{done}/2 · Asesmen belum selesai",
+    "@historyCoreIncomplete": {
+      "description": "Caption di bawah ringkasan riwayat assessment ketika Pretest atau Post Test belum punya attempt terkirim.",
+      "placeholders": {
+        "done":  {"type": "String"}
+      }
+    },
+
+    "studentSpaceHeading":  "Ruang belajarmu",
+    "studentDashboardSubtitle":  "Siap belajar hal baru hari ini?",
+    "shortcutPretest":  "Pretest",
+    "shortcutPretestHint":  "Uji pengetahuan",
+    "shortcutModules":  "Modul",
+    "shortcutModulesHint":  "4 modul belajar",
+    "shortcutScanner":  "AR Scanner",
+    "shortcutScannerHint":  "Eksplorasi 3D",
+    "shortcutPosttest":  "Post Test",
+    "shortcutPosttestHint":  "Evaluasi akhir",
+    "shortcutAssignments":  "Asesmen",
+    "shortcutAssignmentsHint":  "Tugas & asesmen",
+    "shortcutAssessmentHistory":  "Riwayat Asesmen",
+    "shortcutAssessmentHistoryHint":  "Skor & riwayat progres",
+    "shortcutProfile":  "Profil",
+    "shortcutProfileHint":  "Akun & setelan",
+    "shortcutVirtualLab":  "Virtual Lab",
+    "shortcutVirtualLabHint":  "Simulasi jaringan",
+    "virtualLab":  "Virtual Lab",
+    "virtualLabAddPc":  "Tambah PC",
+    "virtualLabAddSwitch":  "Tambah switch",
+    "virtualLabConnect":  "Hubungkan",
+    "virtualLabConnectFinish": "Buat kabel",
+    "virtualLabEmptyHint":  "Gunakan toolbar di atas untuk menambah perangkat dan menghubungkannya",
+    "virtualLabDeleteSelected":  "Hapus pilihan",
+    "virtualLabReset":  "Reset kanvas",
+    "virtualLabConnectNeedSelection": "Pilih perangkat dulu",
+    "virtualLabConnectPendingHint":  "Ketuk perangkat kedua untuk membuat kabel",
+    "virtualLabSelectedCable":  "Kabel dipilih",
+    "virtualLabTestConnectivity": "Uji konektivitas",
+    "virtualLabTestSuccess": "Koneksi berhasil",
+    "virtualLabTestFailed": "Koneksi gagal",
+    "virtualLabTestNeedDevices": "Tambahkan pengaturan jaringan pada minimal dua perangkat",
+    "virtualLabConfigDeviceTitle": "Konfigurasi perangkat",
+    "virtualLabIpLabel": "Alamat IP",
+    "virtualLabMaskLabel": "Subnet Mask",
+    "virtualLabNoIp": "Belum dikonfigurasi",
+    "virtualLabScenario1": "Skenario 1",
+    "virtualLabReasonInvalidIp": "Format alamat IP tidak valid.",
+    "virtualLabReasonInvalidMask": "Format subnet mask tidak valid.",
+    "virtualLabReasonHostAddress": "Alamat adalah alamat jaringan/broadcast, bukan host.",
+    "virtualLabReasonDuplicate": "Alamat IP duplikat terdeteksi.",
+    "virtualLabReasonNoPath": "Tidak ada jalur jaringan antar perangkat yang dikonfigurasi.",
+    "virtualLabReasonDifferentSubnet": "Perangkat berada pada subnet berbeda.",
+    "virtualLabSelectedDevice":  "Perangkat dipilih",
+    "virtualLabSubtitle": "Bangun topologi, atur IPv4, lalu uji konektivitas dengan ping.",
+    "virtualLabScenarioLabel": "SKENARIO 1 · LAN SATU SUBNET",
+    "virtualLabScenarioDescription": "Hubungkan PC2 ke Switch1, beri IP di 192.168.1.0/24, lalu ping dari PC1 ke PC2.",
+    "virtualLabToolSelect": "Pilih",
+    "virtualLabToolCable": "Kabel",
+    "virtualLabToolPc": "PC",
+    "virtualLabToolSwitch": "Switch",
+    "virtualLabToolDelete": "Hapus",
+    "virtualLabToolReset": "Reset",
+    "virtualLabLegendConnected": "Terhubung",
+    "virtualLabLegendNeedsConfig": "Perlu konfigurasi",
+    "virtualLabLegendNotCabled": "Belum berkabel",
+    "virtualLabCanvasHint": "Ketuk untuk memilih · geser untuk memindahkan · ketuk kabel untuk memilih",
+    "virtualLabPanelConfiguration": "Konfigurasi",
+    "virtualLabPanelPingTest": "Uji Ping",
+    "virtualLabNoDeviceSelected": "Ketuk perangkat di kanvas untuk mengonfigurasinya.",
+    "virtualLabDeviceNameLabel": "Nama perangkat",
+    "virtualLabDevicePcPorts": "PC · 1 port NIC",
+    "virtualLabDeviceSwitchPorts": "Switch · multi-port",
+    "virtualLabStatusInvalid": "Tidak valid",
+    "virtualLabCableConnected": "Kabel: terhubung",
+    "virtualLabCableNotConnected": "Kabel: belum terhubung",
+    "virtualLabApply": "Terapkan konfigurasi",
+    "virtualLabPingSource": "Sumber",
+    "virtualLabPingTarget": "Tujuan",
+    "virtualLabPingRun": "Jalankan ping",
+    "virtualLabPingSuccess": "Ping berhasil — kedua perangkat saling menjangkau.",
+    "virtualLabPingFailed": "Ping gagal",
+    "virtualLabPingNoDevices": "Tambahkan minimal dua perangkat dulu.",
+    "virtualLabPingSameDevice": "Pilih dua perangkat yang berbeda untuk di-ping.",
+    "virtualLabCableIssueSameDevice": "Pilih perangkat lain untuk ujung kabel yang satunya.",
+    "virtualLabCableIssuePcPortFull": "PC ini sudah memakai satu-satunya port-nya. Hapus kabel yang ada terlebih dahulu.",
+    "virtualLabCableIssueDuplicate": "Kedua perangkat ini sudah terhubung.",
+    "virtualLabReasonNotConfigured": "Ada perangkat yang belum memiliki konfigurasi IP.",
+    "virtualLabFooterNote": "Simulasi lokal di perangkat · Nilai dan progres tidak terpengaruh.",
+    "virtualLabBackToDashboard": "Kembali ke Dasbor",
+    "learningJourney":  "Perjalanan belajarmu",
+    "modulesCompletedOf":  "{completed} dari {total} modul selesai",
+    "moduleMaterialsCompleted":  "{completed} dari {total} materi selesai",
+    "@moduleMaterialsCompleted":  {
+                                "description":  "Baris penyelesaian per modul pada kartu modul dashboard mahasiswa, mis. \"2 dari 3 materi selesai\".",
+                                "placeholders":  {
+                                                     "completed":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                     "total":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "keepGoing":  "Tetap semangat!",
+    "oneStepToday":  "Satu langkah kecil hari ini,",
+    "oneConnectionTomorrow":  "satu koneksi besar untuk masa depanmu.",
+    "aboutNetLearn":  "Tentang NetLearn",
+    "aboutNetLearnHeadline":  "NetLearn \u2014 Platform Pembelajaran Jaringan Komputer",
+    "@aboutNetLearnHeadline": {
+      "description": "Hero heading on the About page naming the product and its subject."
+    },
+    "aboutNetLearnBody":  "NetLearn adalah platform pembelajaran jaringan komputer yang dirancang untuk membantu mahasiswa mempelajari konsep jaringan melalui materi pembelajaran terstruktur, bacaan digital, video pembelajaran, dan asesmen.",
+    "@aboutNetLearnBody": {
+      "description": "First paragraph of the About page description, addressing students."
+    },
+    "aboutNetLearnBodyLecturers":  "Platform ini juga mendukung dosen dalam mengelola materi pembelajaran dan menata sumber daya pembelajaran di satu tempat.",
+    "@aboutNetLearnBodyLecturers": {
+      "description": "Second paragraph of the About page description, addressing lecturers."
+    },
+    "aboutReleaseBadge":  "Rilis",
+    "@aboutReleaseBadge": {
+      "description": "Release-status badge on the About page hero card."
+    },
+    "aboutUnderDevelopmentBadge":  "Dalam Pengembangan",
+    "@aboutUnderDevelopmentBadge": {
+      "description": "Badge next to the version line while the app is not released."
+    },
+    "aboutPreReleaseNote":  "Aplikasi telah dirilis secara resmi dan siap digunakan.",
+    "@aboutPreReleaseNote": {
+      "description": "Short note under the version block on the About page."
+    },
+    "aboutVersion":  "Versi 1.0.0",
+    "keyFeaturesTitle":  "Fitur Utama",
+    "@keyFeaturesTitle": {
+      "description": "Section heading above the six feature rows on the About page."
+    },
+    "aboutFeatureMaterialsTitle":  "Materi Pembelajaran",
+    "aboutFeatureMaterialsDescription":  "Mengakses pelajaran jaringan komputer yang terstruktur.",
+    "aboutFeatureReadingTitle":  "Bacaan Digital",
+    "aboutFeatureReadingDescription":  "Mempelajari topik jaringan melalui pembaca materi.",
+    "aboutFeatureVideosTitle":  "Video Pembelajaran",
+    "aboutFeatureVideosDescription":  "Mengakses video pembelajaran pendukung yang tersedia.",
+    "aboutFeatureAssessmentTitle":  "Asesmen",
+    "aboutFeatureAssessmentDescription":  "Menyelesaikan aktivitas Pretest dan Posttest untuk mengevaluasi pemahaman.",
+    "aboutFeatureProgressTitle":  "Progres Belajar",
+    "aboutFeatureProgressDescription":  "Meninjau progres belajar melalui aktivitas belajar yang tersedia.",
+    "aboutFeatureLecturerTitle":  "Kelola Materi Dosen",
+    "aboutFeatureLecturerDescription":  "Membantu dosen membuat, menyunting, dan mengelola materi pembelajaran.",
+    "downloadResourcesTitle":  "Unduh Sumber Daya",
+    "@downloadResourcesTitle": {
+      "description": "Section heading above the three download resource cards."
+    },
+    "downloadMarkerTitle":  "Unduh Marker",
+    "downloadMarkerDescription":  "Unduh penanda yang disediakan untuk aktivitas pembelajaran Augmented Reality yang didukung di NetLearn.",
+    "downloadMaterialsTitle":  "Unduh Materi",
+    "downloadMaterialsDescription":  "Unduh buku materi pembelajaran jaringan komputer NetLearn dalam bentuk PDF.",
+    "downloadManualsTitle":  "Unduh Buku Panduan",
+    "downloadManualsDescription":  "Mengakses panduan pengguna NetLearn yang menjelaskan cara menggunakan fitur utama aplikasi sesuai peran pengguna yang tersedia.",
+    "downloadComingSoon":  "Segera Tersedia",
+    "@downloadComingSoon": {
+      "description": "Badge on download cards whose resource file does not exist yet."
+    },
+    "notAvailableYet":  "Belum Tersedia",
+    "@notAvailableYet": {
+      "description": "Status line on download cards without a real file or destination."
+    },
+    "downloadGeneric":  "Unduh",
+    "@downloadGeneric": {
+      "description": "Label of the (inactive) download button on each resource card."
+    },
+    "downloadPdfBadge":  "PDF",
+    "@downloadPdfBadge": {
+      "description": "Badge on download cards whose PDF file is bundled in the app."
+    },
+    "downloadSucceeded":  "PDF berhasil diunduh.",
+    "@downloadSucceeded": {
+      "description": "Snackbar after a bundled About PDF is downloaded."
+    },
+    "downloadFailed":  "Gagal mengunduh PDF. Coba lagi.",
+    "@downloadFailed": {
+      "description": "Snackbar when a bundled About PDF fails to download; raw errors never surface because they can leak the asset path."
+    },
+    "viewAllNotifications":  "Lihat Semua Notifikasi",
+    "componentsCompletedOf":  "{completed}/{total} · Komponen selesai",
+    "@componentsCompletedOf":  {
+                                "description":  "Baris penyelesaian keseluruhan pada kartu ringkasan dashboard mahasiswa.",
+                                "placeholders":  {
+                                                     "completed":  {
+                                                                       "type":  "int"
+                                                                   },
+                                                     "total":  {
+                                                                   "type":  "int"
+                                                               }
+                                                 }
+                            },
+    "componentPretestSubtitle":  "Cek pemahamanmu sebelum belajar.",
+    "componentTapToOpen":  "Ketuk untuk membuka",
+    "componentCompletePretestFirst":  "Selesaikan Pretest dulu.",
+    "componentPosttestSubtitle":  "Evaluasi pemahamanmu setelah semua modul.",
+    "componentCompleteAllModules":  "Selesaikan semua modul dulu.",
+
+    "lecturerGreeting":  "Halo, {name} 👋",
+    "@lecturerGreeting":  {
+                                "description":  "Sapaan yang ditampilkan di hero dashboard dosen. Placeholder {name} diganti dengan nama dosen yang sebenarnya.",
+                                "placeholders":  {
+                                                        "name":  {
+                                                                      "type":  "String",
+                                                                      "example":  "Pratama"
+                                                                  }
+                                                    }
+                            },
+    "lecturerSpaceHeading":  "Ruang mengajar",
+    "shortcutManageMaterials":  "Kelola Materi",
+    "shortcutManageMaterialsHint":  "12 materi",
+    "assignment":  "Assignment",
+    "shortcutAssignmentHint":  "Pretest & Post Test",
+    "shortcutManageQuestions":  "Kelola Soal",
+    "shortcutManageQuestionsHint":  "Bank soal",
+    "shortcutManageTasks":  "Kelola Tugas",
+    "shortcutManageTasksHint":  "Tugas & pengumpulan",
+    "shortcutLecturerProfile":  "Profil Dosen",
+    "comingSoon":  "Fitur ini segera hadir.",
+    "recentActivity":  "Aktivitas Terbaru",
+    "recentNotifications":  "Notifikasi Terbaru",
+    "noNotifications":  "Belum ada notifikasi",
+    "notificationsTitle":  "Notifikasi",
+    "announcements":  "Pengumuman",
+    "reminders":  "Pengingat",
+    "noAnnouncements":  "Belum ada pengumuman",
+    "noAnnouncementsMessage":  "Pengumuman yang dipublikasikan dosen akan muncul di sini.",
+    "noReminders":  "Tidak ada deadline mendatang",
+    "noRemindersMessage":  "Pengingat akan muncul jika ada asesmen yang belum dikerjakan atau deadline yang mendekat.",
+    "assessmentsCompleted":  "Asesmen selesai",
+    "assessmentsIncomplete":  "Asesmen belum selesai",
+    "averageAvailableScore":  "Rata-rata nilai tersedia",
+    "backToStudentList":  "Kembali ke Daftar Mahasiswa",
+    "lecturerNoRemindersMessage":  "Semua mahasiswa sudah menyelesaikan Pretest dan Posttest.",
+    "noAssessmentHistory":  "Belum ada riwayat asesmen. Selesaikan asesmen pertama untuk melihat hasilnya di sini.",
+    "noStudentsFound":  "Mahasiswa tidak ditemukan.",
+    "reminderNotCompleted":  "Belum dikerjakan",
+    "scoreTabEmpty":  "Belum ada data mahasiswa.",
+    "searchStudentsHint":  "Cari nama atau NIM",
+    "studentListIntro":  "Pilih mahasiswa untuk melihat nilai Pretest dan Posttest.",
+    "studentScoreHistoryIntro":  "Riwayat nilai Pretest dan Posttest.",
+    "viewScoreSummary":  "Lihat Rekap Nilai",
+    "notificationUnread":  "Belum dibaca",
+    "notificationRead":  "Sudah dibaca",
+    "notificationJustNow":  "Baru saja",
+    "notificationMinutesAgo":  "{count} menit yang lalu",
+    "notificationHoursAgo":  "{count} jam yang lalu",
+    "notificationDaysAgo":  "{count} hari yang lalu",
+    "notificationReadSaveFailed":  "Status baca gagal disimpan.",
+    "manageAnnouncements":  "Kelola Pengumuman",
+    "createAnnouncement":  "Buat Pengumuman",
+    "editAnnouncement":  "Ubah Pengumuman",
+    "announcementTitle":  "Judul Pengumuman",
+    "announcementTitleHint":  "Masukkan judul pengumuman",
+    "announcementContent":  "Isi Pengumuman",
+    "announcementContentHint":  "Tulis detail pengumuman di sini",
+    "recipientScope":  "Cakupan Penerima",
+    "allStudents":  "Semua Mahasiswa",
+    "saveAsDraft":  "Simpan sebagai Draf",
+    "publishAnnouncement":  "Publikasikan Pengumuman",
+    "saveDraft":  "Simpan Draf",
+    "announcementDraft":  "Draf",
+    "announcementPublished":  "Dipublikasikan",
+    "deleteAnnouncement":  "Hapus Pengumuman",
+    "deleteAnnouncementConfirm":  "Pengumuman ini akan dihapus permanen. Apakah Anda yakin?",
+    "announcementDeleted":  "Pengumuman dihapus.",
+    "announcementCreated":  "Pengumuman dibuat.",
+    "announcementUpdated":  "Pengumuman diperbarui.",
+    "announcementPublishedSuccess":  "Pengumuman dipublikasikan.",
+    "announcementUnpublished":  "Pengumuman ditarik dari publikasi.",
+    "announcementSaveFailed":  "Pengumuman tidak dapat disimpan.",
+    "titleRequired":  "Judul wajib diisi",
+    "contentRequired":  "Isi wajib diisi",
+    "reminderDueSoon":  "Segera jatuh tempo",
+    "reminderDueTomorrow":  "Jatuh tempo besok",
+    "reminderOverdue":  "Terlewat",
+    "daysLeft":  "{count} hari lagi",
+    "hoursLeft":  "{count} jam lagi",
+    "minutesLeft":  "{count} menit lagi",
+    "viewDetails":  "Lihat Detail",
+    "markAsReadAction":  "Tandai sebagai Dibaca",
+"by":  "oleh",
+
+    "assessments":  "Asesmen",
+    "addTask":  "Tambah Asesmen",
+    "editTask":  "Ubah Tugas",
+    "editTaskAndQuestions":  "Ubah Tugas & Soal",
+    "viewDetail":  "Lihat Detail",
+    "taskDetails":  "Detail Tugas",
+    "taskCreated":  "Tugas dibuat.",
+    "taskUpdated":  "Tugas diperbarui.",
+    "taskPublished":  "Tugas dipublikasikan.",
+    "taskUnpublished":  "Tugas ditarik dari publikasi.",
+    "taskSaveFailed":  "Gagal menyimpan tugas.",
+    "taskNotFound":  "Tugas tidak ditemukan.",
+    "taskIdMissing":  "ID Tugas tidak ditemukan.",
+    "noTasks":  "Belum ada tugas",
+    "noTasksDescription":  "Buat tugas pertama Anda untuk memulai.",
+    "basicInformation":  "Informasi Dasar",
+    "timingDeadline":  "Waktu & Deadline",
+    "taskTitle":  "Judul Tugas",
+    "taskTitleHint":  "Masukkan judul tugas",
+    "instructions":  "Instruksi",
+    "instructionsHint":  "Instruksi untuk mahasiswa",
+    "moduleHint":  "Pilih modul",
+    "standaloneTask":  "Tugas Mandiri",
+    "timeLimitMinutes":  "Batas Waktu (menit)",
+    "timeLimitHelper":  "0 berarti tanpa batas waktu. Maksimal 180 menit.",
+    "timeLimitInvalid":  "Batas waktu harus antara 0 dan 180 menit",
+    "timeLimitShort":  "batas",
+    "deadlineHint":  "Pilih deadline (opsional)",
+    "deadlineInvalid":  "Format deadline tidak valid",
+    "createTask":  "Buat Tugas",
+    "noDescription":  "Belum ada deskripsi",
+    "noInstructions":  "Belum ada instruksi",
+    "submitted":  "Terkumpul",
+    "submissionRate":  "Tingkat pengumpulan:",
+    "taskResults":  "Hasil Tugas",
+    "questionImageHint":  "URL gambar opsional",
+    "assessmentPublishedTitle":  "Asesmen Dipublikasikan",
+    "assessmentUnpublishedTitle":  "Asesmen Ditarik Publikasi",
+    "january":  "Januari",
+    "february":  "Februari",
+    "march":  "Maret",
+    "april":  "April",
+    "may":  "Mei",
+    "june":  "Juni",
+    "july":  "Juli",
+    "august":  "Agustus",
+    "september":  "September",
+    "october":  "Oktober",
+    "november":  "November",
+    "december":  "Desember",
+    "multipleChoice":  "Pilihan Ganda",
+    "backToAssessments":  "Kembali ke Asesmen",
+    "failedToLoadQuestions":  "Gagal memuat soal",
+
+    "submissionRateUnavailable":  "Jumlah mahasiswa tidak tersedia",
+    "moveUp":  "Naikkan",
+    "moveDown":  "Turunkan",
+    "department":  "Jurusan",
+    "informaticsEngineering":  "Teknik Informatika",
+    "informationTechnologyEducation":  "Pendidikan Teknologi Informasi",
+    "lecturerRoleProgram":  "Dosen S1 Pendidikan Teknologi Informasi",
+
+    "materialPdf":  "PDF Materi (opsional)",
+    "uploadPdf":  "Unggah PDF",
+    "replacePdf":  "Ganti PDF",
+    "removePdf":  "Hapus PDF",
+    "pdfUploading":  "Mengunggah PDF...",
+    "pdfUploaded":  "PDF berhasil diunggah.",
+    "pdfRemoved":  "PDF dihapus.",
+    "pdfUploadFailed":  "Gagal mengunggah PDF.",
+    "pdfTooLarge":  "PDF terlalu besar (maks 20 MB).",
+    "pdfInvalidType":  "Silakan pilih berkas PDF.",
+    "noPdf":  "Belum ada PDF",
+    "openPdfFailed":  "Gagal membuka PDF.",
+    "accountEmail":  "Email Akun",
+    "answerKeysConfigured":  "{answered}/{total} Kunci Jawaban Terisi",
+    "@answerKeysConfigured":  {
+      "placeholders":  {
+        "answered":  {"type":  "int"},
+        "total":  {"type":  "int"}
+      }
+    },
+    "answerOptionsAndKey":  "Opsi & Kunci Jawaban",
+    "assessmentQuestions":  "Pertanyaan Asesmen",
+    "backToSecurity":  "Kembali ke Keamanan",
+    "changeEmail":  "Ubah Email",
+    "changePassword":  "Ubah Kata Sandi",
+    "changePasswordHint":  "Anda dapat mengubah kata sandi di sini",
+    "confirmNewPassword":  "Konfirmasi Kata Sandi Baru",
+    "confirmNewPasswordHint":  "Masukkan ulang kata sandi baru Anda",
+    "drafts":  "Draf",
+    "forgotPasswordHint":  "Masukkan email Anda untuk menerima kode reset",
+    "imageUrlHint":  "https://... (opsional)",
+    "invalidOtp":  "Kode tidak valid. Silakan coba lagi.",
+    "manageAnnouncementsSubtitle":  "Kelola pengumuman Anda",
+    "newPassword":  "Kata Sandi Baru",
+    "newPasswordHint":  "Masukkan kata sandi baru Anda",
+    "currentPassword":  "Kata Sandi Saat Ini",
+    "@currentPassword": {
+      "description": "Label untuk isian kata sandi saat ini pada form ubah kata sandi."
+    },
+    "strongPasswordHint":  "Gunakan kata sandi yang kuat dan tidak dipakai di akun lain.",
+    "@strongPasswordHint": {
+      "description": "Teks bantuan di atas isian ubah kata sandi."
+    },
+    "saveChanges":  "Simpan Perubahan",
+    "@saveChanges": {
+      "description": "Tombol simpan pada form ubah kata sandi."
+    },
+    "noAnnouncementsLecturerMessage":  "Belum ada pengumuman",
+    "noStudents":  "Belum ada mahasiswa",
+    "noStudentsDescription":  "Mahasiswa dengan peran student akan muncul di sini.",
+    "nim":  "NIM",
+
+    "posttestScore":  "Nilai Posttest",
+    "pretestScore":  "Nilai Pretest",
+    "scoreNotAvailable":  "Belum tersedia",
+    "scoreScaleHint":  "Nilai berada pada skala 0–100. — berarti asesmen belum diselesaikan.",
+    "scoreTableSemantics":  "Tabel nilai mahasiswa",
+    "studentName":  "Nama Mahasiswa",
+    "otpCode":  "Kode Verifikasi",
+    "otpCodeHint":  "Masukkan kode yang dikirim ke email Anda",
+    "otpSentTitle":  "Periksa Email Anda",
+    "otpSentBody":  "Kami mengirim kode verifikasi ke {submittedEmail}",
+    "@otpSentBody":  {
+      "placeholders":  {
+        "submittedEmail":  {"type":  "String"}
+      }
+    },
+    "passwordChangeNotAvailable":  "Perubahan kata sandi tidak tersedia dalam mode demo",
+    "passwordDemoNote":  "Ini adalah akun demo. Perubahan kata sandi dinonaktifkan.",
+    "passwordTooShort":  "Kata sandi minimal 8 karakter",
+    "passwordUpdated":  "Kata Sandi Diperbarui",
+    "passwordUpdatedBody":  "Kata sandi Anda berhasil diperbarui.",
+    "passwordUpdateFailed":  "Gagal memperbarui kata sandi. Silakan coba lagi.",
+    "pdfUploadHint":  "Unggah file PDF",
+    "preferencesAndAccount":  "Preferensi & Akun",
+    "questionNotFound":  "Pertanyaan ini bukan bagian dari asesmen ini lagi.",
+    "resendCode":  "Kirim Ulang Kode",
+    "resendCodeSent":  "Kode baru telah dikirim ke email Anda.",
+    "savePassword":  "Simpan Kata Sandi",
+    "saveQuestion":  "Simpan Pertanyaan",
+    "scoreOverview":  "Rekap Nilai",
+    "searchStudents":  "Cari Mahasiswa",
+    "securityFooterNote":  "Pengaturan keamanan Anda dikelola oleh administrator.",
+    "sendOtpCode":  "Kirim Kode",
+    "setNewPasswordHeading":  "Atur Kata Sandi Baru",
+    "setNewPasswordSubtitle":  "Pilih kata sandi yang kuat untuk akun Anda",
+    "studentData":  "Data Mahasiswa",
+    "studentDataOverview":  "Ringkasan Data Mahasiswa",
+    "totalAnnouncements":  "Total Pengumuman",
+    "verifyCode":  "Verifikasi Kode",
+    "optionLabel":  "Opsi {letter}",
+    "@optionLabel":  {
+      "placeholders":  {
+        "letter":  {"type":  "String"}
+      }
+    },
+    "@virtualLab":  {
+      "description":  "Shortcut lab virtual"
+    },
+    "watchAndLearn":  "Tonton & pelajari",
+    "@watchAndLearn":  {
+      "description":  "Subtitle tonton dan pelajari"
+    },
+    "networkPractice":  "Praktik jaringan",
+    "@networkPractice":  {
+      "description":  "Subtitle praktik jaringan"
+    },
+    "accountSettings":  "Akun & pengaturan",
+    "@accountSettings":  {
+      "description":  "Subtitle akun dan pengaturan"
+    },
+    "noVideoAvailable":  "Belum ada video tersedia.",
+    "videoListSubtitle":  "{count} modul · Pilih video untuk mulai belajar",
+    "videoListWatchVideo":  "Lihat video pembelajaran",
+    "noVideoAvailableMessage":  "Belum ada video pembelajaran yang dipublikasikan.",
+    "@noVideoAvailable":  {
+      "description":  "Pesan belum ada video"
+    },
+    "downloadCsv":  "Unduh CSV",
+    "@downloadCsv":  {
+      "description":  "Unduh data mahasiswa sebagai CSV"
+    },
+    "csvExported":  "CSV berhasil diunduh.",
+    "@csvExported":  {
+      "description":  "Pesan sukses ekspor CSV"
+    },
+    "csvFailed":  "Gagal mengekspor CSV. Silakan coba lagi.",
+    "@csvFailed":  {
+      "description":  "Pesan error ekspor CSV"
+    },
+    "videoLinkAvailable":  "Tautan video tersedia",
+    "@videoLinkAvailable":  {
+      "description":  "Badge kartu video ketika modul memiliki tautan video"
+    },
+    "videoLinkUnavailable":  "Video belum tersedia",
+    "@videoLinkUnavailable":  {
+      "description":  "Badge kartu video ketika modul tidak memiliki tautan video"
+    },
+    "splashTagline":  "BELAJAR. TERHUBUNG. BERTUMBUH.",
+    "@splashTagline":  {
+      "description":  "Tagline layar splash"
+    },
+    "splashOpening":  "Membuka aplikasi",
+    "@splashOpening":  {
+      "description":  "Label aksesibilitas indikator memuat pada splash"
+    },
+    "onboardingJourneyLabel":  "Perjalanan belajar jaringanmu",
+    "@onboardingJourneyLabel":  {
+      "description":  "Judul kecil di atas indikator langkah onboarding"
+    },
+    "onboardingPageNumberSuffix":  " / 03",
+    "@onboardingPageNumberSuffix":  {
+      "description":  "Jumlah halaman total setelah nomor halaman onboarding aktif, mis. \"01 / 03\"."
+    },
+    "onboardingIntroTitle":  "Pelajari Jaringan, Hubungkan Segalanya.",
+    "@onboardingIntroTitle":  {
+      "description":  "Judul layar onboarding 1"
+    },
+    "onboardingIntroBody":  "Bangun pemahaman jaringan komputer melalui materi terarah, video pembelajaran, dan asesmen.",
+    "@onboardingIntroBody":  {
+      "description":  "Deskripsi layar onboarding 1"
+    },
+    "onboardingModulesTitle":  "Pahami Dasar-Dasarnya.",
+    "@onboardingModulesTitle":  {
+      "description":  "Judul layar onboarding 2"
+    },
+    "onboardingModulesBody":  "Jelajahi konsep inti jaringan komputer, selangkah demi selangkah.",
+    "@onboardingModulesBody":  {
+      "description":  "Deskripsi layar onboarding 2"
+    },
+    "onboardingPracticeTitle":  "Ubah Pengetahuan Menjadi Praktik.",
+    "@onboardingPracticeTitle":  {
+      "description":  "Judul layar onboarding 3"
+    },
+    "onboardingPracticeBody":  "Pelajari materi, tonton video pembelajaran, kerjakan asesmen, dan tinjau hasilmu.",
+    "@onboardingPracticeBody":  {
+      "description":  "Deskripsi layar onboarding 3"
+    },
+    "onboardingPersistFailed":  "Gagal menyimpan status pengenalan aplikasi. Pengenalan bisa muncul lagi saat Anda masuk berikutnya.",
+    "@onboardingPersistFailed":  {
+      "description":  "Ditampilkan saat pencatatan selesai onboarding pada akun gagal, misalnya tanpa jaringan"
+    },
+    "onboardingModuleFundamentals":  "Dasar-Dasar Jaringan",
+    "@onboardingModuleFundamentals":  {
+      "description":  "Kartu modul onboarding: Dasar-Dasar Jaringan"
+    },
+    "onboardingModuleDevices":  "Perangkat Jaringan",
+    "@onboardingModuleDevices":  {
+      "description":  "Kartu modul onboarding: Perangkat Jaringan"
+    },
+    "onboardingModuleTopologies":  "Topologi Jaringan",
+    "@onboardingModuleTopologies":  {
+      "description":  "Kartu modul onboarding: Topologi Jaringan"
+    },
+    "onboardingModuleIpAddress":  "IP Address",
+    "@onboardingModuleIpAddress":  {
+      "description":  "Kartu modul onboarding: IP Address"
+    },
+    "journeyStudyTitle":  "Pelajari Materi",
+    "@journeyStudyTitle":  {
+      "description":  "Judul langkah 1 perjalanan belajar onboarding"
+    },
+    "journeyStudySubtitle":  "Bangun dasar pemahamanmu",
+    "@journeyStudySubtitle":  {
+      "description":  "Sub-judul langkah 1 perjalanan belajar onboarding"
+    },
+    "journeyVideosTitle":  "Tonton Video",
+    "@journeyVideosTitle":  {
+      "description":  "Judul langkah 2 perjalanan belajar onboarding"
+    },
+    "journeyVideosSubtitle":  "Lihat penerapan konsep",
+    "@journeyVideosSubtitle":  {
+      "description":  "Sub-judul langkah 2 perjalanan belajar onboarding"
+    },
+    "journeyAssessmentsTitle":  "Kerjakan Asesmen",
+    "@journeyAssessmentsTitle":  {
+      "description":  "Judul langkah 3 perjalanan belajar onboarding"
+    },
+    "journeyAssessmentsSubtitle":  "Uji pemahamanmu",
+    "@journeyAssessmentsSubtitle":  {
+      "description":  "Sub-judul langkah 3 perjalanan belajar onboarding"
+    },
+    "journeyReviewTitle":  "Tinjau Hasil",
+    "@journeyReviewTitle":  {
+      "description":  "Judul langkah 4 perjalanan belajar onboarding"
+    },
+    "journeyReviewSubtitle":  "Evaluasi pembelajaranmu",
+    "@journeyReviewSubtitle":  {
+      "description":  "Sub-judul langkah 4 perjalanan belajar onboarding"
+    },
+    "onboardingSkip":  "Lewati",
+    "@onboardingSkip":  {
+      "description":  "Aksi lewati onboarding"
+    },
+    "onboardingGetStarted":  "Mulai Sekarang",
+    "@onboardingGetStarted":  {
+      "description":  "Aksi akhir onboarding"
+    },
+    "onboardingProgressLabel":  "Progres pengenalan aplikasi",
+    "@onboardingProgressLabel":  {
+      "description":  "Label aksesibilitas titik progres onboarding"
+    },
+    "onboardingSceneStudentLabel":  "Seorang mahasiswa menjelajahi jaringan komputer dari laptop, terhubung ke router dan komputer",
+    "@onboardingSceneStudentLabel":  {
+      "description":  "Deskripsi aksesibilitas scene mahasiswa pada onboarding"
+    },
+    "onboardingSceneNetworkLabel":  "Komputer terhubung melalui router dengan port Ethernet",
+    "@onboardingSceneNetworkLabel":  {
+      "description":  "Deskripsi aksesibilitas scene jaringan pada onboarding"
+    },
+    "manageClassesTitle": "Kelola Kelas",
+    "manageClassesSubtitle": "Buat, atur, dan kelola kelas serta modul pembelajaran.",
+    "createClassTitle": "Buat Kelas",
+    "switchClassAction": "Ganti Kelas",
+    "archivedClassesTitle": "Kelas Diarsipkan",
+    "noClassesLecturerTitle": "Belum ada kelas aktif",
+    "noClassesLecturerMessage": "Buat kelas pertama Anda dari template NetLearn atau mulai kelas kustom dari awal.",
+    "classStatusDraft": "Draf",
+    "classStatusPublished": "Dipublikasikan",
+    "classStatusArchived": "Diarsipkan",
+    "classOriginTemplate": "Template NetLearn",
+    "classOriginCustom": "Kelas Kustom",
+    "classMembersCount": "{count} mahasiswa",
+    "@classMembersCount": {
+      "placeholders": {
+        "count": {
+          "type": "int"
+        }
+      }
+    },
+    "classModulesCount": "{count} modul",
+    "@classModulesCount": {
+      "placeholders": {
+        "count": {
+          "type": "int"
+        }
+      }
+    },
+    "classInviteCodeLabel": "Kode Undangan",
+    "classInviteCodeCopied": "Kode undangan disalin ke papan klip.",
+    "classManageButton": "Kelola",
+    "classNameLabel": "Nama Kelas",
+    "classNameHint": "mis. Jaringan Komputer — Kelas A",
+    "classNameRequired": "Nama kelas wajib diisi",
+    "classDescriptionLabel": "Deskripsi Kelas",
+    "classDescriptionHint": "Ringkasan singkat tujuan atau jadwal kelas",
+    "classSemesterLabel": "Semester / Periode Akademik",
+    "classSemesterHint": "mis. Ganjil 2026/2027",
+    "classCreationModeTitle": "Sumber Struktur Kelas",
+    "classUseTemplateTitle": "Gunakan Template NetLearn",
+    "classUseTemplateSubtitle": "Menyalin 4 modul inti, 5 materi, Pretest, dan Posttest ke kelas Anda.",
+    "classCreateCustomTitle": "Buat Kelas Kustom",
+    "classCreateCustomSubtitle": "Mulai dengan kelas kosong lalu susun modul, materi, dan asesmen sendiri.",
+    "classPretestEnabledLabel": "Aktifkan Gerbang Pretest",
+    "classPretestEnabledHelper": "Mahasiswa wajib menyelesaikan Pretest sebelum membuka Modul 1.",
+    "classPosttestEnabledLabel": "Aktifkan Evaluasi Posttest",
+    "classPosttestEnabledHelper": "Membuka Posttest akhir setelah seluruh modul terpublikasi selesai.",
+    "classLeaderboardEnabledLabel": "Aktifkan Papan Peringkat Kelas",
+    "classLeaderboardEnabledHelper": "Menampilkan peringkat asesmen dan klasemen kelas kepada mahasiswa terdaftar.",
+    "classCreatedSuccess": "Kelas berhasil dibuat.",
+    "classUpdatedSuccess": "Pengaturan kelas diperbarui.",
+    "classPublishAction": "Publikasikan Kelas",
+    "classArchiveAction": "Arsipkan Kelas",
+    "classRestoreAction": "Kembalikan ke Draf",
+    "classTabModules": "Modul",
+    "classTabSettings": "Pengaturan & Gerbang",
+    "classTabInviteRoster": "Undangan & Anggota",
+    "classTabLeaderboard": "Peringkat",
+    "classAddModuleAction": "Tambah Modul",
+    "classEditModuleAction": "Ubah Modul",
+    "classModuleTitleIdLabel": "Judul Modul (Indonesia)",
+    "classModuleTitleEnLabel": "Judul Modul (Inggris)",
+    "classModuleDescIdLabel": "Deskripsi (Indonesia)",
+    "classModuleDescEnLabel": "Deskripsi (Inggris)",
+    "classNoModulesEmpty": "Belum ada modul di kelas ini. Tambahkan modul pertama Anda untuk memulai.",
+    "classAddMaterialToModule": "Tambah Materi",
+    "classRotateInviteAction": "Putar Ulang Kode",
+    "classInviteActiveLabel": "Izinkan Bergabung dengan Kode Undangan",
+    "classRosterEmpty": "Belum ada mahasiswa yang bergabung ke kelas ini.",
+    "classRemoveMemberTitle": "Keluarkan Mahasiswa dari Kelas?",
+    "classRemoveMemberConfirm": "Riwayat progres dan percobaan asesmen mahasiswa tetap tersimpan.",
+    "classRemoveMemberAction": "Keluarkan",
+    "classPolicyChangeTitle": "Perbarui Kebijakan Gerbang Kelas?",
+    "classPolicyChangeConfirm": "Mengubah pengaturan Pretest, Posttest, atau Peringkat akan menaikkan versi kebijakan kelas. Mahasiswa yang sudah membuka modul tetap mempertahankan aksesnya.",
+    "studentMyClassesTitle": "Kelas Saya",
+    "studentActiveClassLabel": "Kelas Aktif",
+    "studentJoinClassAction": "Gabung Kelas",
+    "studentJoinClassHint": "Masukkan 8 karakter kode undangan",
+    "studentJoinClassSuccess": "Berhasil bergabung ke kelas!",
+    "studentNoClassTitle": "Gabung Kelas untuk Mulai Belajar",
+    "studentNoClassMessage": "Minta 8 karakter kode undangan kelas dari dosen Anda untuk membuka modul, materi, dan asesmen.",
+    "studentLeaveClassAction": "Keluar Kelas",
+    "studentLeaveClassConfirm": "Yakin ingin keluar dari kelas ini? Riwayat progres Anda tetap tersimpan jika bergabung kembali nanti.",
+    "classEmptyMaterialsMessage": "Dosen Anda sedang menyiapkan modul pembelajaran untuk kelas ini.",
+    "leaderboardTitle": "Papan Peringkat Kelas",
+    "leaderboardOverallTab": "Klasemen Kelas",
+    "leaderboardAssessmentTab": "Per Asesmen",
+    "leaderboardCohortFinal": "Final (Selesai Semua)",
+    "leaderboardCohortProvisional": "Sedang Berjalan (Sementara)",
+    "leaderboardEmptyTitle": "Belum ada asesmen berperingkat",
+    "leaderboardEmptyMessage": "Peringkat akan muncul setelah mahasiswa mengumpulkan asesmen dinilai di kelas ini.",
+    "leaderboardFormulaNote": "Skor ternormalisasi 0–100 · Percobaan sah tertinggi · Pretest dikecualikan secara bawaan · Seri diurutkan dari waktu kumpul tercepat.",
+    "leaderboardYouBadge": "Anda",
+    "couldNotLoadData": "Gagal memuat data.",
+    "confirm": "Konfirmasi",
+    "onboardingSceneJourneyLabel":  "Laptop, lembar asesmen, dan grafik hasil terhubung dalam satu perjalanan belajar",
+    "@onboardingSceneJourneyLabel":  {
+      "description":  "Deskripsi aksesibilitas scene perjalanan belajar pada onboarding"
+    }
+}

@@ -1,31 +1,34 @@
-// ignore_for_file: deprecated_member_use
-
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/localization/language_controller.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_section_heading.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
-import 'assessment_models.dart';
+import 'lecturer_assessments_controller.dart';
+import 'lecturer_bottom_navbar.dart';
+import 'lecturer_materials_controller.dart';
 
-class LecturerTaskFormPage extends StatefulWidget {
-  final LecturerTask? task;
-  final ValueChanged<LecturerTask>? onSave;
+class LecturerTaskFormPage extends ConsumerStatefulWidget {
+  final String? taskId;
 
   const LecturerTaskFormPage({
     super.key,
-    this.task,
-    this.onSave,
+    this.taskId,
   });
 
-  bool get isEditing => task != null;
+  bool get isEditing => taskId != null;
 
   @override
-  State<LecturerTaskFormPage> createState() => _LecturerTaskFormPageState();
+  ConsumerState<LecturerTaskFormPage> createState() => _LecturerTaskFormPageState();
 }
 
-class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
+class _LecturerTaskFormPageState extends ConsumerState<LecturerTaskFormPage> {
   final _formKey = GlobalKey<FormState>();
 
   late final TextEditingController _titleId;
@@ -43,6 +46,7 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
   bool _isRequiredForModule = false;
   bool _isLeaderboardEnabled = true;
   int _attemptsAllowed = 1;
+  double _weight = 1.0;
   String _status = 'draft';
   bool _isIndonesian = true;
 
@@ -50,37 +54,56 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
   void initState() {
     super.initState();
 
-    final t = widget.task;
-
-    _titleId = TextEditingController(text: t?.titleId ?? t?.title ?? '');
-    _titleEn = TextEditingController(text: t?.titleEn ?? '');
-    _descriptionId = TextEditingController(text: t?.description ?? '');
+    _titleId = TextEditingController();
+    _titleEn = TextEditingController();
+    _descriptionId = TextEditingController();
     _descriptionEn = TextEditingController();
-    _instructionsId = TextEditingController(text: t?.instructions ?? '');
+    _instructionsId = TextEditingController();
     _instructionsEn = TextEditingController();
-    _durationMinutes = TextEditingController(text: (t?.durationMinutes ?? 30).toString());
-    _timeLimit = TextEditingController(text: (t?.timeLimit ?? 30).toString());
-    _deadline = TextEditingController(
-      text: t?.deadline != null ? _formatDateTimeForInput(t!.deadline!) : '',
-    );
-
-    _selectedModule = t?.module;
-    _isModuleQuiz = t?.module != null;
-    _isRequiredForModule = t?.required ?? false;
-    _isLeaderboardEnabled = t?.leaderboardEnabled ?? true;
-    _attemptsAllowed = t?.attemptsAllowed ?? 1;
-    _status = t?.status ?? 'draft';
+    _durationMinutes = TextEditingController(text: '0');
+    _timeLimit = TextEditingController(text: '0');
+    _deadline = TextEditingController();
 
     _titleId.addListener(_onFieldChanged);
     _titleEn.addListener(_onFieldChanged);
+
+    if (widget.isEditing) {
+      _loadTask();
+    }
   }
 
   void _onFieldChanged() {
     if (mounted) setState(() {});
   }
 
+  Future<void> _loadTask() async {
+    final task = await ref.read(lecturerTaskProvider(widget.taskId!).future);
+    if (task == null || !mounted) return;
+
+    setState(() {
+      _titleId.text = task.titleId;
+      _titleEn.text = task.titleEn;
+      _descriptionId.text = task.descriptionId ?? '';
+      _descriptionEn.text = task.descriptionEn ?? '';
+      _instructionsId.text = task.instructionsId ?? '';
+      _instructionsEn.text = task.instructionsEn ?? '';
+      _durationMinutes.text = task.durationMinutes.toString();
+      _timeLimit.text = task.timeLimit.toString();
+      _selectedModule = task.module;
+      _isModuleQuiz = task.module != null;
+      _isRequiredForModule = task.required;
+      _isLeaderboardEnabled = task.leaderboardEnabled;
+      _attemptsAllowed = task.attemptsAllowed;
+      _weight = task.weight;
+      _status = task.status;
+      if (task.deadline != null) {
+        _deadline.text = _formatDateTimeForInput(task.deadline!);
+      }
+    });
+  }
+
   String _formatDateTimeForInput(DateTime dt) {
-    return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    return '${dt.year.toString().padLeft(4, '0')}-${dt.month.toString().padLeft(2, '0')}-${dt.day.toString().padLeft(2, '0')}T${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
   }
 
   @override
@@ -99,9 +122,115 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
     super.dispose();
   }
 
+  Future<void> _submit() async {
+    final l10n = AppLocalizations.of(context)!;
+    final isAppId = ref.read(languageProvider).languageCode == 'id';
+
+    final titleIdVal = _titleId.text.trim();
+    final titleEnVal = _titleEn.text.trim();
+
+    if (titleIdVal.isEmpty && titleEnVal.isEmpty) {
+      NlSnackBar.show(
+        context,
+        isAppId
+            ? 'Judul asesmen wajib diisi (minimal Bahasa Indonesia)'
+            : 'Assessment title is required (at least in Indonesian)',
+        tone: NlSnackTone.warning,
+      );
+      if (!_isIndonesian) {
+        setState(() => _isIndonesian = true);
+      }
+      return;
+    }
+
+    final resolvedTitle = titleIdVal.isNotEmpty ? titleIdVal : titleEnVal;
+    final resolvedTitleEn = titleEnVal.isNotEmpty ? titleEnVal : titleIdVal;
+
+    final task = LecturerTask(
+      id: widget.taskId ?? '',
+      title: resolvedTitle,
+      titleEn: resolvedTitleEn,
+      titleId: resolvedTitle,
+      assessmentType: 'task',
+      durationMinutes: int.tryParse(_durationMinutes.text.trim()) ?? 0,
+      status: _status,
+      questionCount: 0,
+      answeredCount: 0,
+      module: _isModuleQuiz ? _selectedModule : null,
+      required: _isModuleQuiz ? _isRequiredForModule : false,
+      leaderboardEnabled: _isLeaderboardEnabled,
+      attemptsAllowed: _attemptsAllowed,
+      weight: _weight,
+      description: _descriptionId.text.trim().isEmpty
+          ? (_descriptionEn.text.trim().isEmpty ? null : _descriptionEn.text.trim())
+          : _descriptionId.text.trim(),
+      descriptionEn: _descriptionEn.text.trim().isEmpty ? null : _descriptionEn.text.trim(),
+      descriptionId: _descriptionId.text.trim().isEmpty ? null : _descriptionId.text.trim(),
+      instructions: _instructionsId.text.trim().isEmpty
+          ? (_instructionsEn.text.trim().isEmpty ? null : _instructionsEn.text.trim())
+          : _instructionsId.text.trim(),
+      instructionsEn: _instructionsEn.text.trim().isEmpty ? null : _instructionsEn.text.trim(),
+      instructionsId: _instructionsId.text.trim().isEmpty ? null : _instructionsId.text.trim(),
+      timeLimit: int.tryParse(_timeLimit.text.trim()) ?? 0,
+      deadline: _deadline.text.trim().isEmpty ? null : DateTime.tryParse(_deadline.text.trim()),
+      submittedCount: 0,
+    );
+
+    try {
+      if (widget.isEditing) {
+        await updateTask(ref, task);
+
+        if (!mounted) return;
+
+        NlSnackBar.show(
+          context,
+          l10n.taskUpdated,
+          tone: NlSnackTone.success,
+        );
+
+        context.go('/lecturer/assessments');
+      } else {
+        final taskId = await createTask(ref, task);
+
+        if (!mounted) return;
+
+        NlSnackBar.show(
+          context,
+          l10n.taskCreated,
+          tone: NlSnackTone.success,
+        );
+
+        // Multiple-choice questions need a persisted quiz id, so the new task
+        // is created first and the lecturer lands straight on its question
+        // editor -- the same editor the task detail page opens. This keeps one
+        // question editor instead of a second copy embedded in this form.
+        context.go('/lecturer/assessments/$taskId/questions');
+      }
+    } on AssessmentWriteException catch (error) {
+      if (!mounted) return;
+
+      NlSnackBar.show(
+        context,
+        switch (error.failure) {
+          AssessmentWriteFailure.missingAnswerKey =>
+            l10n.answerKeyMissing(0),
+          AssessmentWriteFailure.quizIncomplete =>
+            l10n.assessmentQuizIncomplete,
+          AssessmentWriteFailure.notPermitted =>
+            l10n.notPermittedError,
+          AssessmentWriteFailure.unknown =>
+            error.detail != null && error.detail!.isNotEmpty
+                ? '${l10n.taskSaveFailed} (${error.detail})'
+                : l10n.taskSaveFailed,
+        },
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+
   Future<void> _pickDeadline() async {
     final DateTime initialDate = _deadline.text.isNotEmpty
-        ? (DateTime.tryParse(_deadline.text.replaceAll(' ', 'T')) ?? DateTime.now().add(const Duration(days: 7)))
+        ? (DateTime.tryParse(_deadline.text) ?? DateTime.now().add(const Duration(days: 7)))
         : DateTime.now().add(const Duration(days: 7));
 
     final DateTime? pickedDate = await showDatePicker(
@@ -133,80 +262,33 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
     });
   }
 
-  void _submit() {
-    final titleIdVal = _titleId.text.trim();
-    final titleEnVal = _titleEn.text.trim();
-
-    if (titleIdVal.isEmpty && titleEnVal.isEmpty) {
-      NlSnackBar.show(
-        context,
-        'Judul asesmen wajib diisi (minimal Bahasa Indonesia)',
-        tone: NlSnackTone.warning,
-      );
-      if (!_isIndonesian) {
-        setState(() => _isIndonesian = true);
-      }
-      return;
+  Future<void> _pickModule() async {
+    final int? selected = await showModalBottomSheet<int>(
+      context: context,
+      builder: (ctx) => _ModulePicker(
+        initialValue: _selectedModule,
+      ),
+    );
+    if (selected != null && mounted) {
+      setState(() {
+        _selectedModule = selected;
+      });
     }
-
-    final resolvedTitle = titleIdVal.isNotEmpty ? titleIdVal : titleEnVal;
-    final resolvedTitleEn = titleEnVal.isNotEmpty ? titleEnVal : titleIdVal;
-
-    final duration = int.tryParse(_durationMinutes.text.trim()) ?? 30;
-    final timeLimit = int.tryParse(_timeLimit.text.trim()) ?? 0;
-    final deadlineParsed = _deadline.text.isNotEmpty
-        ? DateTime.tryParse(_deadline.text.replaceAll(' ', 'T'))
-        : null;
-
-    final createdTask = LecturerTask(
-      id: widget.task?.id ?? 'task-${DateTime.now().millisecondsSinceEpoch}',
-      title: resolvedTitle,
-      titleEn: resolvedTitleEn,
-      titleId: resolvedTitle,
-      assessmentType: _isModuleQuiz ? 'quiz' : 'task',
-      durationMinutes: duration,
-      status: _status,
-      questionCount: widget.task?.questionCount ?? 10,
-      answeredCount: widget.task?.answeredCount ?? 10,
-      module: _isModuleQuiz ? (_selectedModule ?? 1) : null,
-      required: _isModuleQuiz ? _isRequiredForModule : false,
-      leaderboardEnabled: _isLeaderboardEnabled,
-      attemptsAllowed: _attemptsAllowed,
-      description: _descriptionId.text.trim().isNotEmpty
-          ? _descriptionId.text.trim()
-          : (_descriptionEn.text.trim().isNotEmpty ? _descriptionEn.text.trim() : null),
-      instructions: _instructionsId.text.trim().isNotEmpty
-          ? _instructionsId.text.trim()
-          : (_instructionsEn.text.trim().isNotEmpty ? _instructionsEn.text.trim() : null),
-      timeLimit: timeLimit,
-      deadline: deadlineParsed,
-      submittedCount: widget.task?.submittedCount ?? 0,
-    );
-
-    widget.onSave?.call(createdTask);
-
-    NlSnackBar.show(
-      context,
-      widget.isEditing
-          ? 'Asesmen "${createdTask.title}" berhasil diperbarui'
-          : 'Asesmen baru "${createdTask.title}" berhasil dibuat',
-      tone: NlSnackTone.success,
-    );
-
-    Navigator.pop(context, createdTask);
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
+    final isAppId = ref.watch(languageProvider).languageCode == 'id';
     final hasIdContent = _titleId.text.trim().isNotEmpty;
     final hasEnContent = _titleEn.text.trim().isNotEmpty;
 
     return Scaffold(
       backgroundColor: context.background,
       appBar: NlTopBar(
-        title: widget.isEditing ? 'Ubah Asesmen' : 'Tambah Asesmen Baru',
-        onBack: () => Navigator.pop(context),
+        title: widget.isEditing ? l10n.editTask : l10n.addTask,
+        onBack: () => context.pop(),
       ),
       body: Form(
         key: _formKey,
@@ -218,11 +300,12 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
             NetLearnSpace.s32,
           ),
           children: [
-            // Language Switcher Card (Persis NetLearn 2.0)
+            // Modern Language Switcher Card
             _LanguageSwitcherCard(
               isIndonesian: _isIndonesian,
               hasIdContent: hasIdContent,
               hasEnContent: hasEnContent,
+              isAppId: isAppId,
               onLanguageChanged: (val) {
                 setState(() => _isIndonesian = val);
               },
@@ -253,8 +336,12 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
                   Expanded(
                     child: Text(
                       _isIndonesian
-                          ? 'Formulir saat ini mengedit versi: Bahasa Indonesia (Wajib)'
-                          : 'Formulir saat ini mengedit versi: English (Opsional)',
+                          ? (isAppId
+                              ? 'Formulir saat ini mengedit versi: Bahasa Indonesia (Wajib)'
+                              : 'Currently editing: Indonesian Version (Required)')
+                          : (isAppId
+                              ? 'Formulir saat ini mengedit versi: English (Opsional)'
+                              : 'Currently editing: English Version (Optional)'),
                       style: theme.textTheme.bodySmall?.copyWith(
                         fontWeight: FontWeight.w600,
                         fontSize: 12,
@@ -270,24 +357,23 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             const SizedBox(height: NetLearnSpace.s20),
 
-            // Section 1: Informasi Dasar
-            const NlSectionHeading(
-              title: 'Informasi Dasar',
+            // Basic Information Section
+            NlSectionHeading(
+              title: l10n.basicInformation,
               leadingIcon: Icons.info_outline,
             ),
+
             const SizedBox(height: NetLearnSpace.s16),
 
             // Task Title
             NlField(
-              label: 'Judul Asesmen ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
-              placeholder: _isIndonesian
-                  ? 'Contoh: Kuis Subnetting & Pengalamatan IP'
-                  : 'e.g. Subnetting & IP Addressing Quiz',
+              label: '${l10n.taskTitle} ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
+              placeholder: _isIndonesian ? 'Contoh: Kuis Subnetting & Pengalamatan IP' : 'e.g. Subnetting & IP Addressing Quiz',
               controller: _isIndonesian ? _titleId : _titleEn,
               validator: (value) {
                 final trimmed = (value ?? '').trim();
                 if (trimmed.isEmpty && (_isIndonesian ? _titleEn.text.trim().isEmpty : _titleId.text.trim().isEmpty)) {
-                  return 'Judul asesmen wajib diisi';
+                  return l10n.requiredField;
                 }
                 return null;
               },
@@ -297,44 +383,36 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             // Description
             NlField(
-              label: 'Deskripsi Asesmen ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
-              placeholder: _isIndonesian
-                  ? 'Ringkasan singkat tujuan dan materi asesmen ini...'
-                  : 'Brief summary of the assessment topics...',
+              label: '${l10n.description} ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
+              placeholder: _isIndonesian ? 'Ringkasan singkat tujuan dan materi asesmen ini...' : 'Brief summary of the assessment topics...',
               controller: _isIndonesian ? _descriptionId : _descriptionEn,
               keyboardType: TextInputType.multiline,
               maxLines: 3,
             ),
 
-            const SizedBox(height: NetLearnSpace.s20),
+            const SizedBox(height: NetLearnSpace.s16),
 
             // Assessment Category Selector
-            const Text(
-              'Kategori Asesmen',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: NetLearnColors.neutral900,
-              ),
-            ),
-            const SizedBox(height: 8),
+            const SizedBox(height: NetLearnSpace.s16),
             Container(
               decoration: BoxDecoration(
-                color: context.surface,
+                color: context.raisedSurface,
                 borderRadius: BorderRadius.circular(NetLearnRadius.card),
-                border: Border.all(color: context.border),
+                border: Border.all(color: theme.dividerColor),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   RadioListTile<bool>(
-                    title: const Text(
-                      'Asesmen Kustom Bebas (LMS)',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    title: Text(
+                      isAppId ? 'Asesmen Kustom Bebas (LMS)' : 'Custom Standalone Assessment',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      'Dapat dikerjakan mahasiswa kapan saja atau sesuai batas waktu yang ditentukan.',
-                      style: TextStyle(color: context.mutedText, fontSize: 12),
+                      isAppId
+                          ? 'Dapat dikerjakan mahasiswa kapan saja atau sesuai batas waktu yang ditentukan.'
+                          : 'Available for students anytime or within the specified deadline.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
                     ),
                     value: false,
                     groupValue: _isModuleQuiz,
@@ -349,22 +427,23 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
                     },
                     activeColor: context.accent,
                   ),
-                  Divider(height: 1, color: context.border),
+                  const Divider(height: 1),
                   RadioListTile<bool>(
-                    title: const Text(
-                      'Kuis Terikat Modul (Checkpoint)',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    title: Text(
+                      isAppId ? 'Kuis Terikat Modul (Checkpoint)' : 'Module-Bound Quiz',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      'Diikat ke modul tertentu untuk menguji pemahaman materi perkuliahan.',
-                      style: TextStyle(color: context.mutedText, fontSize: 12),
+                      isAppId
+                          ? 'Diikat ke modul tertentu untuk menguji pemahaman materi.'
+                          : 'Linked to a specific module to test comprehension.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
                     ),
                     value: true,
                     groupValue: _isModuleQuiz,
                     onChanged: (val) {
                       setState(() {
                         _isModuleQuiz = val ?? true;
-                        _selectedModule ??= 1;
                       });
                     },
                     activeColor: context.accent,
@@ -375,40 +454,41 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             if (_isModuleQuiz) ...[
               const SizedBox(height: NetLearnSpace.s16),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                decoration: BoxDecoration(
-                  color: context.surface,
-                  borderRadius: BorderRadius.circular(NetLearnRadius.field),
-                  border: Border.all(color: context.border),
+              // Module selector
+              NlField(
+                label: l10n.module,
+                placeholder: _selectedModule == null
+                    ? l10n.moduleHint
+                    : 'Modul $_selectedModule',
+                controller: TextEditingController(
+                  text: _selectedModule?.toString() ?? '',
                 ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<int>(
-                    value: _selectedModule ?? 1,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: 1, child: Text('Modul 1: Dasar-Dasar Jaringan Komputer')),
-                      DropdownMenuItem(value: 2, child: Text('Modul 2: Perangkat Jaringan Komputer')),
-                      DropdownMenuItem(value: 3, child: Text('Modul 3: Topologi Jaringan Komputer')),
-                      DropdownMenuItem(value: 4, child: Text('Modul 4: IP Addressing & Subnetting')),
-                    ],
-                    onChanged: (val) {
-                      if (val != null) setState(() => _selectedModule = val);
-                    },
-                  ),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.arrow_drop_down),
+                  onPressed: _pickModule,
                 ),
+                validator: (value) {
+                  if (_isModuleQuiz && _selectedModule == null) {
+                    return l10n.requiredField;
+                  }
+                  return null;
+                },
               ),
               const SizedBox(height: NetLearnSpace.s8),
               SwitchListTile(
                 value: _isRequiredForModule,
                 onChanged: (val) => setState(() => _isRequiredForModule = val),
-                title: const Text(
-                  'Wajibkan kuis untuk buka modul berikutnya',
-                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                title: Text(
+                  isAppId
+                      ? 'Wajibkan kuis untuk buka modul berikutnya'
+                      : 'Require quiz to unlock next module',
+                  style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                 ),
                 subtitle: Text(
-                  'Jika aktif, mahasiswa wajib lulus kuis ini sebelum modul selanjutnya terbuka.',
-                  style: TextStyle(color: context.mutedText, fontSize: 12),
+                  isAppId
+                      ? 'Default nonaktif. Jika aktif, mahasiswa wajib lulus kuis ini sebelum modul selanjutnya terbuka.'
+                      : 'Default disabled. If active, students must pass this quiz before advancing.',
+                  style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
                 ),
                 activeColor: context.accent,
                 contentPadding: EdgeInsets.zero,
@@ -419,7 +499,7 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             // Instructions
             NlField(
-              label: 'Petunjuk Pengerjaan ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
+              label: '${l10n.instructions} ${_isIndonesian ? '[Bahasa Indonesia]' : '[English]'}',
               placeholder: _isIndonesian
                   ? 'Petunjuk pengerjaan bagi mahasiswa...'
                   : 'Instructions for students...',
@@ -430,67 +510,93 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             const SizedBox(height: NetLearnSpace.s24),
 
-            // Section 2: Waktu & Tenggat
-            const NlSectionHeading(
-              title: 'Waktu & Tenggat',
+            // Timing & Deadline Section
+            NlSectionHeading(
+              title: l10n.timingDeadline,
               leadingIcon: Icons.timer_outlined,
             ),
-            const SizedBox(height: NetLearnSpace.s16),
-
-            Row(
-              children: [
-                Expanded(
-                  child: NlField(
-                    label: 'Durasi (Menit)',
-                    placeholder: '30',
-                    controller: _durationMinutes,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-                const SizedBox(width: NetLearnSpace.s12),
-                Expanded(
-                  child: NlField(
-                    label: 'Batas Pengerjaan',
-                    placeholder: '30',
-                    controller: _timeLimit,
-                    keyboardType: TextInputType.number,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Batas waktu pengerjaan sejak mahasiswa menekan tombol mulai.',
-              style: TextStyle(color: context.mutedText, fontSize: 11),
-            ),
 
             const SizedBox(height: NetLearnSpace.s16),
 
-            // Deadline Picker
+            // Duration
             NlField(
-              label: 'Tenggat Waktu Pengumpulan (Deadline)',
-              placeholder: 'Pilih tanggal & jam...',
+              label: l10n.durationMinutesLabel,
+              placeholder: '0',
+              controller: _durationMinutes,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final parsed = int.tryParse((value ?? '').trim());
+                if (parsed == null || parsed < 0) {
+                  return l10n.durationInvalid;
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: NetLearnSpace.s16),
+
+            // Time Limit
+            NlField(
+              label: l10n.timeLimitMinutes,
+              placeholder: '0',
+              controller: _timeLimit,
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                final parsed = int.tryParse((value ?? '').trim());
+                if (parsed == null || parsed < 0 || parsed > 180) {
+                  return l10n.timeLimitInvalid;
+                }
+                return null;
+              },
+            ),
+
+            const SizedBox(height: NetLearnSpace.s16),
+
+            // Time Limit Helper Text
+            Text(
+              l10n.timeLimitHelper,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: context.mutedText,
+              ),
+            ),
+
+            const SizedBox(height: NetLearnSpace.s16),
+
+            // Deadline
+            NlField(
+              label: l10n.deadline,
+              placeholder: l10n.deadlineHint,
               controller: _deadline,
               suffixIcon: IconButton(
-                icon: const Icon(Icons.calendar_today, size: 18),
+                icon: const Icon(Icons.calendar_today),
                 onPressed: _pickDeadline,
               ),
+              validator: (value) {
+                if ((value ?? '').trim().isNotEmpty) {
+                  final parsed = DateTime.tryParse((value ?? '').trim());
+                  if (parsed == null) {
+                    return l10n.deadlineInvalid;
+                  }
+                }
+                return null;
+              },
             ),
 
             const SizedBox(height: NetLearnSpace.s24),
 
-            // Section 3: Pengaturan Penilaian & Leaderboard
-            const NlSectionHeading(
-              title: 'Pengaturan Penilaian & Leaderboard',
+            // Leaderboard & Grading Settings
+            NlSectionHeading(
+              title: isAppId ? 'Pengaturan Penilaian & Leaderboard' : 'Grading & Leaderboard Settings',
               leadingIcon: Icons.emoji_events_outlined,
             ),
+
             const SizedBox(height: NetLearnSpace.s12),
 
             Container(
               decoration: BoxDecoration(
-                color: context.surface,
+                color: context.raisedSurface,
                 borderRadius: BorderRadius.circular(NetLearnRadius.card),
-                border: Border.all(color: context.border),
+                border: Border.all(color: theme.dividerColor),
               ),
               padding: const EdgeInsets.all(NetLearnSpace.s16),
               child: Column(
@@ -499,44 +605,42 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
                   SwitchListTile(
                     value: _isLeaderboardEnabled,
                     onChanged: (val) => setState(() => _isLeaderboardEnabled = val),
-                    title: const Text(
-                      'Sertakan dalam Leaderboard Kelas',
-                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                    title: Text(
+                      isAppId ? 'Sertakan dalam Leaderboard Kelas' : 'Include in Class Leaderboard',
+                      style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      'Nilai pengerjaan mahasiswa akan diakumulasikan ke total poin peringkat kelas.',
-                      style: TextStyle(color: context.mutedText, fontSize: 12),
+                      isAppId
+                          ? 'Nilai pengerjaan mahasiswa akan diakumulasikan ke total poin peringkat kelas.'
+                          : 'Student scores will be accumulated into their class total leaderboard points.',
+                      style: theme.textTheme.bodySmall?.copyWith(color: context.mutedText),
                     ),
                     activeColor: context.accent,
                     contentPadding: EdgeInsets.zero,
                   ),
-                  const SizedBox(height: NetLearnSpace.s12),
+                  const SizedBox(height: NetLearnSpace.s16),
                   DropdownButtonFormField<int>(
                     value: _attemptsAllowed,
                     decoration: InputDecoration(
-                      labelText: 'Batas Percobaan Pengerjaan',
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(NetLearnRadius.field),
-                        borderSide: const BorderSide(color: NetLearnColors.border),
-                      ),
+                      labelText: isAppId ? 'Batas Percobaan Pengerjaan' : 'Allowed Attempts',
+                      border: const OutlineInputBorder(),
                     ),
-                    items: const [
+                    items: [
                       DropdownMenuItem(
                         value: 1,
-                        child: Text('1 Kali (Ujian Resmi)'),
+                        child: Text(isAppId ? '1 Kali (Ujian Resmi)' : '1 Attempt (Official Test)'),
                       ),
                       DropdownMenuItem(
                         value: 2,
-                        child: Text('2 Kali Percobaan'),
+                        child: Text(isAppId ? '2 Kali Percobaan' : '2 Attempts'),
                       ),
                       DropdownMenuItem(
                         value: 3,
-                        child: Text('3 Kali Percobaan'),
+                        child: Text(isAppId ? '3 Kali Percobaan' : '3 Attempts'),
                       ),
                       DropdownMenuItem(
                         value: 0,
-                        child: Text('Tanpa Batas (Latihan Mandiri)'),
+                        child: Text(isAppId ? 'Tanpa Batas (Latihan Mandiri)' : 'Unlimited (Practice)'),
                       ),
                     ],
                     onChanged: (val) {
@@ -549,18 +653,20 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             const SizedBox(height: NetLearnSpace.s24),
 
-            // Section 4: Status Publikasi
-            const NlSectionHeading(
-              title: 'Status Publikasi',
+            // Status Section
+            NlSectionHeading(
+              title: l10n.status,
               leadingIcon: Icons.flag_outlined,
             ),
-            const SizedBox(height: NetLearnSpace.s12),
 
+            const SizedBox(height: NetLearnSpace.s16),
+
+            // Radio buttons for status
             Row(
               children: [
                 Expanded(
                   child: RadioListTile<String>(
-                    title: const Text('Draft', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    title: Text(l10n.draft),
                     value: 'draft',
                     groupValue: _status,
                     onChanged: (value) => setState(() => _status = value!),
@@ -570,7 +676,7 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
                 ),
                 Expanded(
                   child: RadioListTile<String>(
-                    title: const Text('Terbit (Published)', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                    title: Text(l10n.published),
                     value: 'published',
                     groupValue: _status,
                     onChanged: (value) => setState(() => _status = value!),
@@ -583,20 +689,20 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
 
             const SizedBox(height: NetLearnSpace.s32),
 
-            // Action Buttons
+            // Action buttons
             Row(
               children: [
                 Expanded(
                   child: NlButton(
-                    label: 'Batal',
+                    label: l10n.cancel,
                     variant: NlButtonVariant.outline,
-                    onPressed: () => Navigator.pop(context),
+                    onPressed: () => context.pop(),
                   ),
                 ),
                 const SizedBox(width: NetLearnSpace.s12),
                 Expanded(
                   child: NlButton(
-                    label: widget.isEditing ? 'Simpan Perubahan' : 'Buat Asesmen',
+                    label: widget.isEditing ? l10n.save : l10n.createTask,
                     variant: NlButtonVariant.primary,
                     onPressed: _submit,
                   ),
@@ -606,6 +712,7 @@ class _LecturerTaskFormPageState extends State<LecturerTaskFormPage> {
           ],
         ),
       ),
+      bottomNavigationBar: const LecturerBottomNavbar(currentIndex: 3),
     );
   }
 }
@@ -635,8 +742,12 @@ class IndonesiaFlag extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: Column(
         children: [
-          Expanded(child: Container(color: const Color(0xFFE53935))),
-          Expanded(child: Container(color: Colors.white)),
+          Expanded(
+            child: Container(color: const Color(0xFFE53935)),
+          ),
+          Expanded(
+            child: Container(color: Colors.white),
+          ),
         ],
       ),
     );
@@ -680,9 +791,11 @@ class _UkFlagPainter extends CustomPainter {
     final w = size.width;
     final h = size.height;
 
+    // 1. Navy blue field
     final bluePaint = Paint()..color = const Color(0xFF012169);
     canvas.drawRect(Rect.fromLTWH(0, 0, w, h), bluePaint);
 
+    // 2. White saltire (diagonal cross)
     final whitePaint = Paint()
       ..color = Colors.white
       ..strokeWidth = w * 0.22
@@ -690,6 +803,7 @@ class _UkFlagPainter extends CustomPainter {
     canvas.drawLine(Offset.zero, Offset(w, h), whitePaint);
     canvas.drawLine(Offset(w, 0), Offset(0, h), whitePaint);
 
+    // 3. Red saltire (thinner diagonal cross)
     final redDiagonalPaint = Paint()
       ..color = const Color(0xFFC8102E)
       ..strokeWidth = w * 0.11
@@ -697,12 +811,14 @@ class _UkFlagPainter extends CustomPainter {
     canvas.drawLine(Offset.zero, Offset(w, h), redDiagonalPaint);
     canvas.drawLine(Offset(w, 0), Offset(0, h), redDiagonalPaint);
 
+    // 4. White cross (St George's broad cross)
     final whiteCrossPaint = Paint()..color = Colors.white;
     final crossBarW = w * 0.26;
     final crossBarH = h * 0.30;
     canvas.drawRect(Rect.fromLTWH((w - crossBarW) / 2, 0, crossBarW, h), whiteCrossPaint);
     canvas.drawRect(Rect.fromLTWH(0, (h - crossBarH) / 2, w, crossBarH), whiteCrossPaint);
 
+    // 5. Red cross (St George's central cross)
     final redCrossPaint = Paint()..color = const Color(0xFFC8102E);
     final innerCrossW = w * 0.16;
     final innerCrossH = h * 0.18;
@@ -718,12 +834,14 @@ class _LanguageSwitcherCard extends StatelessWidget {
   final bool isIndonesian;
   final bool hasIdContent;
   final bool hasEnContent;
+  final bool isAppId;
   final ValueChanged<bool> onLanguageChanged;
 
   const _LanguageSwitcherCard({
     required this.isIndonesian,
     required this.hasIdContent,
     required this.hasEnContent,
+    required this.isAppId,
     required this.onLanguageChanged,
   });
 
@@ -758,7 +876,7 @@ class _LanguageSwitcherCard extends StatelessWidget {
               const SizedBox(width: NetLearnSpace.s8),
               Expanded(
                 child: Text(
-                  'Bahasa Input Konten',
+                  isAppId ? 'Bahasa Input Konten' : 'Content Input Language',
                   style: theme.textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -768,8 +886,10 @@ class _LanguageSwitcherCard extends StatelessWidget {
           ),
           const SizedBox(height: NetLearnSpace.s4),
           Text(
-            'Ganti tab bahasa untuk mengisi judul, deskripsi, dan petunjuk dalam dwibahasa.',
-            style: TextStyle(
+            isAppId
+                ? 'Ganti tab bahasa untuk mengisi judul, deskripsi, dan petunjuk dalam dwibahasa.'
+                : 'Switch language tab to edit title, description, and instructions in dual language.',
+            style: theme.textTheme.bodySmall?.copyWith(
               color: context.mutedText,
               fontSize: 11.5,
             ),
@@ -790,7 +910,7 @@ class _LanguageSwitcherCard extends StatelessWidget {
                     title: 'Bahasa Indonesia',
                     isSelected: isIndonesian,
                     isCompleted: hasIdContent,
-                    tag: 'Utama (Wajib)',
+                    tag: isAppId ? 'Utama (Wajib)' : 'Primary (Required)',
                     onTap: () => onLanguageChanged(true),
                   ),
                 ),
@@ -801,7 +921,7 @@ class _LanguageSwitcherCard extends StatelessWidget {
                     title: 'English',
                     isSelected: !isIndonesian,
                     isCompleted: hasEnContent,
-                    tag: 'Opsional (Dwibahasa)',
+                    tag: isAppId ? 'Opsional (Dwibahasa)' : 'Optional (Dual Lang)',
                     onTap: () => onLanguageChanged(false),
                   ),
                 ),
@@ -833,53 +953,152 @@ class _LangOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     return Material(
-      color: isSelected ? Colors.white : Colors.transparent,
-      borderRadius: BorderRadius.circular(9),
-      elevation: isSelected ? 1 : 0,
-      shadowColor: Colors.black.withValues(alpha: 0.05),
+      color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(9),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+        borderRadius: BorderRadius.circular(10),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 8),
+          decoration: BoxDecoration(
+            color: isSelected ? context.surface : Colors.transparent,
+            borderRadius: BorderRadius.circular(10),
+            boxShadow: isSelected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.06),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : null,
+            border: isSelected
+                ? Border.all(color: context.accent.withValues(alpha: 0.4), width: 1.2)
+                : Border.all(color: Colors.transparent, width: 1.2),
+          ),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
+                mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   flag,
-                  const SizedBox(width: 8),
-                  Expanded(
+                  const SizedBox(width: 6),
+                  Flexible(
                     child: Text(
                       title,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        color: isSelected ? NetLearnColors.neutral900 : NetLearnColors.neutral700,
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        fontWeight: isSelected ? FontWeight.w800 : FontWeight.w600,
+                        color: isSelected ? context.accent : context.mutedText,
+                        fontSize: 12.5,
                       ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  if (isCompleted)
+                  if (isCompleted) ...[
+                    const SizedBox(width: 4),
                     const Icon(
                       Icons.check_circle_rounded,
                       size: 14,
-                      color: NetLearnColors.forest,
+                      color: Color(0xFF2E7D32),
                     ),
+                  ],
                 ],
               ),
-              const SizedBox(height: 2),
-              Text(
-                tag,
-                style: TextStyle(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w600,
-                  color: isSelected ? NetLearnColors.primary : NetLearnColors.neutral500,
+              const SizedBox(height: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
+                decoration: BoxDecoration(
+                  color: isCompleted
+                      ? const Color(0xFF2E7D32).withValues(alpha: 0.12)
+                      : (isSelected
+                          ? context.accent.withValues(alpha: 0.1)
+                          : Colors.black.withValues(alpha: 0.04)),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  isCompleted
+                      ? (isSelected ? '• Aktif Diedit' : '✓ Terisi')
+                      : tag,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    fontWeight: FontWeight.w600,
+                    color: isCompleted
+                        ? const Color(0xFF2E7D32)
+                        : (isSelected ? context.accent : context.mutedText),
+                  ),
                 ),
               ),
             ],
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _ModulePicker extends ConsumerWidget {
+  final int? initialValue;
+
+  const _ModulePicker({required this.initialValue});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+
+    // Module names come from the core materials actually stored for each
+    // module (module_number 1-4), not a hardcoded list, so renaming a module in
+    // the content manager is reflected here. A module with no readable core
+    // material falls back to a bare "Modul N" label.
+    final materials = ref.watch(lecturerMaterialsProvider).value ??
+        const [];
+
+    String moduleName(int module) {
+      for (final material in materials) {
+        if (material.isCore && material.moduleNumber == module) {
+          return material.title;
+        }
+      }
+
+      return '';
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(NetLearnSpace.s16),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(NetLearnRadius.card),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            l10n.module,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: NetLearnSpace.s16),
+          for (int module = 1; module <= 4; module++)
+            ListTile(
+              title: Text(
+                moduleName(module).isEmpty
+                    ? '${l10n.module} $module'
+                    : '${l10n.module} $module — ${moduleName(module)}',
+              ),
+              leading: Radio<int>(
+                value: module,
+                groupValue: initialValue,
+                onChanged: (value) => Navigator.of(context).pop(value),
+                activeColor: context.accent,
+              ),
+              onTap: () => Navigator.of(context).pop(module),
+            ),
+          const SizedBox(height: NetLearnSpace.s16),
+        ],
       ),
     );
   }

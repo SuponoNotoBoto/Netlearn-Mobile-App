@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_theme.dart';
 
+/// Placeholder for a section that has nothing to show.
+///
+/// The optional action is what separates "there is nothing here" from "there is
+/// nothing here *and* here is the button that fixes it", which is the
+/// difference between a dead end and an invitation on a management screen.
 class NlEmptyState extends StatelessWidget {
   final IconData icon;
   final String title;
@@ -19,6 +25,8 @@ class NlEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     final hasAction = actionLabel != null && onAction != null;
 
     return Container(
@@ -36,6 +44,7 @@ class NlEmptyState extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Container(
+            // `.circle` — bulat penuh dengan latar ungu muda.
             width: 56,
             height: 56,
             decoration: BoxDecoration(
@@ -49,41 +58,36 @@ class NlEmptyState extends StatelessWidget {
               size: 26,
             ),
           ),
+
           const SizedBox(height: NetLearnSpace.s12),
+
           Text(
             title,
             textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontSize: 16,
+            style: theme.textTheme.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
-              color: NetLearnColors.neutral900,
             ),
           ),
+
           if (message != null) ...[
             const SizedBox(height: 5),
+
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 13,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: context.mutedText,
                 height: 1.4,
               ),
             ),
           ],
+
           if (hasAction) ...[
             const SizedBox(height: NetLearnSpace.s16),
-            FilledButton.icon(
+
+            OutlinedButton(
               onPressed: onAction,
-              style: FilledButton.styleFrom(
-                backgroundColor: context.accent,
-                foregroundColor: Colors.white,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(NetLearnRadius.button),
-                ),
-              ),
-              icon: const Icon(Icons.add, size: 18),
-              label: Text(actionLabel!),
+              child: Text(actionLabel!),
             ),
           ],
         ],
@@ -91,4 +95,3 @@ class NlEmptyState extends StatelessWidget {
     );
   }
 }
-

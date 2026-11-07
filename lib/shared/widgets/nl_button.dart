@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+
 import '../../core/theme/app_theme.dart';
 
 enum NlButtonVariant { primary, secondary, outline, danger, ghost }
@@ -23,42 +24,49 @@ class NlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isDark = theme.brightness == Brightness.dark;
+
     late final Color bg, fg;
     late final BorderSide border;
 
     switch (variant) {
       case NlButtonVariant.primary:
-        bg = NetLearnColors.primary;
-        fg = Colors.white;
+        // `.button` — ungu solid, teks putih, radius 12px.
+        bg = scheme.primary;
+        fg = scheme.onPrimary;
         border = BorderSide.none;
-        break;
 
       case NlButtonVariant.secondary:
-        bg = NetLearnColors.primaryTint;
-        fg = NetLearnColors.primary;
+        // `.button.secondary` — latar ungu muda, teks ungu, tanpa garis.
+        // Gaya: `#f0ecfb` / `#543cd1` (terang), `#242035` / `#d0c2ff` (gelap).
+        bg = isDark ? NetLearnColors.primaryDarkTint : NetLearnColors.primaryTint;
+        fg = isDark ? NetLearnColors.primaryDarkSoft : NetLearnColors.primary;
         border = BorderSide.none;
-        break;
 
       case NlButtonVariant.outline:
         bg = Colors.transparent;
-        fg = NetLearnColors.primary;
-        border = const BorderSide(color: NetLearnColors.primary);
-        break;
+        fg = scheme.primary;
+        border = BorderSide(color: scheme.primary);
 
       case NlButtonVariant.danger:
+        // `.unified-logout` — garis merah di atas permukaan, isi transparan.
         bg = Colors.transparent;
-        fg = NetLearnColors.danger;
-        border = const BorderSide(color: NetLearnColors.danger);
-        break;
+        fg = isDark ? NetLearnColors.darkCoralText : NetLearnColors.danger;
+        border = BorderSide(
+          color: isDark ? NetLearnColors.darkCoralBorder : NetLearnColors.danger,
+        );
 
       case NlButtonVariant.ghost:
+        // `.text-button` — tanpa latar dan tanpa garis.
         bg = Colors.transparent;
-        fg = NetLearnColors.primary;
+        fg = scheme.primary;
         border = BorderSide.none;
-        break;
     }
 
     return SizedBox(
+      // `.button` padding 15px + label 12px ≈ 48px.
       height: 48,
       child: OutlinedButton(
         onPressed: loading ? null : onPressed,
@@ -70,40 +78,39 @@ class NlButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(NetLearnRadius.button),
           ),
-          textStyle: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-          ),
+          textStyle: theme.textTheme.labelLarge,
         ),
         child: loading
             ? SizedBox(
-                height: 16,
-                width: 16,
-                child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-              )
+          height: 16,
+          width: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+        )
             : Row(
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (icon != null) ...[
-                    Icon(icon, size: 18),
-                    const SizedBox(width: 8),
-                  ],
-                  Flexible(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (trailingIcon != null) ...[
-                    const SizedBox(width: 8),
-                    Icon(trailingIcon, size: 18),
-                  ],
-                ],
-              ),
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 18),
+              const SizedBox(width: 8),
+            ],
+            // `Flexible`, bukan `Text` telanjang: label Bahasa Indonesia lebih
+            // panjang dari Bahasa Inggris untuk kalimat yang sama -- "Tandai
+            // sebagai Dibaca" (21 karakter) melebar 8px melewati tombol pada
+            // lebar minimum 360dp, dan `Row(mainAxisSize.min)` dengan `Text`
+            // telanjang tidak punya cara untuk menyusut, jadi hanya meluber.
+            //
+            // Bungkus, bukan ellipsis: label yang muat dalam satu baris tetap
+            // satu baris, dan yang tidak muat turun satu baris -- dua baris
+            // 12px masih muat di dalam tinggi 48px, jadi tidak ada tinggi
+            // tombol yang berubah dan tidak ada teks yang terpotong.
+            Flexible(child: Text(label)),
+            if (trailingIcon != null) ...[
+              const SizedBox(width: 8),
+              Icon(trailingIcon, size: 18),
+            ],
+          ],
+        ),
       ),
     );
   }
 }
-
