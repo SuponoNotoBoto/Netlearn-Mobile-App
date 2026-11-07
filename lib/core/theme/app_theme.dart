@@ -4,6 +4,14 @@ class NetLearnColors {
   NetLearnColors._();
 
   static const Color primary = Color(0xFF8C52FF);
+  static const Color primaryDeep = Color(0xFF1E126B);
+  static const Color primaryMid = Color(0xFF4E33C8);
+  static const Color primarySoft = Color(0xFF8A70EA);
+  static const Color primaryTint = Color(0xFFECE6FF);
+
+  static const Color heroAvatarBg = Color(0xFFE6DCFF);
+  static const Color heroAvatarFg = Color(0xFF6040AD);
+
   static const Color purple500 = Color(0xFF8C52FF);
   static const Color purple100 = Color(0xFFECE6FF);
   static const Color purple50 = Color(0xFFF6F4FD);
@@ -28,6 +36,8 @@ class NetLearnColors {
   static const Color pink = Color(0xFFFF5C8A);
   static const Color indigo = Color(0xFF5B61F4);
 
+  static const Color themeSwitchOff = Color(0xFFD8D4EC);
+
   static const List<Color> gridAccents = [
     Color(0xFF8C52FF), // Purple
     Color(0xFFFF7A00), // Orange
@@ -39,6 +49,36 @@ class NetLearnColors {
   ];
 }
 
+class NetLearnGradients {
+  NetLearnGradients._();
+
+  static const LinearGradient hero = LinearGradient(
+    colors: [NetLearnColors.primaryDeep, NetLearnColors.primaryMid],
+    begin: Alignment(-0.747, -0.664),
+    end: Alignment(0.747, 0.664),
+  );
+}
+
+class NetLearnAccents {
+  NetLearnAccents._();
+
+  static const tintBackgrounds = <Color>[
+    Color(0xFFEBF3FE), // 0: blue-tint
+    Color(0xFFEAE8FC), // 1: indigo-tint
+    Color(0xFFE8F8F2), // 2: green-tint
+    Color(0xFFF0EEFC), // 3: purple-tint
+    Color(0xFFFFF3EB), // 4: orange-tint
+  ];
+
+  static const tintForegrounds = <Color>[
+    Color(0xFF4F85C4),
+    NetLearnColors.primary,
+    Color(0xFF309778),
+    Color(0xFF7E65C4),
+    Color(0xFFC78046),
+  ];
+}
+
 class NetLearnSpace {
   NetLearnSpace._();
 
@@ -47,9 +87,13 @@ class NetLearnSpace {
   static const double s8 = 8;
   static const double s10 = 10;
   static const double s12 = 12;
+  static const double s13 = 13;
   static const double s14 = 14;
   static const double s16 = 16;
+  static const double s17 = 17;
+  static const double s19 = 19;
   static const double s20 = 20;
+  static const double s22 = 22;
   static const double s24 = 24;
   static const double s32 = 32;
 }
@@ -57,8 +101,11 @@ class NetLearnSpace {
 class NetLearnRadius {
   NetLearnRadius._();
 
+  static const double sm = 10;
   static const double card = 16;
+  static const double cardLg = 20;
   static const double radiusLg = 24;
+  static const double pill = 100;
   static const double radiusPill = 100;
   static const double radiusSm = 12;
 }
@@ -82,4 +129,3 @@ class NetLearnShadows {
     ),
   ];
 }
-

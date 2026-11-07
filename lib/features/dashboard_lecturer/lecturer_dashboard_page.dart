@@ -4,6 +4,7 @@ import '../../shared/widgets/nl_metric_grid.dart';
 import '../../shared/widgets/nl_notification_bell.dart';
 import '../../shared/widgets/nl_promo_banner.dart';
 import '../../shared/widgets/nl_shortcut_tile.dart';
+import 'lecturer_profile_page.dart';
 
 class LecturerDashboardPage extends StatefulWidget {
   const LecturerDashboardPage({super.key});
@@ -23,6 +24,16 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentNavIndex == 4) {
+      return Scaffold(
+        body: LecturerProfilePage(
+          onBackToDashboard: () => setState(() => _currentNavIndex = 0),
+          onNavigateToStudents: () => setState(() => _currentNavIndex = 3),
+        ),
+        bottomNavigationBar: _buildBottomNavbar(),
+      );
+    }
+
     return Scaffold(
       backgroundColor: NetLearnColors.appBg,
       body: SafeArea(
@@ -141,10 +152,13 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
               clipBehavior: Clip.none,
               children: [
                 const Center(
-                  child: Icon(
-                    Icons.person_rounded,
-                    color: NetLearnColors.primary,
-                    size: 26,
+                  child: Text(
+                    'D',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.w800,
+                      color: NetLearnColors.primary,
+                    ),
                   ),
                 ),
                 Positioned(
@@ -314,7 +328,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: BoxDecoration(
-              color: NetLearnColors.success.withOpacity(0.12),
+              color: NetLearnColors.success.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(NetLearnRadius.radiusPill),
             ),
             child: const Text(
@@ -549,7 +563,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(0.12),
+              color: iconColor.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
             alignment: Alignment.center,
@@ -709,7 +723,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: NetLearnColors.success.withOpacity(0.12),
+                              color: NetLearnColors.success.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -746,7 +760,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -882,7 +896,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
@@ -977,88 +991,15 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
               ],
             ),
           );
-        }).toList(),
+        }),
       ],
     );
   }
 
-  // ==========================================
-  // TAB 5: PROFIL DOSEN (SEDERHANA)
-  // ==========================================
   Widget _buildProfileTab() {
-    return ListView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.all(NetLearnSpace.s20),
-      children: [
-        Center(
-          child: Column(
-            children: [
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: NetLearnColors.purple100,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 3),
-                  boxShadow: NetLearnShadows.softSm,
-                ),
-                child: const Center(
-                  child: Icon(
-                    Icons.person_rounded,
-                    size: 40,
-                    color: NetLearnColors.primary,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text(
-                'Dr. Supono, M.Kom.',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: NetLearnColors.neutral900,
-                ),
-              ),
-              const SizedBox(height: 2),
-              const Text(
-                'NIP: 198507122010121001',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: NetLearnColors.neutral500,
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-        _buildProfileMenuItem(Icons.badge_outlined, 'Informasi Akademik'),
-        _buildProfileMenuItem(Icons.lock_outline_rounded, 'Ubah Kata Sandi'),
-        _buildProfileMenuItem(Icons.info_outline_rounded, 'Tentang NetLearn'),
-      ],
-    );
-  }
-
-  Widget _buildProfileMenuItem(IconData icon, String title) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(NetLearnRadius.radiusSm),
-        border: Border.all(color: NetLearnColors.border),
-      ),
-      child: ListTile(
-        leading: Icon(icon, color: NetLearnColors.primary, size: 20),
-        title: Text(
-          title,
-          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-        ),
-        trailing: const Icon(
-          Icons.arrow_forward_ios_rounded,
-          size: 14,
-          color: NetLearnColors.neutral400,
-        ),
-        onTap: () {},
-      ),
+    return LecturerProfilePage(
+      onBackToDashboard: () => setState(() => _currentNavIndex = 0),
+      onNavigateToStudents: () => setState(() => _currentNavIndex = 3),
     );
   }
 
@@ -1067,7 +1008,7 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
   // ==========================================
   Widget _buildBottomNavbar() {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         border: Border(
           top: BorderSide(color: NetLearnColors.border),
