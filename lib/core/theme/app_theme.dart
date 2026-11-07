@@ -35,6 +35,16 @@ class NetLearnColors {
   static const Color orange = Color(0xFFFF7A00);
   static const Color pink = Color(0xFFFF5C8A);
   static const Color indigo = Color(0xFF5B61F4);
+  static const Color forest = Color(0xFF1E824C);
+  static const Color sectionIcon = Color(0xFF9D92CB);
+
+  static const Color tabsBg = Color(0xFFEAEAF3);
+  static const Color tabsSelectedDark = Color(0xFF34304E);
+  static const Color primaryDarkSoft = Color(0xFFD0C2FF);
+  static const Color primaryDarkTint = Color(0xFF242035);
+  static const Color darkRaised = Color(0xFF262936);
+  static const Color darkCoralText = Color(0xFFFF8577);
+  static const Color darkCoralBorder = Color(0xFF5E2A2A);
 
   static const Color themeSwitchOff = Color(0xFFD8D4EC);
 
@@ -62,6 +72,10 @@ class NetLearnGradients {
 class NetLearnAccents {
   NetLearnAccents._();
 
+  static const Color purple = Color(0xFF8C52FF);
+  static const Color pink = Color(0xFFFF5C8A);
+  static const Color blue = Color(0xFF00B4D8);
+
   static const tintBackgrounds = <Color>[
     Color(0xFFEBF3FE), // 0: blue-tint
     Color(0xFFEAE8FC), // 1: indigo-tint
@@ -83,6 +97,7 @@ class NetLearnSpace {
   NetLearnSpace._();
 
   static const double s4 = 4;
+  static const double s5 = 5;
   static const double s6 = 6;
   static const double s8 = 8;
   static const double s10 = 10;
@@ -108,6 +123,10 @@ class NetLearnRadius {
   static const double pill = 100;
   static const double radiusPill = 100;
   static const double radiusSm = 12;
+  static const double button = 12;
+  static const double badge = 6;
+  static const double moduleNumber = 11;
+  static const double field = 10;
 }
 
 class NetLearnShadows {
@@ -128,4 +147,75 @@ class NetLearnShadows {
       offset: Offset(0, 6),
     ),
   ];
+
+  static const List<BoxShadow> tabsSelected = [
+    BoxShadow(
+      color: Color(0x0B292052),
+      blurRadius: 5,
+      offset: Offset(0, 2),
+    ),
+  ];
+}
+
+class NetLearnFeedbackColors {
+  final Color successBg, successFg, successBorder;
+  final Color errorBg, errorFg, errorBorder;
+  final Color warningBg, warningFg, warningBorder;
+  final Color infoBg, infoFg, infoBorder;
+
+  const NetLearnFeedbackColors({
+    required this.successBg,
+    required this.successFg,
+    required this.successBorder,
+    required this.errorBg,
+    required this.errorFg,
+    required this.errorBorder,
+    required this.warningBg,
+    required this.warningFg,
+    required this.warningBorder,
+    required this.infoBg,
+    required this.infoFg,
+    required this.infoBorder,
+  });
+
+  static const light = NetLearnFeedbackColors(
+    successBg: Color(0xFFE8F6EF),
+    successFg: Color(0xFF1E824C),
+    successBorder: Color(0xFFBCE3CD),
+    errorBg: Color(0xFFFDF0F0),
+    errorFg: Color(0xFFD63031),
+    errorBorder: Color(0xFFF5C2C2),
+    warningBg: Color(0xFFFEF7E7),
+    warningFg: Color(0xFFB87800),
+    warningBorder: Color(0xFFFCE1A8),
+    infoBg: Color(0xFFEEF3FE),
+    infoFg: Color(0xFF2962FF),
+    infoBorder: Color(0xFFBED4FD),
+  );
+}
+
+extension NetLearnContext on BuildContext {
+  ThemeData get theme => Theme.of(this);
+  ColorScheme get scheme => theme.colorScheme;
+  Color get background => NetLearnColors.appBg;
+  Color get surface => Colors.white;
+  Color get onSurface => NetLearnColors.neutral900;
+  Color get border => NetLearnColors.border;
+  Color get mutedText => NetLearnColors.neutral500;
+  Color get raisedSurface => const Color(0xFFF3F1FA);
+  Color get accent => NetLearnColors.primary;
+  Color get accentTint => NetLearnColors.primaryTint;
+  NetLearnFeedbackColors get feedback => NetLearnFeedbackColors.light;
+
+  TextStyle? get sectionHeadingStyle => const TextStyle(
+        fontSize: 16,
+        fontWeight: FontWeight.w800,
+        color: NetLearnColors.neutral900,
+      );
+
+  TextStyle? get linkSmallStyle => const TextStyle(
+        fontSize: 10,
+        fontWeight: FontWeight.w600,
+        color: NetLearnColors.primary,
+      );
 }

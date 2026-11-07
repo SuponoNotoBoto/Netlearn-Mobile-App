@@ -4,6 +4,7 @@ import '../../shared/widgets/nl_metric_grid.dart';
 import '../../shared/widgets/nl_notification_bell.dart';
 import '../../shared/widgets/nl_promo_banner.dart';
 import '../../shared/widgets/nl_shortcut_tile.dart';
+import 'lecturer_assessments_page.dart';
 import 'lecturer_profile_page.dart';
 
 class LecturerDashboardPage extends StatefulWidget {
@@ -24,6 +25,13 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
 
   @override
   Widget build(BuildContext context) {
+    if (_currentNavIndex == 2) {
+      return LecturerAssessmentsPage(
+        onBack: () => setState(() => _currentNavIndex = 0),
+        bottomNavigationBar: _buildBottomNavbar(),
+      );
+    }
+
     if (_currentNavIndex == 4) {
       return Scaffold(
         body: LecturerProfilePage(
