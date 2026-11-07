@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'core/theme/app_theme.dart';
 import 'features/dashboard_lecturer/lecturer_dashboard_page.dart';
 
 void main() {
@@ -15,11 +16,12 @@ class NetLearnApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF6366F1),
-          primary: const Color(0xFF6366F1),
+          seedColor: NetLearnColors.primary,
+          primary: NetLearnColors.primary,
+          surface: Colors.white,
         ),
         useMaterial3: true,
-        scaffoldBackgroundColor: const Color(0xFFF8FAFC),
+        scaffoldBackgroundColor: NetLearnColors.appBg,
         fontFamily: 'Inter',
       ),
       home: const LecturerDashboardPage(),

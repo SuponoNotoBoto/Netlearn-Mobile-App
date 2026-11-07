@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/nl_metric_grid.dart';
+import '../../shared/widgets/nl_notification_bell.dart';
+import '../../shared/widgets/nl_promo_banner.dart';
+import '../../shared/widgets/nl_shortcut_tile.dart';
 
 class LecturerDashboardPage extends StatefulWidget {
   const LecturerDashboardPage({super.key});
@@ -9,92 +14,27 @@ class LecturerDashboardPage extends StatefulWidget {
 
 class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
   int _currentNavIndex = 0;
+  String _selectedClass = 'TI-3A (Jaringan Komputer)';
+
+  final List<String> _classList = [
+    'TI-3A (Jaringan Komputer)',
+    'TI-3B (Jaringan Komputer)',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(),
-      body: _buildCurrentTab(),
-      bottomNavigationBar: _buildBottomNavbar(),
-    );
-  }
-
-  PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      title: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(10),
+      backgroundColor: NetLearnColors.appBg,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Expanded(
+              child: _buildCurrentTab(),
             ),
-            child: const Icon(
-              Icons.hub_rounded,
-              color: Color(0xFF6366F1),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'NetLearn',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                'Panel Dosen',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        IconButton(
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(Icons.notifications_outlined, color: Color(0xFF475569)),
-              Positioned(
-                top: -2,
-                right: -2,
-                child: Container(
-                  width: 8,
-                  height: 8,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF4444),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Belum ada notifikasi baru'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          },
+            _buildBottomNavbar(),
+          ],
         ),
-        const SizedBox(width: 8),
-      ],
+      ),
     );
   }
 
@@ -105,127 +45,285 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
       case 1:
         return _buildMaterialsTab();
       case 2:
-        return _buildClassesTab();
+        return _buildAssessmentsTab();
       case 3:
+        return _buildStudentsTab();
+      case 4:
         return _buildProfileTab();
       default:
         return _buildHomeTab();
     }
   }
 
+  // ==========================================
+  // TAB 1: BERANDA (DASHBOARD UTAMA)
+  // ==========================================
   Widget _buildHomeTab() {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildLecturerHeaderCard(),
-          const SizedBox(height: 24),
-          _buildSectionTitle('Statistik Pengajaran'),
-          const SizedBox(height: 12),
-          _buildStatGrid(),
-          const SizedBox(height: 24),
-          _buildSectionTitle('Menu Cepat'),
-          const SizedBox(height: 12),
-          _buildQuickActionRow(),
-          const SizedBox(height: 24),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildSectionTitle('Kelas yang Diampu'),
-              TextButton(
-                onPressed: () => setState(() => _currentNavIndex = 2),
-                child: const Text(
-                  'Lihat Semua',
-                  style: TextStyle(
-                    color: Color(0xFF6366F1),
-                    fontWeight: FontWeight.w600,
-                  ),
+          // 1. Hero Section (Sapaan, Avatar Simpel, Notifikasi, Bantuan)
+          _buildHero(),
+
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: NetLearnSpace.s20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const SizedBox(height: NetLearnSpace.s12),
+
+                // 2. Bar Kelas Aktif (Active Class Bar)
+                _buildActiveClassBar(),
+                const SizedBox(height: NetLearnSpace.s16),
+
+                // 3. Promo Banner (Siap Mengajar Hari Ini)
+                NlPromoBanner(
+                  title: 'Siap Mengajar Hari Ini?',
+                  subtitle:
+                      'Kelola materi, pengumuman, dan pantau progres mahasiswa melalui dashboard Anda.',
+                  ctaLabel: 'Kelola Materi',
+                  onPressed: () {
+                    setState(() => _currentNavIndex = 1);
+                  },
                 ),
-              ),
-            ],
+                const SizedBox(height: NetLearnSpace.s20),
+
+                // 4. Section Title: Ruang Pengajaran
+                _buildSectionTitle('Ruang Pengajaran'),
+                const SizedBox(height: NetLearnSpace.s12),
+
+                // 5. Shortcut Grid (3 Kolom - Tanpa AR & Tanpa Virtual Lab)
+                _buildShortcutGrid(),
+                const SizedBox(height: NetLearnSpace.s24),
+
+                // 6. Ringkasan Statistik
+                _buildSectionTitle('Statistik Semester'),
+                const SizedBox(height: NetLearnSpace.s12),
+                _buildStatsStrip(),
+                const SizedBox(height: NetLearnSpace.s24),
+
+                // 7. Recent Activities (Aktivitas Terkini)
+                _buildRecentActivities(),
+                const SizedBox(height: NetLearnSpace.s32),
+              ],
+            ),
           ),
-          const SizedBox(height: 8),
-          _buildClassCards(),
-          const SizedBox(height: 24),
-          _buildSectionTitle('Tugas & Aktivitas Terkini'),
-          const SizedBox(height: 12),
-          _buildRecentActivityList(),
-          const SizedBox(height: 24),
         ],
       ),
     );
   }
 
-  Widget _buildLecturerHeaderCard() {
+  Widget _buildHero() {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
+      color: NetLearnColors.appBg,
+      padding: const EdgeInsets.fromLTRB(
+        NetLearnSpace.s20,
+        NetLearnSpace.s12,
+        NetLearnSpace.s20,
+        NetLearnSpace.s8,
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 30,
-            backgroundColor: Colors.white.withOpacity(0.2),
-            child: const Icon(
-              Icons.person_rounded,
-              size: 36,
-              color: Colors.white,
+          // Avatar sederhana (lingkaran inisial - tanpa fitur custom avatar)
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: NetLearnColors.purple100,
+              shape: BoxShape.circle,
+              border: Border.all(color: Colors.white, width: 2),
+              boxShadow: NetLearnShadows.softSm,
+            ),
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Center(
+                  child: Icon(
+                    Icons.person_rounded,
+                    color: NetLearnColors.primary,
+                    size: 26,
+                  ),
+                ),
+                Positioned(
+                  right: 0,
+                  bottom: 0,
+                  child: Container(
+                    width: 11,
+                    height: 11,
+                    decoration: BoxDecoration(
+                      color: NetLearnColors.success,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 2),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: NetLearnSpace.s12),
+
+          // Nama & Sapaan
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: const [
+                Text(
+                  'Halo, Bapak Dosen 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.2,
+                    color: NetLearnColors.neutral900,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Dosen Pengampu • 198507122010121001',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500,
+                    color: NetLearnColors.neutral500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Tombol Notifikasi (Lonceng)
+          NlNotificationBell(
+            hasUnread: true,
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Notifikasi terbaru telah ditampilkan'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+
+          // Tombol Bantuan
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                _showAboutDialog();
+              },
+              customBorder: const CircleBorder(),
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: NetLearnColors.border),
+                  boxShadow: NetLearnShadows.softSm,
+                ),
+                child: const Icon(
+                  Icons.help_outline_rounded,
+                  size: 20,
+                  color: NetLearnColors.neutral700,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActiveClassBar() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(NetLearnRadius.card),
+        border: Border.all(color: NetLearnColors.border),
+        boxShadow: NetLearnShadows.softSm,
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: NetLearnColors.purple100,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(
+              Icons.school_rounded,
+              size: 18,
+              color: NetLearnColors.primary,
+            ),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Semester Ganjil 2026/2027',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
                 const Text(
-                  'Dr. Supono, M.Kom.',
+                  'KELAS AKTIF',
                   style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                    color: NetLearnColors.primary,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  'Dosen Pengampu Jaringan Komputer',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
+                DropdownButtonHideUnderline(
+                  child: DropdownButton<String>(
+                    value: _selectedClass,
+                    isDense: true,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: NetLearnColors.neutral900,
+                    ),
+                    icon: const Icon(
+                      Icons.keyboard_arrow_down_rounded,
+                      size: 18,
+                      color: NetLearnColors.neutral500,
+                    ),
+                    items: _classList.map((String value) {
+                      return DropdownMenuItem<String>(
+                        value: value,
+                        child: Text(value),
+                      );
+                    }).toList(),
+                    onChanged: (newValue) {
+                      if (newValue != null) {
+                        setState(() {
+                          _selectedClass = newValue;
+                        });
+                      }
+                    },
                   ),
                 ),
               ],
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: NetLearnColors.success.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(NetLearnRadius.radiusPill),
+            ),
+            child: const Text(
+              'Aktif',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: NetLearnColors.success,
+              ),
             ),
           ),
         ],
@@ -238,369 +336,224 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
       title,
       style: const TextStyle(
         fontSize: 16,
-        fontWeight: FontWeight.bold,
-        color: Color(0xFF1E293B),
+        fontWeight: FontWeight.w700,
+        height: 1.3,
+        color: NetLearnColors.neutral900,
       ),
     );
   }
 
-  Widget _buildStatGrid() {
-    return GridView.count(
-      crossAxisCount: 2,
-      crossAxisSpacing: 12,
-      mainAxisSpacing: 12,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 1.5,
+  Widget _buildShortcutGrid() {
+    final accents = NetLearnColors.gridAccents;
+
+    return NlMetricGrid(
+      columns: 3,
+      gap: NetLearnSpace.s12,
       children: [
-        _buildStatCard(
-          title: 'Kelas Aktif',
-          value: '2 Kelas',
-          icon: Icons.school_outlined,
-          color: const Color(0xFF6366F1),
-          bg: const Color(0xFFEEF2FF),
-        ),
-        _buildStatCard(
-          title: 'Total Mahasiswa',
-          value: '48 Orang',
-          icon: Icons.groups_outlined,
-          color: const Color(0xFF0EA5E9),
-          bg: const Color(0xFFE0F2FE),
-        ),
-        _buildStatCard(
-          title: 'Modul Ajar',
-          value: '4 Modul',
+        NlShortcutTile(
           icon: Icons.menu_book_outlined,
-          color: const Color(0xFF10B981),
-          bg: const Color(0xFFD1FAE5),
-        ),
-        _buildStatCard(
-          title: 'Tugas Aktif',
-          value: '3 Tugas',
-          icon: Icons.assignment_outlined,
-          color: const Color(0xFFF59E0B),
-          bg: const Color(0xFFFEF3C7),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildStatCard({
-    required String title,
-    required String value,
-    required IconData icon,
-    required Color color,
-    required Color bg,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: bg,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildQuickActionRow() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        _buildActionButton(
-          label: 'Materi',
-          icon: Icons.menu_book_rounded,
-          color: const Color(0xFF6366F1),
+          accentColor: accents[0],
+          title: 'Kelola Materi',
+          subtitle: '4 Modul Ajar',
           onTap: () => setState(() => _currentNavIndex = 1),
         ),
-        _buildActionButton(
-          label: 'Mahasiswa',
-          icon: Icons.people_alt_rounded,
-          color: const Color(0xFF0EA5E9),
+        NlShortcutTile(
+          icon: Icons.assignment_outlined,
+          accentColor: accents[1],
+          title: 'Tugas & Kuis',
+          subtitle: '3 Tugas Aktif',
           onTap: () => setState(() => _currentNavIndex = 2),
         ),
-        _buildActionButton(
-          label: 'Buat Tugas',
-          icon: Icons.add_task_rounded,
-          color: const Color(0xFF10B981),
+        NlShortcutTile(
+          icon: Icons.quiz_outlined,
+          accentColor: accents[2],
+          title: 'Bank Soal',
+          subtitle: 'Ujian & Latihan',
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Form pembuatan tugas (tahap berikutnya)')),
+              const SnackBar(content: Text('Membuka Bank Soal Ujian')),
             );
           },
         ),
-        _buildActionButton(
-          label: 'Pengumuman',
-          icon: Icons.campaign_rounded,
-          color: const Color(0xFFF59E0B),
+        NlShortcutTile(
+          icon: Icons.campaign_outlined,
+          accentColor: accents[3],
+          title: 'Pengumuman',
+          subtitle: 'Kirim Info Kelas',
           onTap: () {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Fitur pengumuman (tahap berikutnya)')),
+              const SnackBar(content: Text('Kelola Pengumuman Kelas')),
             );
           },
+        ),
+        NlShortcutTile(
+          icon: Icons.groups_outlined,
+          accentColor: accents[4],
+          title: 'Mahasiswa',
+          subtitle: '48 Mahasiswa',
+          onTap: () => setState(() => _currentNavIndex = 3),
+        ),
+        NlShortcutTile(
+          icon: Icons.play_circle_outline_rounded,
+          accentColor: accents[5],
+          title: 'Video Kuliah',
+          subtitle: 'Tonton Materi',
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Daftar Video Pembelajaran')),
+            );
+          },
+        ),
+        NlShortcutTile(
+          icon: Icons.school_outlined,
+          accentColor: accents[6],
+          title: 'Kelola Kelas',
+          subtitle: '2 Kelas Diampu',
+          onTap: () => setState(() => _currentNavIndex = 3),
         ),
       ],
     );
   }
 
-  Widget _buildActionButton({
-    required String label,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        width: 76,
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-        ),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, color: color, size: 22),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              label,
-              style: const TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF334155),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClassCards() {
-    return Column(
-      children: [
-        _buildClassItem(
-          code: 'JK-TI-3A',
-          title: 'Jaringan Komputer (Kelas A)',
-          schedule: 'Senin, 08:00 - 10:30 WIB',
-          room: 'Lab Jaringan Komputer 1',
-          studentCount: 24,
-          progress: 0.65,
-        ),
-        const SizedBox(height: 12),
-        _buildClassItem(
-          code: 'JK-TI-3B',
-          title: 'Jaringan Komputer (Kelas B)',
-          schedule: 'Rabu, 13:00 - 15:30 WIB',
-          room: 'Lab Jaringan Komputer 2',
-          studentCount: 24,
-          progress: 0.45,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildClassItem({
-    required String code,
-    required String title,
-    required String schedule,
-    required String room,
-    required int studentCount,
-    required double progress,
-  }) {
+  Widget _buildStatsStrip() {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(NetLearnRadius.card),
+        border: Border.all(color: NetLearnColors.border),
+        boxShadow: NetLearnShadows.softSm,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: Text(
-                  code,
-                  style: const TextStyle(
-                    color: Color(0xFF6366F1),
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              Row(
-                children: [
-                  const Icon(Icons.people_outline, size: 16, color: Color(0xFF64748B)),
-                  const SizedBox(width: 4),
-                  Text(
-                    '$studentCount Mahasiswa',
-                    style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              const Icon(Icons.schedule_rounded, size: 14, color: Color(0xFF94A3B8)),
-              const SizedBox(width: 6),
-              Text(
-                schedule,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              const Icon(Icons.meeting_room_outlined, size: 14, color: Color(0xFF94A3B8)),
-              const SizedBox(width: 6),
-              Text(
-                room,
-                style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Progres Materi',
-                style: TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-              ),
-              Text(
-                '${(progress * 100).toInt()}%',
-                style: const TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: progress,
-              backgroundColor: const Color(0xFFF1F5F9),
-              valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-              minHeight: 6,
-            ),
-          ),
+          _buildStatCol('2', 'Kelas', NetLearnColors.primary),
+          _buildDivider(),
+          _buildStatCol('48', 'Mahasiswa', NetLearnColors.info),
+          _buildDivider(),
+          _buildStatCol('4', 'Modul', NetLearnColors.success),
+          _buildDivider(),
+          _buildStatCol('84%', 'Rerata', NetLearnColors.orange),
         ],
       ),
     );
   }
 
-  Widget _buildRecentActivityList() {
+  Widget _buildStatCol(String val, String label, Color color) {
     return Column(
       children: [
-        _buildActivityItem(
-          icon: Icons.assignment_turned_in_outlined,
-          color: const Color(0xFF10B981),
-          title: 'Tugas Subnetting IPv4',
-          subtitle: '18 dari 24 mahasiswa sudah mengumpulkan',
-          time: '2 jam lalu',
+        Text(
+          val,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
         ),
-        const SizedBox(height: 8),
-        _buildActivityItem(
-          icon: Icons.menu_book_outlined,
-          color: const Color(0xFF6366F1),
-          title: 'Materi 4: IP Address & Subnetting',
-          subtitle: 'Diterbitkan untuk Kelas TI-3A & TI-3B',
-          time: 'Kemarin',
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 11,
+            color: NetLearnColors.neutral500,
+          ),
         ),
       ],
     );
   }
 
-  Widget _buildActivityItem({
+  Widget _buildDivider() {
+    return Container(
+      width: 1,
+      height: 28,
+      color: NetLearnColors.border,
+    );
+  }
+
+  Widget _buildRecentActivities() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: const [
+            Expanded(
+              child: Text(
+                'Aktivitas Terkini',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: NetLearnColors.neutral900,
+                ),
+              ),
+            ),
+            Icon(Icons.schedule, size: 18, color: NetLearnColors.neutral400),
+          ],
+        ),
+        const SizedBox(height: NetLearnSpace.s12),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(
+            horizontal: NetLearnSpace.s16,
+            vertical: NetLearnSpace.s8,
+          ),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(NetLearnRadius.card),
+            border: Border.all(color: NetLearnColors.border),
+            boxShadow: NetLearnShadows.softSm,
+          ),
+          child: Column(
+            children: [
+              _buildActivityTile(
+                icon: Icons.menu_book_outlined,
+                iconColor: NetLearnColors.primary,
+                title: 'Materi 4: IP Address & Subnetting',
+                subtitle: 'Diterbitkan untuk Kelas TI-3A & TI-3B',
+                time: '2 jam lalu',
+              ),
+              const Divider(height: 16, thickness: 0.5, color: NetLearnColors.border),
+              _buildActivityTile(
+                icon: Icons.assignment_turned_in_outlined,
+                iconColor: NetLearnColors.success,
+                title: 'Tugas 1: Perhitungan Subnetting IPv4',
+                subtitle: '18 dari 24 mahasiswa sudah mengumpulkan',
+                time: 'Hari ini, 14:20',
+              ),
+              const Divider(height: 16, thickness: 0.5, color: NetLearnColors.border),
+              _buildActivityTile(
+                icon: Icons.campaign_outlined,
+                iconColor: NetLearnColors.orange,
+                title: 'Pengumuman: Jadwal Praktikum Lab 1',
+                subtitle: 'Terkirim ke seluruh mahasiswa kelas TI-3A',
+                time: 'Kemarin',
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActivityTile({
     required IconData icon,
-    required Color color,
+    required Color iconColor,
     required String title,
     required String subtitle,
     required String time,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(8),
+            width: 36,
+            height: 36,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
+              color: iconColor.withOpacity(0.12),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: color, size: 20),
+            alignment: Alignment.center,
+            child: Icon(icon, color: iconColor, size: 18),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -611,139 +564,369 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
                   title,
                   style: const TextStyle(
                     fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
+                    fontWeight: FontWeight.w700,
+                    color: NetLearnColors.neutral900,
                   ),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    color: NetLearnColors.neutral500,
+                  ),
                 ),
               ],
             ),
           ),
           Text(
             time,
-            style: const TextStyle(fontSize: 11, color: Color(0xFF94A3B8)),
+            style: const TextStyle(
+              fontSize: 10,
+              color: NetLearnColors.neutral400,
+            ),
           ),
         ],
       ),
     );
   }
 
-  // --- Tab 2: Materi Sederhana ---
+  // ==========================================
+  // TAB 2: MATERI AJAR
+  // ==========================================
   Widget _buildMaterialsTab() {
-    final materials = [
-      {'no': '01', 'title': 'Dasar-Dasar Jaringan Komputer', 'type': 'PDF & Teori'},
-      {'no': '02', 'title': 'Perangkat Jaringan & Media Transmisi', 'type': 'PDF & Teori'},
-      {'no': '03', 'title': 'Topologi Jaringan Komputer', 'type': 'PDF & Konsep'},
-      {'no': '04', 'title': 'IP Addressing & Subnetting Dasar', 'type': 'PDF & Perhitungan'},
+    final modules = [
+      {
+        'no': '01',
+        'title': 'Dasar-Dasar Jaringan Komputer',
+        'desc': 'Konsep LAN, MAN, WAN, model referensi OSI dan TCP/IP',
+        'items': '3 Bacaan • 1 Video',
+        'status': 'Terbit',
+      },
+      {
+        'no': '02',
+        'title': 'Perangkat Jaringan Komputer',
+        'desc': 'Router, Switch, Hub, NIC, dan media transmisi kabel UTP/STP',
+        'items': '2 Bacaan • 1 Video',
+        'status': 'Terbit',
+      },
+      {
+        'no': '03',
+        'title': 'Topologi Jaringan Komputer',
+        'desc': 'Topologi Star, Bus, Ring, Mesh, serta kelebihan & kekurangannya',
+        'items': '2 Bacaan • 2 Video',
+        'status': 'Terbit',
+      },
+      {
+        'no': '04',
+        'title': 'IP Addressing & Subnetting',
+        'desc': 'Alamat IPv4, Classful vs CIDR, subnet mask, dan network planning',
+        'items': '4 Bacaan • 2 Video',
+        'status': 'Terbit',
+      },
     ];
 
-    return ListView.separated(
-      padding: const EdgeInsets.all(20),
-      itemCount: materials.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        final item = materials[index];
-        return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(10),
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(NetLearnSpace.s20),
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle('Daftar Modul Materi'),
+            ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Tambah Modul Materi Baru')),
+                );
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Tambah Modul', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: NetLearnColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(NetLearnRadius.radiusPill),
                 ),
-                alignment: Alignment.center,
-                child: Text(
-                  item['no']!,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF6366F1),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NetLearnSpace.s16),
+        ...modules.map((m) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(NetLearnRadius.card),
+              border: Border.all(color: NetLearnColors.border),
+              boxShadow: NetLearnShadows.softSm,
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: NetLearnColors.purple100,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  alignment: Alignment.center,
+                  child: Text(
+                    m['no']!,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: NetLearnColors.primary,
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      item['title']!,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              m['title']!,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: NetLearnColors.neutral900,
+                              ),
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: NetLearnColors.success.withOpacity(0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              m['status']!,
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: NetLearnColors.success,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      item['type']!,
-                      style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                    ),
-                  ],
+                      const SizedBox(height: 4),
+                      Text(
+                        m['desc']!,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: NetLearnColors.neutral500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        m['items']!,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: NetLearnColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
-            ],
-          ),
-        );
-      },
+              ],
+            ),
+          );
+        }).toList(),
+      ],
     );
   }
 
-  // --- Tab 3: Daftar Mahasiswa & Kelas Sederhana ---
-  Widget _buildClassesTab() {
+  // ==========================================
+  // TAB 3: PENILAIAN & ASESMEN
+  // ==========================================
+  Widget _buildAssessmentsTab() {
+    final tasks = [
+      {
+        'title': 'Tugas 1: Subnetting IPv4 & CIDR',
+        'deadline': '10 Nov 2026, 23:59 WIB',
+        'submitted': '18 / 24 Mahasiswa',
+        'progress': 0.75,
+      },
+      {
+        'title': 'Kuis 1: Konsep Model OSI & TCP/IP',
+        'deadline': '12 Nov 2026, 12:00 WIB',
+        'submitted': '22 / 24 Mahasiswa',
+        'progress': 0.91,
+      },
+      {
+        'title': 'Tugas 2: Desain Topologi Star',
+        'deadline': '18 Nov 2026, 23:59 WIB',
+        'submitted': '8 / 24 Mahasiswa',
+        'progress': 0.33,
+      },
+    ];
+
     return ListView(
-      padding: const EdgeInsets.all(20),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(NetLearnSpace.s20),
       children: [
-        _buildSectionTitle('Daftar Mahasiswa (Kelas TI-3A)'),
-        const SizedBox(height: 12),
-        ...List.generate(6, (index) {
-          final names = [
-            'Ahmad Fauzi',
-            'Budi Santoso',
-            'Citra Lestari',
-            'Dimas Pratama',
-            'Eka Saputra',
-            'Fitri Handayani',
-          ];
-          final nims = [
-            '22010101',
-            '22010102',
-            '22010103',
-            '22010104',
-            '22010105',
-            '22010106',
-          ];
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionTitle('Daftar Tugas & Asesmen'),
+            ElevatedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Buat Tugas / Asesmen Baru')),
+                );
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('Buat Tugas', style: TextStyle(fontSize: 12)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: NetLearnColors.primary,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(NetLearnRadius.radiusPill),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: NetLearnSpace.s16),
+        ...tasks.map((t) {
+          final progress = t['progress'] as double;
           return Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.all(12),
+            margin: const EdgeInsets.only(bottom: 12),
+            padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
+              borderRadius: BorderRadius.circular(NetLearnRadius.card),
+              border: Border.all(color: NetLearnColors.border),
+              boxShadow: NetLearnShadows.softSm,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  t['title'] as String,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: NetLearnColors.neutral900,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.access_time_rounded,
+                      size: 14,
+                      color: NetLearnColors.neutral400,
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      'Tenggat: ${t['deadline']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: NetLearnColors.neutral500,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Pengumpulan: ${t['submitted']}',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: NetLearnColors.primary,
+                      ),
+                    ),
+                    Text(
+                      '${(progress * 100).toInt()}%',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: NetLearnColors.neutral700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: NetLearnColors.purple50,
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      NetLearnColors.primary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ],
+    );
+  }
+
+  // ==========================================
+  // TAB 4: MAHASISWA & KELAS
+  // ==========================================
+  Widget _buildStudentsTab() {
+    final students = [
+      {'name': 'Ahmad Fauzi', 'nim': '22010101', 'score': '88', 'status': 'Aktif'},
+      {'name': 'Budi Santoso', 'nim': '22010102', 'score': '82', 'status': 'Aktif'},
+      {'name': 'Citra Lestari', 'nim': '22010103', 'score': '95', 'status': 'Aktif'},
+      {'name': 'Dimas Pratama', 'nim': '22010104', 'score': '79', 'status': 'Aktif'},
+      {'name': 'Eka Saputra', 'nim': '22010105', 'score': '85', 'status': 'Aktif'},
+      {'name': 'Fitri Handayani', 'nim': '22010106', 'score': '91', 'status': 'Aktif'},
+    ];
+
+    return ListView(
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(NetLearnSpace.s20),
+      children: [
+        _buildSectionTitle('Daftar Mahasiswa - $_selectedClass'),
+        const SizedBox(height: NetLearnSpace.s12),
+        ...students.map((s) {
+          return Container(
+            margin: const EdgeInsets.only(bottom: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(NetLearnRadius.radiusSm),
+              border: Border.all(color: NetLearnColors.border),
+              boxShadow: NetLearnShadows.softSm,
             ),
             child: Row(
               children: [
                 CircleAvatar(
                   radius: 18,
-                  backgroundColor: const Color(0xFFEEF2FF),
+                  backgroundColor: NetLearnColors.purple100,
                   child: Text(
-                    names[index][0],
+                    s['name']![0],
                     style: const TextStyle(
+                      fontSize: 14,
                       fontWeight: FontWeight.bold,
-                      color: Color(0xFF6366F1),
+                      color: NetLearnColors.primary,
                     ),
                   ),
                 ),
@@ -753,94 +936,104 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        names[index],
+                        s['name']!,
                         style: const TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                          fontWeight: FontWeight.w700,
+                          color: NetLearnColors.neutral900,
                         ),
                       ),
                       Text(
-                        'NIM: ${nims[index]}',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
+                        'NIM: ${s['nim']}',
+                        style: const TextStyle(
+                          fontSize: 11,
+                          color: NetLearnColors.neutral500,
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1FAE5),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Aktif',
-                    style: TextStyle(
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF059669),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      'Nilai: ${s['score']}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: NetLearnColors.primary,
+                      ),
                     ),
-                  ),
+                    Text(
+                      s['status']!,
+                      style: const TextStyle(
+                        fontSize: 10,
+                        color: NetLearnColors.success,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
           );
-        }),
+        }).toList(),
       ],
     );
   }
 
-  // --- Tab 4: Profil Dosen Sederhana ---
+  // ==========================================
+  // TAB 5: PROFIL DOSEN (SEDERHANA)
+  // ==========================================
   Widget _buildProfileTab() {
     return ListView(
-      padding: const EdgeInsets.all(20),
+      physics: const BouncingScrollPhysics(),
+      padding: const EdgeInsets.all(NetLearnSpace.s20),
       children: [
         Center(
           child: Column(
-            children: const [
-              CircleAvatar(
-                radius: 40,
-                backgroundColor: Color(0xFF6366F1),
-                child: Icon(Icons.person, size: 48, color: Colors.white),
+            children: [
+              Container(
+                width: 72,
+                height: 72,
+                decoration: BoxDecoration(
+                  color: NetLearnColors.purple100,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.white, width: 3),
+                  boxShadow: NetLearnShadows.softSm,
+                ),
+                child: const Center(
+                  child: Icon(
+                    Icons.person_rounded,
+                    size: 40,
+                    color: NetLearnColors.primary,
+                  ),
+                ),
               ),
-              SizedBox(height: 12),
-              Text(
+              const SizedBox(height: 12),
+              const Text(
                 'Dr. Supono, M.Kom.',
                 style: TextStyle(
                   fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
+                  fontWeight: FontWeight.w700,
+                  color: NetLearnColors.neutral900,
                 ),
               ),
-              SizedBox(height: 4),
-              Text(
+              const SizedBox(height: 2),
+              const Text(
                 'NIP: 198507122010121001',
-                style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: NetLearnColors.neutral500,
+                ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 24),
         _buildProfileMenuItem(Icons.badge_outlined, 'Informasi Akademik'),
         _buildProfileMenuItem(Icons.lock_outline_rounded, 'Ubah Kata Sandi'),
         _buildProfileMenuItem(Icons.info_outline_rounded, 'Tentang NetLearn'),
-        const SizedBox(height: 20),
-        OutlinedButton.icon(
-          onPressed: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Keluar dari sistem (tahap berikutnya)')),
-            );
-          },
-          icon: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
-          label: const Text(
-            'Keluar Akun',
-            style: TextStyle(color: Color(0xFFEF4444)),
-          ),
-          style: OutlinedButton.styleFrom(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            side: const BorderSide(color: Color(0xFFFECACA)),
-          ),
-        ),
       ],
     );
   }
@@ -850,43 +1043,50 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
       margin: const EdgeInsets.only(bottom: 10),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
+        borderRadius: BorderRadius.circular(NetLearnRadius.radiusSm),
+        border: Border.all(color: NetLearnColors.border),
       ),
       child: ListTile(
-        leading: Icon(icon, color: const Color(0xFF6366F1), size: 22),
+        leading: Icon(icon, color: NetLearnColors.primary, size: 20),
         title: Text(
           title,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
-        trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF94A3B8)),
+        trailing: const Icon(
+          Icons.arrow_forward_ios_rounded,
+          size: 14,
+          color: NetLearnColors.neutral400,
+        ),
         onTap: () {},
       ),
     );
   }
 
+  // ==========================================
+  // BOTTOM NAVIGATION BAR (TANPA AR SCANNER)
+  // ==========================================
   Widget _buildBottomNavbar() {
     return Container(
       decoration: const BoxDecoration(
         color: Colors.white,
         border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0)),
+          top: BorderSide(color: NetLearnColors.border),
         ),
       ),
       child: BottomNavigationBar(
         currentIndex: _currentNavIndex,
         onTap: (index) => setState(() => _currentNavIndex = index),
         backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF6366F1),
-        unselectedItemColor: const Color(0xFF94A3B8),
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
+        selectedItemColor: NetLearnColors.primary,
+        unselectedItemColor: NetLearnColors.neutral400,
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
         type: BottomNavigationBarType.fixed,
         elevation: 0,
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_outlined),
-            activeIcon: Icon(Icons.dashboard_rounded),
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home_rounded),
             label: 'Beranda',
           ),
           BottomNavigationBarItem(
@@ -895,8 +1095,13 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
             label: 'Materi',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline_rounded),
-            activeIcon: Icon(Icons.people_rounded),
+            icon: Icon(Icons.assignment_outlined),
+            activeIcon: Icon(Icons.assignment_rounded),
+            label: 'Asesmen',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.groups_outlined),
+            activeIcon: Icon(Icons.groups_rounded),
             label: 'Mahasiswa',
           ),
           BottomNavigationBarItem(
@@ -908,5 +1113,30 @@ class _LecturerDashboardPageState extends State<LecturerDashboardPage> {
       ),
     );
   }
-}
 
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          ),
+          title: const Text(
+            'Tentang NetLearn',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          content: const Text(
+            'NetLearn Mobile App\nComputer Networking Learning Management System\nVersi 1.0.0',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Tutup'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
