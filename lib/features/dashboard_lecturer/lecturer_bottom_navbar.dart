@@ -16,15 +16,35 @@ class LecturerBottomNavbar extends StatelessWidget {
         break;
 
       case 1:
-        context.go('/lecturer/materials');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'id'
+                  ? 'Fitur Materi sedang dalam tahap pengembangan'
+                  : 'Materials feature is currently under development',
+            ),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         break;
 
       case 2:
-        context.go('/lecturer/assessments');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              Localizations.localeOf(context).languageCode == 'id'
+                  ? 'Fitur AR Scanner sedang dalam tahap pengembangan'
+                  : 'AR Scanner feature is currently under development',
+            ),
+            duration: const Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
         break;
 
       case 3:
-        context.go('/lecturer/students');
+        context.go('/lecturer/assessments');
         break;
 
       case 4:
@@ -53,14 +73,15 @@ class LecturerBottomNavbar extends StatelessWidget {
           activeIcon: Icons.menu_book_rounded,
         ),
         NlNavDestination(
+          label: isId ? 'AR Scanner' : 'AR Scanner',
+          icon: Icons.view_in_ar_rounded,
+          activeIcon: Icons.view_in_ar_rounded,
+          isCenter: true,
+        ),
+        NlNavDestination(
           label: isId ? 'Asesmen' : 'Assessment',
           icon: Icons.assignment_outlined,
           activeIcon: Icons.assignment_rounded,
-        ),
-        NlNavDestination(
-          label: isId ? 'Mahasiswa' : 'Students',
-          icon: Icons.groups_outlined,
-          activeIcon: Icons.groups_rounded,
         ),
         NlNavDestination(
           label: isId ? 'Profil' : 'Profile',

@@ -27,7 +27,17 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
   }
 
   void _openNotifications() {
-    context.push('/lecturer/notifications');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          Localizations.localeOf(context).languageCode == 'id'
+              ? 'Fitur Notifikasi sedang dalam tahap pengembangan'
+              : 'Notifications feature is currently under development',
+        ),
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -115,8 +125,10 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
 
     final greetingName = profile?.name.isNotEmpty == true
         ? profile!.name
-        : 'Pak Rafi';
-    final greetingText = l10n.lecturerGreeting(greetingName);
+        : null;
+    final greetingText = greetingName != null
+        ? l10n.lecturerGreeting(greetingName)
+        : l10n.lecturerGreeting(l10n.lecturer);
 
     return Container(
       width: double.infinity,
@@ -151,7 +163,7 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      profile?.initial ?? 'R',
+                      profile?.initial ?? 'D',
                       style: const TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w800,
@@ -259,7 +271,17 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
           title: l10n.shortcutManageMaterials,
           subtitle: l10n.shortcutManageMaterialsHint,
           onTap: () {
-            context.push('/lecturer/materials');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  Localizations.localeOf(context).languageCode == 'id'
+                      ? 'Fitur Materi sedang dalam tahap pengembangan'
+                      : 'Materials feature is currently under development',
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
         ),
         NlShortcutTile(
@@ -281,17 +303,46 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
           },
         ),
         NlShortcutTile(
-          icon: Icons.campaign_outlined,
+          icon: Icons.view_in_ar_rounded,
           accentColor: accents[3 % accents.length],
+          title: l10n.shortcutScanner,
+          subtitle: l10n.shortcutScannerHint,
+          onTap: () {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  Localizations.localeOf(context).languageCode == 'id'
+                      ? 'Fitur AR Scanner sedang dalam tahap pengembangan'
+                      : 'AR Scanner feature is currently under development',
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          },
+        ),
+        NlShortcutTile(
+          icon: Icons.campaign_outlined,
+          accentColor: accents[4 % accents.length],
           title: l10n.manageAnnouncements,
           subtitle: l10n.shortcutManageQuestionsHint,
           onTap: () {
-            context.push('/lecturer/notifications');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  Localizations.localeOf(context).languageCode == 'id'
+                      ? 'Fitur Pengumuman sedang dalam tahap pengembangan'
+                      : 'Announcements feature is currently under development',
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
         ),
         NlShortcutTile(
           icon: Icons.groups_outlined,
-          accentColor: accents[4 % accents.length],
+          accentColor: accents[5 % accents.length],
           title: l10n.studentList,
           subtitle: l10n.studentScoreSummary,
           onTap: () {
@@ -300,11 +351,21 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
         ),
         NlShortcutTile(
           icon: Icons.play_circle_outline_rounded,
-          accentColor: accents[5 % accents.length],
+          accentColor: accents[1 % accents.length],
           title: l10n.learningVideo,
           subtitle: l10n.watchAndLearn,
           onTap: () {
-            context.push('/lecturer/materials');
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  Localizations.localeOf(context).languageCode == 'id'
+                      ? 'Fitur Video Pembelajaran sedang dalam tahap pengembangan'
+                      : 'Learning video feature is currently under development',
+                ),
+                duration: const Duration(seconds: 2),
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
           },
         ),
       ],

@@ -88,7 +88,7 @@ class _LecturerAssessmentsPageState
             )
           : null,
 
-      bottomNavigationBar: const LecturerBottomNavbar(currentIndex: 2),
+      bottomNavigationBar: const LecturerBottomNavbar(currentIndex: 3),
     );
   }
 

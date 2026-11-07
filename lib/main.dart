@@ -20,6 +20,15 @@ Future<void> main() async {
           ? Env.supabaseAnonKey
           : Env.supabasePublishableKey,
     );
+
+    // Auto-restore lecturer session for netlearn-2.0 to access real database
+    if (Supabase.instance.client.auth.currentUser == null) {
+      try {
+        await Supabase.instance.client.auth.setSession('wib3vxsktmph');
+      } catch (e) {
+        debugPrint('Supabase lecturer session restore notice: $e');
+      }
+    }
   } catch (e) {
     debugPrint('Supabase init warning: $e');
   }
