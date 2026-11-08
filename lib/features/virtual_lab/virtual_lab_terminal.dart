@@ -484,26 +484,48 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
                   ),
                 ),
                 Expanded(
-                  child: TextField(
-                    controller: _inputController,
-                    focusNode: _focusNode,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 11.5,
-                      color: Colors.white,
-                    ),
-                    decoration: const InputDecoration(
-                      hintText: 'Ketik perintah...',
-                      hintStyle: TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 11.5,
-                        color: Color(0xFF64748B),
+                  child: Theme(
+                    data: ThemeData.dark().copyWith(
+                      textSelectionTheme: const TextSelectionThemeData(
+                        cursorColor: Color(0xFF38BDF8),
+                        selectionColor: Color(0xFF0284C7),
+                        selectionHandleColor: Color(0xFF38BDF8),
                       ),
-                      isDense: true,
-                      contentPadding: EdgeInsets.symmetric(vertical: 4),
-                      border: InputBorder.none,
                     ),
-                    onSubmitted: _submitCommand,
+                    child: TextField(
+                      controller: _inputController,
+                      focusNode: _focusNode,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      keyboardType: TextInputType.text,
+                      textInputAction: TextInputAction.send,
+                      cursorColor: const Color(0xFF38BDF8),
+                      cursorWidth: 2.0,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFFF8FAFC),
+                      ),
+                      decoration: const InputDecoration(
+                        filled: false,
+                        fillColor: Colors.transparent,
+                        border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        disabledBorder: InputBorder.none,
+                        isDense: true,
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+                        hintText: 'Ketik perintah...',
+                        hintStyle: TextStyle(
+                          fontFamily: 'monospace',
+                          fontSize: 11.5,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                      onSubmitted: _submitCommand,
+                    ),
                   ),
                 ),
                 IconButton(
