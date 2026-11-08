@@ -239,6 +239,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     final gw = _gatewayController.text.trim();
     final ip2 = _ip2Controller.text.trim();
     final mask2 = _mask2Controller.text.trim();
+    final dhcpGw = _dhcpGatewayController.text.trim();
+    final effectiveDhcpGw =
+        dhcpGw.isNotEmpty ? dhcpGw : (gw.isNotEmpty ? gw : null);
 
     controller.configureDevice(
       id,
@@ -256,9 +259,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       dhcpSubnetMask: _dhcpMaskController.text.trim().isEmpty
           ? null
           : _dhcpMaskController.text.trim(),
-      dhcpGateway: _dhcpGatewayController.text.trim().isEmpty
-          ? null
-          : _dhcpGatewayController.text.trim(),
+      dhcpGateway: effectiveDhcpGw,
       dhcpDns: _dhcpDnsController.text.trim().isEmpty
           ? null
           : _dhcpDnsController.text.trim(),
@@ -543,8 +544,10 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _pcIpMode = device.ipMode;
     _dhcpServerEnabled = device.dhcpServerEnabled;
     _dhcpStartIpController.text = device.dhcpStartIp ?? '192.168.1.100';
-    _dhcpMaskController.text = device.dhcpSubnetMask ?? '255.255.255.0';
-    _dhcpGatewayController.text = device.dhcpGateway ?? '192.168.1.1';
+    _dhcpMaskController.text =
+        device.dhcpSubnetMask ?? device.subnetMask ?? '255.255.255.0';
+    _dhcpGatewayController.text =
+        device.dhcpGateway ?? device.defaultGateway ?? '';
     _dhcpDnsController.text = device.dhcpDns ?? '8.8.8.8';
     _httpServerEnabled = device.httpServerEnabled;
     _httpTitleController.text = device.httpWebTitle ?? 'NetLearn Server Portal';
@@ -1491,6 +1494,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
             decoration: _fieldDecoration(hint: '192.168.1.1'),
+            onChanged: (val) {
+              if (_dhcpGatewayController.text.isEmpty ||
+                  _dhcpGatewayController.text == device.defaultGateway ||
+                  _dhcpGatewayController.text == '192.168.1.1') {
+                _dhcpGatewayController.text = val;
+              }
+            },
           ),
           const SizedBox(height: 12),
           Container(
@@ -1543,6 +1553,43 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                               keyboardType: TextInputType.number,
                               decoration:
                                   _fieldDecoration(hint: '192.168.1.100'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildFieldLabel('Subnet Mask (Pool)'),
+                            TextField(
+                              controller: _dhcpMaskController,
+                              keyboardType: TextInputType.number,
+                              decoration:
+                                  _fieldDecoration(hint: '255.255.255.0'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildFieldLabel('Default Gateway (Pool)'),
+                            TextField(
+                              controller: _dhcpGatewayController,
+                              keyboardType: TextInputType.number,
+                              decoration: _fieldDecoration(
+                                hint: _gatewayController.text.isNotEmpty
+                                    ? _gatewayController.text
+                                    : '192.168.1.1',
+                              ),
                             ),
                           ],
                         ),

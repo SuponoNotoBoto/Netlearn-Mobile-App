@@ -441,6 +441,51 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     final idx = state.devices.indexWhere((d) => d.id == id);
     if (idx < 0) return;
     final updated = [...state.devices];
+    final currentDev = updated[idx];
+
+    final effectiveMask = mask ?? currentDev.subnetMask ?? '255.255.255.0';
+
+    // Selaraskan pool IP jika IP server berubah ke subnet lain
+    String? effectiveDhcpStart = dhcpStartIp ?? currentDev.dhcpStartIp;
+    if (ip != null &&
+        ip.trim().isNotEmpty &&
+        effectiveDhcpStart != null &&
+        effectiveDhcpStart.trim().isNotEmpty) {
+      if (!VirtualLabEngine.sameSubnet(
+          ip.trim(), effectiveMask, effectiveDhcpStart.trim(), effectiveMask)) {
+        final srvIpv4 = VirtualLabIpv4.parse(ip.trim());
+        final oldStartIpv4 = VirtualLabIpv4.parse(effectiveDhcpStart.trim());
+        if (srvIpv4 != null) {
+          final lastOctet = oldStartIpv4 != null &&
+                  oldStartIpv4.octets[3] > 0 &&
+                  oldStartIpv4.octets[3] < 254
+              ? oldStartIpv4.octets[3]
+              : 100;
+          effectiveDhcpStart =
+              '${srvIpv4.octets[0]}.${srvIpv4.octets[1]}.${srvIpv4.octets[2]}.$lastOctet';
+        }
+      }
+    }
+
+    final String? effectiveDhcpGw;
+    final cleanGw = gateway?.trim();
+    final cleanDhcpGw = dhcpGateway?.trim();
+    if (cleanDhcpGw != null && cleanDhcpGw.isNotEmpty) {
+      if (cleanGw != null &&
+          cleanGw.isNotEmpty &&
+          (cleanDhcpGw == currentDev.defaultGateway ||
+              cleanDhcpGw == '192.168.1.1') &&
+          cleanGw != cleanDhcpGw) {
+        effectiveDhcpGw = cleanGw;
+      } else {
+        effectiveDhcpGw = cleanDhcpGw;
+      }
+    } else if (cleanGw != null && cleanGw.isNotEmpty) {
+      effectiveDhcpGw = cleanGw;
+    } else {
+      effectiveDhcpGw = currentDev.dhcpGateway;
+    }
+
     updated[idx] = updated[idx].copyWith(
       name: name,
       ipAddress: ip,
@@ -451,9 +496,9 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
       ipMode: ipMode,
       dnsServer: dns,
       dhcpServerEnabled: dhcpServerEnabled,
-      dhcpStartIp: dhcpStartIp,
+      dhcpStartIp: effectiveDhcpStart,
       dhcpSubnetMask: dhcpSubnetMask,
-      dhcpGateway: dhcpGateway,
+      dhcpGateway: effectiveDhcpGw,
       dhcpDns: dhcpDns,
       httpServerEnabled: httpServerEnabled,
       httpWebTitle: httpWebTitle,

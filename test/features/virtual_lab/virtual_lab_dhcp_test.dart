@@ -80,6 +80,45 @@ void main() {
       expect(lease.dnsServer, equals('8.8.8.8'));
     });
 
+    test('DHCP Engine distributes updated server default gateway (e.g. 192.168.2.1)', () {
+      final serverIdx = session.devices.indexWhere(
+        (d) => d.kind == VirtualLabDeviceKind.server,
+      );
+      final updatedDevices = [...session.devices];
+      // Server gateway updated to 192.168.2.1 while dhcpGateway was 192.168.1.1
+      updatedDevices[serverIdx] = updatedDevices[serverIdx].copyWith(
+        ipAddress: '192.168.2.254',
+        defaultGateway: '192.168.2.1',
+      );
+
+      final newPc = const VirtualLabDevice(
+        id: 'pc_dhcp_gw_test',
+        kind: VirtualLabDeviceKind.pc,
+        position: Offset.zero,
+        name: 'PC_Gateway_Test',
+      );
+      final sw = session.devices.firstWhere(
+        (d) => d.kind == VirtualLabDeviceKind.switch_,
+      );
+
+      final updatedSession = session.copyWith(
+        devices: [...updatedDevices, newPc],
+        cables: [
+          ...session.cables,
+          VirtualLabCable(id: 'c_gw_test', from: newPc.id, to: sw.id),
+        ],
+      );
+
+      final lease = VirtualLabDhcpEngine.requestLease(
+        updatedSession,
+        newPc.id,
+      );
+
+      expect(lease.success, isTrue);
+      expect(lease.defaultGateway, equals('192.168.2.1'));
+      expect(lease.ipAddress, startsWith('192.168.2.'));
+    });
+
     test('DHCP Engine returns no_dhcp_server when server is disabled or not reachable', () {
       final serverIdx = session.devices.indexWhere(
         (d) => d.kind == VirtualLabDeviceKind.server,

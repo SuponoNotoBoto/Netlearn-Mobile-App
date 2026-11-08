@@ -563,17 +563,7 @@ class VirtualLabDhcpEngine {
     }
 
     // 2. Alokasikan IP dari DHCP Pool server
-    final poolStartStr = (dhcpServer.dhcpStartIp ?? '').trim().isNotEmpty
-        ? dhcpServer.dhcpStartIp!.trim()
-        : '192.168.1.100';
-    final startIpv4 = VirtualLabIpv4.parse(poolStartStr);
-    if (startIpv4 == null) {
-      return const VirtualLabDhcpResult(
-        success: false,
-        reason: 'invalid_pool_start',
-      );
-    }
-
+    final serverIpStr = (dhcpServer.ipAddress ?? '').trim();
     final maskStr = (dhcpServer.dhcpSubnetMask ?? '').trim().isNotEmpty
         ? dhcpServer.dhcpSubnetMask!.trim()
         : (dhcpServer.subnetMask ?? '255.255.255.0');
@@ -582,6 +572,36 @@ class VirtualLabDhcpEngine {
       return const VirtualLabDhcpResult(
         success: false,
         reason: 'invalid_pool_mask',
+      );
+    }
+
+    String poolStartStr = (dhcpServer.dhcpStartIp ?? '').trim().isNotEmpty
+        ? dhcpServer.dhcpStartIp!.trim()
+        : '192.168.1.100';
+
+    // Jika server memiliki IP aktif dan poolStart berada di subnet berbeda,
+    // selaraskan poolStart otomatis ke subnet server.
+    if (serverIpStr.isNotEmpty) {
+      if (!VirtualLabEngine.sameSubnet(serverIpStr, maskStr, poolStartStr, maskStr)) {
+        final srvIpv4 = VirtualLabIpv4.parse(serverIpStr);
+        final oldStartIpv4 = VirtualLabIpv4.parse(poolStartStr);
+        if (srvIpv4 != null) {
+          final lastOctet = oldStartIpv4 != null &&
+                  oldStartIpv4.octets[3] > 0 &&
+                  oldStartIpv4.octets[3] < 254
+              ? oldStartIpv4.octets[3]
+              : 100;
+          poolStartStr =
+              '${srvIpv4.octets[0]}.${srvIpv4.octets[1]}.${srvIpv4.octets[2]}.$lastOctet';
+        }
+      }
+    }
+
+    final startIpv4 = VirtualLabIpv4.parse(poolStartStr);
+    if (startIpv4 == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'invalid_pool_start',
       );
     }
 
@@ -626,14 +646,35 @@ class VirtualLabDhcpEngine {
       );
     }
 
+    // Default Gateway yang dibagikan ke client DHCP:
+    final serverGw = (dhcpServer.defaultGateway ?? '').trim();
+    final customDhcpGw = (dhcpServer.dhcpGateway ?? '').trim();
+
+    String? distributedGateway;
+    final isCustomGwInSubnet = customDhcpGw.isNotEmpty &&
+        (serverIpStr.isEmpty ||
+            VirtualLabEngine.sameSubnet(
+                serverIpStr, maskStr, customDhcpGw, maskStr));
+
+    if (serverGw.isNotEmpty) {
+      if (!isCustomGwInSubnet ||
+          (customDhcpGw == '192.168.1.1' && serverGw != '192.168.1.1')) {
+        distributedGateway = serverGw;
+      } else {
+        distributedGateway = customDhcpGw;
+      }
+    } else if (isCustomGwInSubnet) {
+      distributedGateway = customDhcpGw;
+    } else {
+      distributedGateway = dhcpServer.ipAddress;
+    }
+
     return VirtualLabDhcpResult(
       success: true,
       reason: 'success',
       ipAddress: allocatedIp,
       subnetMask: maskStr,
-      defaultGateway: dhcpServer.dhcpGateway ??
-          dhcpServer.defaultGateway ??
-          dhcpServer.ipAddress,
+      defaultGateway: distributedGateway,
       dnsServer: dhcpServer.dhcpDns ?? '8.8.8.8',
       serverName: dhcpServer.displayName,
     );
