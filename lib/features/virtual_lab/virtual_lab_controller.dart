@@ -4,6 +4,7 @@ import 'package:flutter/material.dart' show Offset;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'virtual_lab_model.dart';
+import 'virtual_lab_network.dart';
 import 'virtual_lab_repository.dart';
 
 class VirtualLabController extends Notifier<VirtualLabSession> {
@@ -211,6 +212,78 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     return const VirtualLabSession(devices: [], cables: []);
   }
 
+  /// Template 5: Jaringan Client-Server DHCP & Web (1 Server + 1 Switch + 2 PC)
+  static VirtualLabSession presetDhcpServer() {
+    final server = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.server),
+      kind: VirtualLabDeviceKind.server,
+      position: const Offset(160, 45),
+      name: 'Server1',
+      ipAddress: '192.168.1.254',
+      subnetMask: '255.255.255.0',
+      defaultGateway: '192.168.1.1',
+      dhcpServerEnabled: true,
+      dhcpStartIp: '192.168.1.100',
+      dhcpSubnetMask: '255.255.255.0',
+      dhcpGateway: '192.168.1.1',
+      dhcpDns: '8.8.8.8',
+      httpServerEnabled: true,
+      httpWebTitle: 'NetLearn Server Portal',
+      httpWebContent:
+          'Selamat datang di Server Kampus NetLearn! Layanan DHCP & HTTP aktif.',
+    );
+    final sw = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.switch_),
+      kind: VirtualLabDeviceKind.switch_,
+      position: const Offset(160, 125),
+      name: 'Switch1',
+    );
+    final pc1 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(65, 195),
+      name: 'PC1',
+      ipMode: VirtualLabIpMode.dhcp,
+      ipAddress: '192.168.1.100',
+      subnetMask: '255.255.255.0',
+      defaultGateway: '192.168.1.1',
+      dnsServer: '8.8.8.8',
+    );
+    final pc2 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(255, 195),
+      name: 'PC2',
+      ipMode: VirtualLabIpMode.dhcp,
+      ipAddress: '192.168.1.101',
+      subnetMask: '255.255.255.0',
+      defaultGateway: '192.168.1.1',
+      dnsServer: '8.8.8.8',
+    );
+
+    return VirtualLabSession(
+      devices: [server, sw, pc1, pc2],
+      cables: [
+        VirtualLabCable(
+          id: VirtualLabSession.nextCableId(),
+          from: server.id,
+          to: sw.id,
+        ),
+        VirtualLabCable(
+          id: VirtualLabSession.nextCableId(),
+          from: pc1.id,
+          to: sw.id,
+        ),
+        VirtualLabCable(
+          id: VirtualLabSession.nextCableId(),
+          from: pc2.id,
+          to: sw.id,
+        ),
+      ],
+      selectedDeviceId: server.id,
+    );
+  }
+
   /// Loads this account's saved canvas (once per provider lifetime).
   ///
   /// `resetUserSession` invalidates this provider on sign-in and sign-out, so
@@ -354,6 +427,16 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     String? gateway,
     String? ip2,
     String? mask2,
+    VirtualLabIpMode? ipMode,
+    String? dns,
+    bool? dhcpServerEnabled,
+    String? dhcpStartIp,
+    String? dhcpSubnetMask,
+    String? dhcpGateway,
+    String? dhcpDns,
+    bool? httpServerEnabled,
+    String? httpWebTitle,
+    String? httpWebContent,
   }) {
     final idx = state.devices.indexWhere((d) => d.id == id);
     if (idx < 0) return;
@@ -365,6 +448,48 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
       defaultGateway: gateway,
       ipAddress2: ip2,
       subnetMask2: mask2,
+      ipMode: ipMode,
+      dnsServer: dns,
+      dhcpServerEnabled: dhcpServerEnabled,
+      dhcpStartIp: dhcpStartIp,
+      dhcpSubnetMask: dhcpSubnetMask,
+      dhcpGateway: dhcpGateway,
+      dhcpDns: dhcpDns,
+      httpServerEnabled: httpServerEnabled,
+      httpWebTitle: httpWebTitle,
+      httpWebContent: httpWebContent,
+    );
+    _commit(state.copyWith(devices: updated));
+  }
+
+  VirtualLabDhcpResult requestDhcpLease(String deviceId) {
+    final result = VirtualLabDhcpEngine.requestLease(state, deviceId);
+    if (result.success && result.ipAddress != null) {
+      final idx = state.devices.indexWhere((d) => d.id == deviceId);
+      if (idx >= 0) {
+        final updated = [...state.devices];
+        updated[idx] = updated[idx].copyWith(
+          ipMode: VirtualLabIpMode.dhcp,
+          ipAddress: result.ipAddress,
+          subnetMask: result.subnetMask,
+          defaultGateway: result.defaultGateway,
+          dnsServer: result.dnsServer,
+        );
+        _commit(state.copyWith(devices: updated));
+      }
+    }
+    return result;
+  }
+
+  void releaseDhcp(String deviceId) {
+    final idx = state.devices.indexWhere((d) => d.id == deviceId);
+    if (idx < 0) return;
+    final updated = [...state.devices];
+    updated[idx] = updated[idx].copyWith(
+      ipAddress: '0.0.0.0',
+      subnetMask: '0.0.0.0',
+      defaultGateway: '',
+      dnsServer: '',
     );
     _commit(state.copyWith(devices: updated));
   }

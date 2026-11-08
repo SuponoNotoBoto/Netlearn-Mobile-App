@@ -1,4 +1,5 @@
 import 'dart:core';
+import 'package:flutter/material.dart' show Offset;
 
 import 'virtual_lab_model.dart';
 
@@ -491,5 +492,234 @@ class VirtualLabConnectivityEngine {
       for (final n in adj[cur] ?? <String>{}) { queue.add(n); }
     }
     return false;
+  }
+}
+
+class VirtualLabDhcpResult {
+  const VirtualLabDhcpResult({
+    required this.success,
+    required this.reason,
+    this.ipAddress,
+    this.subnetMask,
+    this.defaultGateway,
+    this.dnsServer,
+    this.serverName,
+  });
+
+  final bool success;
+  final String reason;
+  final String? ipAddress;
+  final String? subnetMask;
+  final String? defaultGateway;
+  final String? dnsServer;
+  final String? serverName;
+}
+
+class VirtualLabDhcpEngine {
+  /// Melakukan proses DHCP DORA (Discover, Offer, Request, Acknowledge)
+  /// dari [client] ke Server DHCP yang berada dalam satu broadcast domain L2.
+  static VirtualLabDhcpResult requestLease(
+    VirtualLabSession session,
+    String clientId,
+  ) {
+    final client = session.deviceById(clientId);
+    if (client == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'client_not_found',
+      );
+    }
+
+    // 1. Temukan semua perangkat dalam broadcast domain L2 (melewati Switch, berhenti di Router)
+    final switches = session.devices
+        .where((d) => d.kind == VirtualLabDeviceKind.switch_)
+        .map((d) => d.id);
+    final allowedL2Nodes = {client.id, ...switches};
+    final servers = session.devices
+        .where((d) => d.kind == VirtualLabDeviceKind.server)
+        .toList();
+
+    VirtualLabDevice? dhcpServer;
+    for (final server in servers) {
+      if (!server.dhcpServerEnabled) continue;
+      // Periksa apakah ada jalur L2 dari client ke server
+      final path = VirtualLabConnectivityEngine._shortestPath(
+        session,
+        client.id,
+        server.id,
+        allowDevices: {...allowedL2Nodes, server.id},
+      );
+      if (path != null) {
+        dhcpServer = server;
+        break;
+      }
+    }
+
+    if (dhcpServer == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'no_dhcp_server',
+      );
+    }
+
+    // 2. Alokasikan IP dari DHCP Pool server
+    final poolStartStr = (dhcpServer.dhcpStartIp ?? '').trim().isNotEmpty
+        ? dhcpServer.dhcpStartIp!.trim()
+        : '192.168.1.100';
+    final startIpv4 = VirtualLabIpv4.parse(poolStartStr);
+    if (startIpv4 == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'invalid_pool_start',
+      );
+    }
+
+    final maskStr = (dhcpServer.dhcpSubnetMask ?? '').trim().isNotEmpty
+        ? dhcpServer.dhcpSubnetMask!.trim()
+        : (dhcpServer.subnetMask ?? '255.255.255.0');
+    final subnetMask = VirtualLabSubnetMask.parse(maskStr);
+    if (subnetMask == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'invalid_pool_mask',
+      );
+    }
+
+    // Kumpulkan semua IP yang sedang dipakai di seluruh perangkat (kecuali IP lama client ini)
+    final usedIps = <String>{};
+    for (final d in session.devices) {
+      if (d.id == clientId) continue;
+      if ((d.ipAddress ?? '').trim().isNotEmpty) {
+        usedIps.add(d.ipAddress!.trim());
+      }
+      if ((d.ipAddress2 ?? '').trim().isNotEmpty) {
+        usedIps.add(d.ipAddress2!.trim());
+      }
+    }
+
+    // Cari IP pertama yang belum terpakai di subnet pool
+    String? allocatedIp;
+    final baseNum = startIpv4.asNum;
+    for (int offset = 0; offset < 100; offset++) {
+      final candidateNum = baseNum + offset;
+      final candIp = VirtualLabIpv4([
+        (candidateNum >> 24) & 0xFF,
+        (candidateNum >> 16) & 0xFF,
+        (candidateNum >> 8) & 0xFF,
+        candidateNum & 0xFF,
+      ]);
+      final candStr = candIp.toString();
+      if (!VirtualLabEngine.isHostAddress(candStr, maskStr)) continue;
+      if (!VirtualLabEngine.sameSubnet(candStr, maskStr, poolStartStr, maskStr)) {
+        break;
+      }
+      if (!usedIps.contains(candStr)) {
+        allocatedIp = candStr;
+        break;
+      }
+    }
+
+    if (allocatedIp == null) {
+      return const VirtualLabDhcpResult(
+        success: false,
+        reason: 'pool_exhausted',
+      );
+    }
+
+    return VirtualLabDhcpResult(
+      success: true,
+      reason: 'success',
+      ipAddress: allocatedIp,
+      subnetMask: maskStr,
+      defaultGateway: dhcpServer.dhcpGateway ??
+          dhcpServer.defaultGateway ??
+          dhcpServer.ipAddress,
+      dnsServer: dhcpServer.dhcpDns ?? '8.8.8.8',
+      serverName: dhcpServer.displayName,
+    );
+  }
+}
+
+class VirtualLabHttpResult {
+  const VirtualLabHttpResult({
+    required this.success,
+    required this.statusCode,
+    required this.reason,
+    this.title,
+    this.body,
+  });
+
+  final bool success;
+  final int statusCode;
+  final String reason;
+  final String? title;
+  final String? body;
+}
+
+class VirtualLabHttpEngine {
+  /// Mengirim permintaan HTTP GET dari [sourceId] ke [targetIp].
+  static VirtualLabHttpResult get(
+    VirtualLabSession session, {
+    required String sourceId,
+    required String targetIp,
+  }) {
+    final targetDevice = session.devices.firstWhere(
+      (d) =>
+          d.ipAddress?.trim() == targetIp.trim() ||
+          d.ipAddress2?.trim() == targetIp.trim(),
+      orElse: () => const VirtualLabDevice(
+        id: '',
+        kind: VirtualLabDeviceKind.pc,
+        position: Offset.zero,
+      ),
+    );
+
+    if (targetDevice.id.isEmpty) {
+      return const VirtualLabHttpResult(
+        success: false,
+        statusCode: 404,
+        reason: 'Host tidak ditemukan atau belum memiliki alamat IP.',
+      );
+    }
+
+    final pingResult = VirtualLabConnectivityEngine.ping(
+      session,
+      sourceId: sourceId,
+      targetId: targetDevice.id,
+    );
+
+    if (!pingResult.success) {
+      return VirtualLabHttpResult(
+        success: false,
+        statusCode: 504,
+        reason: 'Connection timed out: ${pingResult.reason}',
+      );
+    }
+
+    if (targetDevice.kind != VirtualLabDeviceKind.server) {
+      return const VirtualLabHttpResult(
+        success: false,
+        statusCode: 400,
+        reason: 'Target bukan merupakan perangkat Server.',
+      );
+    }
+
+    if (!targetDevice.httpServerEnabled) {
+      return const VirtualLabHttpResult(
+        success: false,
+        statusCode: 503,
+        reason:
+            'Service Unavailable: Layanan HTTP Web Server pada server ini sedang nonaktif.',
+      );
+    }
+
+    return VirtualLabHttpResult(
+      success: true,
+      statusCode: 200,
+      reason: 'OK',
+      title: targetDevice.httpWebTitle ?? 'NetLearn Server Portal',
+      body: targetDevice.httpWebContent ??
+          'Selamat datang di Web Server NetLearn! Layanan HTTP aktif.',
+    );
   }
 }

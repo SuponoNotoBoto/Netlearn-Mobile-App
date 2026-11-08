@@ -69,6 +69,15 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   final TextEditingController _gatewayController = TextEditingController();
   final TextEditingController _ip2Controller = TextEditingController();
   final TextEditingController _mask2Controller = TextEditingController();
+  final TextEditingController _dhcpStartIpController = TextEditingController();
+  final TextEditingController _dhcpMaskController = TextEditingController();
+  final TextEditingController _dhcpGatewayController = TextEditingController();
+  final TextEditingController _dhcpDnsController = TextEditingController();
+  final TextEditingController _httpTitleController = TextEditingController();
+  final TextEditingController _httpContentController = TextEditingController();
+  VirtualLabIpMode _pcIpMode = VirtualLabIpMode.static_;
+  bool _dhcpServerEnabled = true;
+  bool _httpServerEnabled = true;
   String? _formDeviceId;
 
   @override
@@ -95,6 +104,12 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _gatewayController.dispose();
     _ip2Controller.dispose();
     _mask2Controller.dispose();
+    _dhcpStartIpController.dispose();
+    _dhcpMaskController.dispose();
+    _dhcpGatewayController.dispose();
+    _dhcpDnsController.dispose();
+    _httpTitleController.dispose();
+    _httpContentController.dispose();
     super.dispose();
   }
 
@@ -233,6 +248,27 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       gateway: gw.isEmpty ? null : gw,
       ip2: ip2.isEmpty ? null : ip2,
       mask2: mask2.isEmpty ? null : mask2,
+      ipMode: _pcIpMode,
+      dhcpServerEnabled: _dhcpServerEnabled,
+      dhcpStartIp: _dhcpStartIpController.text.trim().isEmpty
+          ? null
+          : _dhcpStartIpController.text.trim(),
+      dhcpSubnetMask: _dhcpMaskController.text.trim().isEmpty
+          ? null
+          : _dhcpMaskController.text.trim(),
+      dhcpGateway: _dhcpGatewayController.text.trim().isEmpty
+          ? null
+          : _dhcpGatewayController.text.trim(),
+      dhcpDns: _dhcpDnsController.text.trim().isEmpty
+          ? null
+          : _dhcpDnsController.text.trim(),
+      httpServerEnabled: _httpServerEnabled,
+      httpWebTitle: _httpTitleController.text.trim().isEmpty
+          ? null
+          : _httpTitleController.text.trim(),
+      httpWebContent: _httpContentController.text.trim().isEmpty
+          ? null
+          : _httpContentController.text.trim(),
     );
     // Konfigurasi berubah → hasil ping lama tidak lagi relevan.
     _invalidateTest();
@@ -280,6 +316,8 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     switch (code) {
       case VirtualLabSession.cableIssuePcPortFull:
         return l10n.virtualLabCableIssuePcPortFull;
+      case VirtualLabSession.cableIssueServerPortFull:
+        return 'Server ini hanya memiliki 1 port Ethernet dan sudah terhubung kabel. Hapus kabel lama terlebih dahulu.';
       case VirtualLabSession.cableIssueRouterPortFull:
         return 'Router ini sudah memakai kedua port-nya (eth0 & eth1). Hapus kabel yang ada terlebih dahulu.';
       case VirtualLabSession.cableIssueDuplicate:
@@ -502,6 +540,16 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _gatewayController.text = device.defaultGateway ?? '';
     _ip2Controller.text = device.ipAddress2 ?? '';
     _mask2Controller.text = device.subnetMask2 ?? '';
+    _pcIpMode = device.ipMode;
+    _dhcpServerEnabled = device.dhcpServerEnabled;
+    _dhcpStartIpController.text = device.dhcpStartIp ?? '192.168.1.100';
+    _dhcpMaskController.text = device.dhcpSubnetMask ?? '255.255.255.0';
+    _dhcpGatewayController.text = device.dhcpGateway ?? '192.168.1.1';
+    _dhcpDnsController.text = device.dhcpDns ?? '8.8.8.8';
+    _httpServerEnabled = device.httpServerEnabled;
+    _httpTitleController.text = device.httpWebTitle ?? 'NetLearn Server Portal';
+    _httpContentController.text = device.httpWebContent ??
+        'Selamat datang di Server Kampus NetLearn! Layanan HTTP Web Server aktif dan berjalan normal.';
   }
 
   // ---------------------------------------------------------------------------
@@ -581,6 +629,17 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   plus: true,
                   onTap: () {
                     controller.addDevice(VirtualLabDeviceKind.router);
+                    _invalidateTest();
+                  },
+                ),
+                _buildToolButton(
+                  label: '+Server',
+                  icon: Icons.dns_rounded,
+                  active: false,
+                  accent: accent,
+                  plus: true,
+                  onTap: () {
+                    controller.addDevice(VirtualLabDeviceKind.server);
                     _invalidateTest();
                   },
                 ),
@@ -900,6 +959,8 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         return Icons.hub_rounded;
       case VirtualLabDeviceKind.router:
         return Icons.router_rounded;
+      case VirtualLabDeviceKind.server:
+        return Icons.dns_rounded;
     }
   }
 
@@ -1037,7 +1098,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                         ? l10n.virtualLabDevicePcPorts
                         : (device.kind == VirtualLabDeviceKind.router
                             ? 'Router · 2 port (eth0 & eth1)'
-                            : l10n.virtualLabDeviceSwitchPorts),
+                            : (device.kind == VirtualLabDeviceKind.server
+                                ? 'Server · 1 port NIC (DHCP & Web)'
+                                : l10n.virtualLabDeviceSwitchPorts)),
                     style: const TextStyle(fontSize: 11, color: _labMuted),
                   ),
                 ],
@@ -1055,6 +1118,136 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         ),
         const SizedBox(height: 10),
         if (device.kind == VirtualLabDeviceKind.pc) ...[
+          Container(
+            padding: const EdgeInsets.all(4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF1F5F9),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _pcIpMode = VirtualLabIpMode.static_);
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _pcIpMode == VirtualLabIpMode.static_
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _pcIpMode == VirtualLabIpMode.static_
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        'Static IP',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _pcIpMode == VirtualLabIpMode.static_
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: InkWell(
+                    onTap: () {
+                      setState(() => _pcIpMode = VirtualLabIpMode.dhcp);
+                      final lease = controller.requestDhcpLease(device.id);
+                      if (lease.success && lease.ipAddress != null) {
+                        _ipController.text = lease.ipAddress!;
+                        _maskController.text =
+                            lease.subnetMask ?? '255.255.255.0';
+                        _gatewayController.text = lease.defaultGateway ?? '';
+                        NlSnackBar.show(context,
+                            'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}');
+                      } else {
+                        NlSnackBar.show(context,
+                            'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.');
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(8),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 8),
+                      decoration: BoxDecoration(
+                        color: _pcIpMode == VirtualLabIpMode.dhcp
+                            ? Colors.white
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(8),
+                        boxShadow: _pcIpMode == VirtualLabIpMode.dhcp
+                            ? [
+                                BoxShadow(
+                                  color: Colors.black.withValues(alpha: 0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 1),
+                                )
+                              ]
+                            : null,
+                      ),
+                      child: Text(
+                        'DHCP (Dinamis)',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: _pcIpMode == VirtualLabIpMode.dhcp
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFF64748B),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (_pcIpMode == VirtualLabIpMode.dhcp) ...[
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF0FDF4),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFFBBF7D0)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.check_circle_rounded,
+                      size: 16, color: Color(0xFF16A34A)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      _ipController.text.isNotEmpty &&
+                              _ipController.text != '0.0.0.0'
+                          ? 'Alamat IP didapatkan secara dinamis dari DHCP Server.'
+                          : 'Mode DHCP aktif. Tekan tombol di bawah untuk meminta IP.',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFF15803D),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1065,6 +1258,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     _buildFieldLabel(l10n.virtualLabIpLabel),
                     TextField(
                       controller: _ipController,
+                      readOnly: _pcIpMode == VirtualLabIpMode.dhcp,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.next,
                       decoration: _fieldDecoration(hint: '192.168.1.10'),
@@ -1080,6 +1274,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     _buildFieldLabel(l10n.virtualLabMaskLabel),
                     TextField(
                       controller: _maskController,
+                      readOnly: _pcIpMode == VirtualLabIpMode.dhcp,
                       keyboardType: TextInputType.number,
                       textInputAction: TextInputAction.next,
                       decoration: _fieldDecoration(hint: '255.255.255.0'),
@@ -1093,10 +1288,41 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           _buildFieldLabel('Default Gateway (IP Router)'),
           TextField(
             controller: _gatewayController,
+            readOnly: _pcIpMode == VirtualLabIpMode.dhcp,
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
-            decoration: _fieldDecoration(hint: '192.168.1.1 (opsional jika 1 subnet)'),
+            decoration:
+                _fieldDecoration(hint: '192.168.1.1 (opsional jika 1 subnet)'),
           ),
+          if (_pcIpMode == VirtualLabIpMode.dhcp) ...[
+            const SizedBox(height: 10),
+            OutlinedButton.icon(
+              onPressed: () {
+                final lease = controller.requestDhcpLease(device.id);
+                if (lease.success && lease.ipAddress != null) {
+                  _ipController.text = lease.ipAddress!;
+                  _maskController.text =
+                      lease.subnetMask ?? '255.255.255.0';
+                  _gatewayController.text = lease.defaultGateway ?? '';
+                  NlSnackBar.show(context,
+                      'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}');
+                } else {
+                  NlSnackBar.show(context,
+                      'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.');
+                }
+              },
+              icon: const Icon(Icons.refresh_rounded, size: 16),
+              label: const Text('Minta Ulang Alamat IP (DHCP Request)'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF4F46E5),
+                side: const BorderSide(color: Color(0xFFC7D2FE)),
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            ),
+          ],
           const SizedBox(height: 10),
           OutlinedButton.icon(
             onPressed: () => setState(() => _panelTab = 2),
@@ -1223,6 +1449,173 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               ],
             ),
           ),
+        ] else if (device.kind == VirtualLabDeviceKind.server) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildFieldLabel('IP Address Server'),
+                    TextField(
+                      controller: _ipController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: _fieldDecoration(hint: '192.168.1.254'),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildFieldLabel('Subnet Mask'),
+                    TextField(
+                      controller: _maskController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: _fieldDecoration(hint: '255.255.255.0'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildFieldLabel('Default Gateway (opsional)'),
+          TextField(
+            controller: _gatewayController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            decoration: _fieldDecoration(hint: '192.168.1.1'),
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.alt_route_rounded,
+                            size: 16, color: Color(0xFF4F46E5)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Layanan DHCP Server',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _labText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Switch(
+                      value: _dhcpServerEnabled,
+                      activeThumbColor: const Color(0xFF4F46E5),
+                      onChanged: (val) =>
+                          setState(() => _dhcpServerEnabled = val),
+                    ),
+                  ],
+                ),
+                if (_dhcpServerEnabled) ...[
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildFieldLabel('Mulai IP Pool'),
+                            TextField(
+                              controller: _dhcpStartIpController,
+                              keyboardType: TextInputType.number,
+                              decoration:
+                                  _fieldDecoration(hint: '192.168.1.100'),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildFieldLabel('DNS Server'),
+                            TextField(
+                              controller: _dhcpDnsController,
+                              keyboardType: TextInputType.number,
+                              decoration: _fieldDecoration(hint: '8.8.8.8'),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: const [
+                        Icon(Icons.language_rounded,
+                            size: 16, color: Color(0xFF10B981)),
+                        SizedBox(width: 6),
+                        Text(
+                          'Layanan HTTP Web Server',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700,
+                            color: _labText,
+                          ),
+                        ),
+                      ],
+                    ),
+                    Switch(
+                      value: _httpServerEnabled,
+                      activeThumbColor: const Color(0xFF10B981),
+                      onChanged: (val) =>
+                          setState(() => _httpServerEnabled = val),
+                    ),
+                  ],
+                ),
+                if (_httpServerEnabled) ...[
+                  const SizedBox(height: 8),
+                  _buildFieldLabel('Judul Website Portal'),
+                  TextField(
+                    controller: _httpTitleController,
+                    decoration:
+                        _fieldDecoration(hint: 'NetLearn Server Portal'),
+                  ),
+                ],
+              ],
+            ),
+          ),
         ] else ...[
           Container(
             padding: const EdgeInsets.all(12),
@@ -1246,9 +1639,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               child: Text(
                 device.kind == VirtualLabDeviceKind.router
                     ? '${session.cables.where((c) => c.involves(device.id)).length}/2 port kabel terhubung'
-                    : (cabled
-                        ? l10n.virtualLabCableConnected
-                        : l10n.virtualLabCableNotConnected),
+                    : (device.kind == VirtualLabDeviceKind.server
+                        ? '${session.cables.where((c) => c.involves(device.id)).length}/1 port NIC terhubung'
+                        : (cabled
+                            ? l10n.virtualLabCableConnected
+                            : l10n.virtualLabCableNotConnected)),
                 style: const TextStyle(fontSize: 11.5, color: _labMuted),
               ),
             ),
@@ -1280,13 +1675,15 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     Color accent,
   ) {
     final devices = session.devices
-        .where((d) => d.kind == VirtualLabDeviceKind.pc)
+        .where((d) =>
+            d.kind == VirtualLabDeviceKind.pc ||
+            d.kind == VirtualLabDeviceKind.server)
         .toList();
     if (devices.length < 2) {
       return _buildPanelHint(
         Localizations.localeOf(context).languageCode == 'id'
-            ? 'Tambahkan minimal dua PC untuk melakukan uji ping.'
-            : 'Add at least two PCs to test ping connectivity.',
+            ? 'Tambahkan minimal dua perangkat host (PC atau Server) untuk melakukan uji ping.'
+            : 'Add at least two host devices (PC or Server) to test ping connectivity.',
       );
     }
     final ids = devices.map((d) => d.id).toSet();
@@ -1480,6 +1877,18 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             setState(() => _lastTest = result);
             if (result.success) _startPacketAnimation();
           },
+          onDhcpLease: (lease) {
+            if (lease.success && lease.ipAddress != null) {
+              ref
+                  .read(virtualLabControllerProvider.notifier)
+                  .requestDhcpLease(firstPc.id);
+            }
+          },
+          onDhcpRelease: () {
+            ref
+                .read(virtualLabControllerProvider.notifier)
+                .releaseDhcp(firstPc.id);
+          },
         );
       }
       return _buildPanelHint(
@@ -1504,6 +1913,18 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       onPingResult: (result) {
         setState(() => _lastTest = result);
         if (result.success) _startPacketAnimation();
+      },
+      onDhcpLease: (lease) {
+        if (lease.success && lease.ipAddress != null) {
+          ref
+              .read(virtualLabControllerProvider.notifier)
+              .requestDhcpLease(device.id);
+        }
+      },
+      onDhcpRelease: () {
+        ref
+            .read(virtualLabControllerProvider.notifier)
+            .releaseDhcp(device.id);
       },
     );
   }
@@ -1603,6 +2024,22 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                       _invalidateTest();
                       NlSnackBar.show(
                           context, 'Template Peer-to-Peer berhasil dimuat.');
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTemplateTile(
+                    icon: Icons.dns_outlined,
+                    title: 'Client-Server DHCP & Web (LAN)',
+                    subtitle:
+                        '1 Server DHCP/Web + 1 Switch + 2 PC (IP Dinamis Otomatis)',
+                    accent: const Color(0xFF8B5CF6),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      controller
+                          .loadPreset(VirtualLabController.presetDhcpServer());
+                      _invalidateTest();
+                      NlSnackBar.show(context,
+                          'Template Client-Server DHCP berhasil dimuat.');
                     },
                   ),
                   const SizedBox(height: 10),
@@ -1719,6 +2156,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           final routerCount = session.devices
               .where((d) => d.kind == VirtualLabDeviceKind.router)
               .length;
+          final serverCount = session.devices
+              .where((d) => d.kind == VirtualLabDeviceKind.server)
+              .length;
           final switchCount = session.devices
               .where((d) => d.kind == VirtualLabDeviceKind.switch_)
               .length;
@@ -1768,7 +2208,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Rincian: $pcCount PC · $routerCount Router · $switchCount Switch · $cableCount Kabel',
+                      'Rincian: $pcCount PC · $routerCount Router · $serverCount Server · $switchCount Switch · $cableCount Kabel',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                           fontSize: 11,

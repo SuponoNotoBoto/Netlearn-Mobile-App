@@ -18,6 +18,8 @@ class VirtualLabTerminalEngine {
     required VirtualLabSession session,
     required VirtualLabDevice currentDevice,
     required void Function(VirtualLabConnectivityResult result)? onPingResult,
+    void Function(VirtualLabDhcpResult lease)? onDhcpLease,
+    void Function()? onDhcpRelease,
   }) {
     final raw = command.trim();
     if (raw.isEmpty) return const [];
@@ -32,27 +34,124 @@ class VirtualLabTerminalEngine {
         return [
           'Daftar Perintah Terminal NetLearn:',
           '  ipconfig           Menampilkan konfigurasi IP, subnet, dan gateway PC ini',
+          '  ipconfig /renew    Meminta alokasi IP baru ke DHCP Server',
+          '  ipconfig /release  Melepaskan alokasi IP saat ini',
           '  ping <IP_Tujuan>   Menguji konektivitas ICMP ke host tujuan',
           '  tracert <IP_Tujuan> Melacak jalur hop menuju host tujuan',
+          '  curl <IP_Server>   Mengakses halaman HTTP Web Server',
           '  cls / clear        Membersihkan layar terminal',
           '  help               Menampilkan panduan perintah ini',
         ];
 
       case 'ipconfig':
       case 'ifconfig':
+        final isRenew = args.any((a) =>
+            a.toLowerCase() == '/renew' || a.toLowerCase() == '-renew');
+        final isRelease = args.any((a) =>
+            a.toLowerCase() == '/release' || a.toLowerCase() == '-release');
+
+        if (isRenew) {
+          final lease =
+              VirtualLabDhcpEngine.requestLease(session, currentDevice.id);
+          if (onDhcpLease != null) {
+            onDhcpLease(lease);
+          }
+          if (lease.success) {
+            return [
+              'DHCP Requesting...',
+              'DHCP Discover sent on Ethernet adapter...',
+              'DHCP Offer received from Server [${lease.serverName ?? "DHCP Server"}]',
+              'DHCP Acknowledged. IP Lease obtained successfully!',
+              '',
+              'NetLearn Virtual Ethernet Adapter:',
+              '   Connection-specific DNS Suffix  . : netlearn.edu',
+              '   IP Configuration Mode . . . . . . : DHCP (Dynamic)',
+              '   Link Status . . . . . . . . . . . : Connected (100 Mbps)',
+              '   IPv4 Address. . . . . . . . . . . : ${lease.ipAddress}',
+              '   Subnet Mask . . . . . . . . . . . : ${lease.subnetMask}',
+              '   Default Gateway . . . . . . . . . : ${lease.defaultGateway ?? "(None)"}',
+              '   DNS Servers . . . . . . . . . . . : ${lease.dnsServer ?? "(None)"}',
+            ];
+          } else {
+            return [
+              'DHCP Requesting...',
+              'DHCP Discover sent on Ethernet adapter...',
+              'DHCP failed: Tidak ada DHCP Server aktif yang merespons dalam subnet broadcast ini.',
+              'APIPA is being used (169.254.10.15)',
+            ];
+          }
+        }
+
+        if (isRelease) {
+          if (onDhcpRelease != null) {
+            onDhcpRelease();
+          }
+          return [
+            'NetLearn Virtual Ethernet Adapter:',
+            '',
+            '   Link Status . . . . . . . . . . . : Connected',
+            '   IPv4 Address has been released.',
+            '   IPv4 Address. . . . . . . . . . . : 0.0.0.0',
+            '   Subnet Mask . . . . . . . . . . . : 0.0.0.0',
+            '   Default Gateway . . . . . . . . . :',
+          ];
+        }
+
         final cabled = session.cables.any((c) => c.involves(currentDevice.id));
         final ip = (currentDevice.ipAddress ?? '').trim();
         final mask = (currentDevice.subnetMask ?? '').trim();
         final gw = (currentDevice.defaultGateway ?? '').trim();
+        final dns = (currentDevice.dnsServer ?? '').trim();
         return [
           'NetLearn Virtual Ethernet Adapter:',
           '',
           '   Connection-specific DNS Suffix  . : netlearn.edu',
+          '   IP Configuration Mode . . . . . . : ${currentDevice.ipMode == VirtualLabIpMode.dhcp ? "DHCP (Dynamic)" : "Static"}',
           '   Link Status . . . . . . . . . . . : ${cabled ? "Connected (100 Mbps Full Duplex)" : "Media disconnected (Kabel belum terpasang)"}',
           '   IPv4 Address. . . . . . . . . . . : ${ip.isNotEmpty ? ip : "(Belum dikonfigurasi)"}',
           '   Subnet Mask . . . . . . . . . . . : ${mask.isNotEmpty ? mask : "(Belum dikonfigurasi)"}',
           '   Default Gateway . . . . . . . . . : ${gw.isNotEmpty ? gw : "(None)"}',
+          if (dns.isNotEmpty)
+            '   DNS Servers . . . . . . . . . . . : $dns',
         ];
+
+      case 'curl':
+      case 'web':
+        if (args.isEmpty) {
+          return [
+            'Usage: curl <server_ip>',
+            'Contoh: curl 192.168.1.254',
+          ];
+        }
+        final targetIpStr = args[0].trim();
+        final httpRes = VirtualLabHttpEngine.get(
+          session,
+          sourceId: currentDevice.id,
+          targetIp: targetIpStr,
+        );
+
+        if (httpRes.success) {
+          return [
+            'Connecting to $targetIpStr:80... Connected!',
+            'HTTP/1.1 200 OK',
+            'Server: NetLearn-HTTP/1.0',
+            'Content-Type: text/html; charset=UTF-8',
+            '',
+            '<!DOCTYPE html>',
+            '<html>',
+            '  <head><title>${httpRes.title ?? "NetLearn Server"}</title></head>',
+            '  <body>',
+            '    <h1>${httpRes.title ?? "NetLearn Portal"}</h1>',
+            '    <p>${httpRes.body ?? ""}</p>',
+            '  </body>',
+            '</html>',
+          ];
+        } else {
+          return [
+            'Connecting to $targetIpStr:80...',
+            'curl: (${httpRes.statusCode}) ${httpRes.reason}',
+          ];
+        }
 
       case 'ping':
         if (args.isEmpty) {
@@ -243,12 +342,16 @@ class VirtualLabTerminalWidget extends StatefulWidget {
     required this.session,
     required this.accent,
     this.onPingResult,
+    this.onDhcpLease,
+    this.onDhcpRelease,
   });
 
   final VirtualLabDevice device;
   final VirtualLabSession session;
   final Color accent;
   final void Function(VirtualLabConnectivityResult result)? onPingResult;
+  final void Function(VirtualLabDhcpResult lease)? onDhcpLease;
+  final void Function()? onDhcpRelease;
 
   @override
   State<VirtualLabTerminalWidget> createState() => _VirtualLabTerminalWidgetState();
@@ -306,6 +409,8 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
             SfxService.instance.playError();
           }
         },
+        onDhcpLease: widget.onDhcpLease,
+        onDhcpRelease: widget.onDhcpRelease,
       );
       _history.addAll(output);
       _history.add('');
@@ -325,7 +430,15 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
   @override
   Widget build(BuildContext context) {
     final otherPcs = widget.session.devices
-        .where((d) => d.kind == VirtualLabDeviceKind.pc && d.id != widget.device.id && (d.ipAddress ?? '').isNotEmpty)
+        .where((d) =>
+            d.kind == VirtualLabDeviceKind.pc &&
+            d.id != widget.device.id &&
+            (d.ipAddress ?? '').isNotEmpty)
+        .toList();
+    final servers = widget.session.devices
+        .where((d) =>
+            d.kind == VirtualLabDeviceKind.server &&
+            (d.ipAddress ?? '').isNotEmpty)
         .toList();
 
     return Container(
@@ -448,15 +561,31 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
                 children: [
                   _buildQuickChip('ipconfig', () => _submitCommand('ipconfig')),
                   const SizedBox(width: 6),
+                  _buildQuickChip('ipconfig /renew',
+                      () => _submitCommand('ipconfig /renew')),
+                  const SizedBox(width: 6),
                   _buildQuickChip('help', () => _submitCommand('help')),
                   const SizedBox(width: 6),
                   _buildQuickChip('cls', () => _submitCommand('cls')),
                   if (otherPcs.isNotEmpty) ...[
                     const SizedBox(width: 6),
                     for (final other in otherPcs) ...[
-                      _buildQuickChip('ping ${other.ipAddress}', () => _submitCommand('ping ${other.ipAddress}')),
+                      _buildQuickChip('ping ${other.ipAddress}',
+                          () => _submitCommand('ping ${other.ipAddress}')),
                       const SizedBox(width: 6),
-                      _buildQuickChip('tracert ${other.ipAddress}', () => _submitCommand('tracert ${other.ipAddress}')),
+                      _buildQuickChip('tracert ${other.ipAddress}',
+                          () => _submitCommand('tracert ${other.ipAddress}')),
+                      const SizedBox(width: 6),
+                    ],
+                  ],
+                  if (servers.isNotEmpty) ...[
+                    const SizedBox(width: 6),
+                    for (final srv in servers) ...[
+                      _buildQuickChip('ping ${srv.ipAddress}',
+                          () => _submitCommand('ping ${srv.ipAddress}')),
+                      const SizedBox(width: 6),
+                      _buildQuickChip('curl ${srv.ipAddress}',
+                          () => _submitCommand('curl ${srv.ipAddress}')),
                       const SizedBox(width: 6),
                     ],
                   ],

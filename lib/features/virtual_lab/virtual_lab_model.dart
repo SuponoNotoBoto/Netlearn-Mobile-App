@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' show Offset;
 import 'package:flutter/foundation.dart';
 
-enum VirtualLabDeviceKind { pc, switch_, router }
+enum VirtualLabDeviceKind { pc, switch_, router, server }
+
+enum VirtualLabIpMode { static_, dhcp }
 
 typedef VirtualLabDeviceId = String;
 
@@ -17,6 +19,16 @@ class VirtualLabDevice {
     this.defaultGateway,
     this.ipAddress2,
     this.subnetMask2,
+    this.ipMode = VirtualLabIpMode.static_,
+    this.dnsServer,
+    this.dhcpServerEnabled = false,
+    this.dhcpStartIp,
+    this.dhcpSubnetMask,
+    this.dhcpGateway,
+    this.dhcpDns,
+    this.httpServerEnabled = true,
+    this.httpWebTitle,
+    this.httpWebContent,
   });
 
   final VirtualLabDeviceId id;
@@ -24,7 +36,7 @@ class VirtualLabDevice {
   final Offset position;
 
   /// Nama tampilan perangkat — label di bawah ikon pada kanvas (desain Figma
-  /// menampilkan PC1/Switch1/Router1). Perangkat baru diberi nama default, dan
+  /// menampilkan PC1/Switch1/Router1/Server1). Perangkat baru diberi nama default, dan
   /// mahasiswa dapat menggantinya lewat "Apply configuration".
   final String? name;
   final String? ipAddress;
@@ -32,6 +44,21 @@ class VirtualLabDevice {
   final String? defaultGateway;
   final String? ipAddress2;
   final String? subnetMask2;
+
+  final VirtualLabIpMode ipMode;
+  final String? dnsServer;
+
+  // Layanan DHCP Server (khusus Server)
+  final bool dhcpServerEnabled;
+  final String? dhcpStartIp;
+  final String? dhcpSubnetMask;
+  final String? dhcpGateway;
+  final String? dhcpDns;
+
+  // Layanan HTTP Web Server (khusus Server)
+  final bool httpServerEnabled;
+  final String? httpWebTitle;
+  final String? httpWebContent;
 
   String get displayName {
     final trimmed = (name ?? '').trim();
@@ -43,6 +70,8 @@ class VirtualLabDevice {
         return 'Switch';
       case VirtualLabDeviceKind.router:
         return 'Router';
+      case VirtualLabDeviceKind.server:
+        return 'Server';
     }
   }
 
@@ -57,6 +86,16 @@ class VirtualLabDevice {
       defaultGateway: defaultGateway,
       ipAddress2: ipAddress2,
       subnetMask2: subnetMask2,
+      ipMode: ipMode,
+      dnsServer: dnsServer,
+      dhcpServerEnabled: dhcpServerEnabled,
+      dhcpStartIp: dhcpStartIp,
+      dhcpSubnetMask: dhcpSubnetMask,
+      dhcpGateway: dhcpGateway,
+      dhcpDns: dhcpDns,
+      httpServerEnabled: httpServerEnabled,
+      httpWebTitle: httpWebTitle,
+      httpWebContent: httpWebContent,
     );
   }
 
@@ -75,6 +114,16 @@ class VirtualLabDevice {
       if (defaultGateway != null) 'gw': defaultGateway,
       if (ipAddress2 != null) 'ip2': ipAddress2,
       if (subnetMask2 != null) 'mask2': subnetMask2,
+      if (ipMode == VirtualLabIpMode.dhcp) 'ipMode': 'dhcp',
+      if (dnsServer != null) 'dns': dnsServer,
+      if (dhcpServerEnabled) 'dhcpOn': true,
+      if (dhcpStartIp != null) 'dhcpStart': dhcpStartIp,
+      if (dhcpSubnetMask != null) 'dhcpMask': dhcpSubnetMask,
+      if (dhcpGateway != null) 'dhcpGw': dhcpGateway,
+      if (dhcpDns != null) 'dhcpDns': dhcpDns,
+      if (!httpServerEnabled) 'httpOff': true,
+      if (httpWebTitle != null) 'httpTitle': httpWebTitle,
+      if (httpWebContent != null) 'httpContent': httpWebContent,
     };
   }
 
@@ -97,6 +146,18 @@ class VirtualLabDevice {
       defaultGateway: json['gw'] as String?,
       ipAddress2: json['ip2'] as String?,
       subnetMask2: json['mask2'] as String?,
+      ipMode: json['ipMode'] == 'dhcp'
+          ? VirtualLabIpMode.dhcp
+          : VirtualLabIpMode.static_,
+      dnsServer: json['dns'] as String?,
+      dhcpServerEnabled: json['dhcpOn'] == true,
+      dhcpStartIp: json['dhcpStart'] as String?,
+      dhcpSubnetMask: json['dhcpMask'] as String?,
+      dhcpGateway: json['dhcpGw'] as String?,
+      dhcpDns: json['dhcpDns'] as String?,
+      httpServerEnabled: json['httpOff'] != true,
+      httpWebTitle: json['httpTitle'] as String?,
+      httpWebContent: json['httpContent'] as String?,
     );
   }
 
@@ -108,6 +169,16 @@ class VirtualLabDevice {
     String? defaultGateway,
     String? ipAddress2,
     String? subnetMask2,
+    VirtualLabIpMode? ipMode,
+    String? dnsServer,
+    bool? dhcpServerEnabled,
+    String? dhcpStartIp,
+    String? dhcpSubnetMask,
+    String? dhcpGateway,
+    String? dhcpDns,
+    bool? httpServerEnabled,
+    String? httpWebTitle,
+    String? httpWebContent,
     bool clearNetwork = false,
   }) {
     return VirtualLabDevice(
@@ -121,6 +192,16 @@ class VirtualLabDevice {
           clearNetwork ? null : (defaultGateway ?? this.defaultGateway),
       ipAddress2: clearNetwork ? null : (ipAddress2 ?? this.ipAddress2),
       subnetMask2: clearNetwork ? null : (subnetMask2 ?? this.subnetMask2),
+      ipMode: clearNetwork ? VirtualLabIpMode.static_ : (ipMode ?? this.ipMode),
+      dnsServer: clearNetwork ? null : (dnsServer ?? this.dnsServer),
+      dhcpServerEnabled: dhcpServerEnabled ?? this.dhcpServerEnabled,
+      dhcpStartIp: dhcpStartIp ?? this.dhcpStartIp,
+      dhcpSubnetMask: dhcpSubnetMask ?? this.dhcpSubnetMask,
+      dhcpGateway: dhcpGateway ?? this.dhcpGateway,
+      dhcpDns: dhcpDns ?? this.dhcpDns,
+      httpServerEnabled: httpServerEnabled ?? this.httpServerEnabled,
+      httpWebTitle: httpWebTitle ?? this.httpWebTitle,
+      httpWebContent: httpWebContent ?? this.httpWebContent,
     );
   }
 }
@@ -287,6 +368,7 @@ class VirtualLabSession {
       VirtualLabDeviceKind.pc => 'PC',
       VirtualLabDeviceKind.switch_ => 'Switch',
       VirtualLabDeviceKind.router => 'Router',
+      VirtualLabDeviceKind.server => 'Server',
     };
     final ordinal =
         session.devices.where((d) => d.kind == kind).length + 1;
@@ -295,6 +377,24 @@ class VirtualLabSession {
       kind: kind,
       position: actual,
       name: '$baseLabel$ordinal',
+      ipAddress: kind == VirtualLabDeviceKind.server ? '192.168.1.254' : null,
+      subnetMask: kind == VirtualLabDeviceKind.server ? '255.255.255.0' : null,
+      defaultGateway:
+          kind == VirtualLabDeviceKind.server ? '192.168.1.1' : null,
+      dhcpServerEnabled: kind == VirtualLabDeviceKind.server,
+      dhcpStartIp:
+          kind == VirtualLabDeviceKind.server ? '192.168.1.100' : null,
+      dhcpSubnetMask:
+          kind == VirtualLabDeviceKind.server ? '255.255.255.0' : null,
+      dhcpGateway:
+          kind == VirtualLabDeviceKind.server ? '192.168.1.1' : null,
+      dhcpDns: kind == VirtualLabDeviceKind.server ? '8.8.8.8' : null,
+      httpServerEnabled: kind == VirtualLabDeviceKind.server,
+      httpWebTitle:
+          kind == VirtualLabDeviceKind.server ? 'NetLearn Web Portal' : null,
+      httpWebContent: kind == VirtualLabDeviceKind.server
+          ? 'Selamat datang di Server Kampus NetLearn! Layanan HTTP Web Server aktif dan berjalan normal.'
+          : null,
     );
     return session.copyWith(
       devices: [...session.devices, device],
@@ -389,12 +489,14 @@ class VirtualLabSession {
   static const String cableIssueMissingDevice = 'missing_device';
   static const String cableIssuePcPortFull = 'pc_port_full';
   static const String cableIssueRouterPortFull = 'router_port_full';
+  static const String cableIssueServerPortFull = 'server_port_full';
 
   static int cableCount(VirtualLabSession session, VirtualLabDeviceId id) =>
       session.cables.where((c) => c.involves(id)).length;
 
   /// Validasi *sebelum* kabel dibuat. Aturan port:
   /// - PC: 1 port NIC (maks 1 kabel).
+  /// - Server: 1 port NIC (maks 1 kabel).
   /// - Router: 2 port Ethernet (eth0 & eth1, maks 2 kabel).
   /// - Switch: multi-port (tidak dibatasi).
   static String? cableIssue(
@@ -418,6 +520,14 @@ class VirtualLabSession {
     if (deviceB.kind == VirtualLabDeviceKind.pc &&
         cableCount(session, b) >= 1) {
       return cableIssuePcPortFull;
+    }
+    if (deviceA.kind == VirtualLabDeviceKind.server &&
+        cableCount(session, a) >= 1) {
+      return cableIssueServerPortFull;
+    }
+    if (deviceB.kind == VirtualLabDeviceKind.server &&
+        cableCount(session, b) >= 1) {
+      return cableIssueServerPortFull;
     }
     if (deviceA.kind == VirtualLabDeviceKind.router &&
         cableCount(session, a) >= 2) {
