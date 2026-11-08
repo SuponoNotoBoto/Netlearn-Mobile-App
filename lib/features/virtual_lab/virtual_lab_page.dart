@@ -1,6 +1,8 @@
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/sfx_service.dart';
@@ -46,6 +48,7 @@ class VirtualLabPage extends ConsumerStatefulWidget {
 
 class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     with SingleTickerProviderStateMixin {
+  final GlobalKey _canvasKey = GlobalKey();
   bool _justTappedDevice = false;
   VirtualLabConnectivityResult? _lastTest;
   late final AnimationController _packetController;
@@ -408,6 +411,16 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         ),
         actions: [
           IconButton(
+            tooltip: 'Template Topologi',
+            icon: const Icon(Icons.account_tree_outlined, color: _labText),
+            onPressed: () => _showTopologyTemplatesSheet(context, controller),
+          ),
+          IconButton(
+            tooltip: 'Simpan / Ekspor Gambar',
+            icon: const Icon(Icons.photo_camera_outlined, color: _labText),
+            onPressed: () => _exportCanvasToImage(session),
+          ),
+          IconButton(
             tooltip: 'Tanya NetBot',
             icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1)),
             onPressed: () => _askNetBotAboutTopology(session),
@@ -708,50 +721,53 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     Color accent,
     AppLocalizations l10n,
   ) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _labCardBorder),
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: GestureDetector(
-              behavior: HitTestBehavior.translucent,
-              onTapUp: (details) =>
-                  _handleCanvasTap(details.localPosition, session),
-              child: AnimatedBuilder(
-                animation: _packetController,
-                builder: (context, child) {
-                  return CustomPaint(
-                    painter: _VirtualLabPainter(
-                      session,
-                      _lastTest,
-                      _packetController.value,
-                      accent,
-                    ),
-                  );
-                },
-              ),
-            ),
-          ),
-          ...session.devices.map(
-            (device) => _buildDeviceNode(device, session, controller, accent, l10n),
-          ),
-          if (session.devices.isEmpty)
-            Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Text(
-                  l10n.virtualLabEmptyHint,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12, color: _labMuted),
+    return RepaintBoundary(
+      key: _canvasKey,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: _labCardBorder),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: GestureDetector(
+                behavior: HitTestBehavior.translucent,
+                onTapUp: (details) =>
+                    _handleCanvasTap(details.localPosition, session),
+                child: AnimatedBuilder(
+                  animation: _packetController,
+                  builder: (context, child) {
+                    return CustomPaint(
+                      painter: _VirtualLabPainter(
+                        session,
+                        _lastTest,
+                        _packetController.value,
+                        accent,
+                      ),
+                    );
+                  },
                 ),
               ),
             ),
-        ],
+            ...session.devices.map(
+              (device) => _buildDeviceNode(device, session, controller, accent, l10n),
+            ),
+            if (session.devices.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Text(
+                    l10n.virtualLabEmptyHint,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontSize: 12, color: _labMuted),
+                  ),
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -1489,6 +1505,300 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         if (result.success) _startPacketAnimation();
       },
     );
+  }
+
+  void _showTopologyTemplatesSheet(
+    BuildContext context,
+    VirtualLabController controller,
+  ) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 4,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: const [
+                      Icon(Icons.account_tree_outlined,
+                          color: Color(0xFF4F46E5), size: 22),
+                      SizedBox(width: 8),
+                      Text(
+                        'Pilih Template Topologi',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: _labText,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Pilih desain topologi siap pakai untuk langsung memulai pengujian jaringan.',
+                    style: TextStyle(fontSize: 12, color: _labMuted),
+                  ),
+                  const SizedBox(height: 16),
+                  _buildTemplateTile(
+                    icon: Icons.hub_outlined,
+                    title: 'Topologi Star (LAN 1 Subnet)',
+                    subtitle: '1 Switch menghubungkan 3 PC (192.168.1.0/24)',
+                    accent: const Color(0xFF6366F1),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      controller.loadPreset(VirtualLabController.presetStar());
+                      _invalidateTest();
+                      NlSnackBar.show(
+                          context, 'Template Topologi Star berhasil dimuat.');
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTemplateTile(
+                    icon: Icons.router_outlined,
+                    title: 'Dual-Subnet Routing (Layer 3)',
+                    subtitle:
+                        'Router menghubungkan 2 subnet (192.168.1.0/24 & 192.168.2.0/24)',
+                    accent: const Color(0xFF0EA5E9),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      controller
+                          .loadPreset(VirtualLabController.presetDualSubnet());
+                      _invalidateTest();
+                      NlSnackBar.show(context,
+                          'Template Dual-Subnet Routing berhasil dimuat.');
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTemplateTile(
+                    icon: Icons.compare_arrows_rounded,
+                    title: 'Peer-to-Peer (Koneksi Langsung)',
+                    subtitle:
+                        '2 PC terhubung langsung dengan kabel (10.0.0.0/24)',
+                    accent: const Color(0xFF10B981),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      controller
+                          .loadPreset(VirtualLabController.presetPeerToPeer());
+                      _invalidateTest();
+                      NlSnackBar.show(
+                          context, 'Template Peer-to-Peer berhasil dimuat.');
+                    },
+                  ),
+                  const SizedBox(height: 10),
+                  _buildTemplateTile(
+                    icon: Icons.layers_clear_outlined,
+                    title: 'Kanvas Kosong (Reset)',
+                    subtitle: 'Mulai dari kanvas kosong untuk eksperimen bebas',
+                    accent: const Color(0xFF64748B),
+                    onTap: () {
+                      Navigator.pop(modalContext);
+                      controller.loadPreset(VirtualLabController.presetBlank());
+                      _invalidateTest();
+                      NlSnackBar.show(context, 'Kanvas berhasil dikosongkan.');
+                    },
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTemplateTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required Color accent,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: accent.withValues(alpha: 0.05),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: accent.withValues(alpha: 0.20)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 38,
+              height: 38,
+              decoration: BoxDecoration(
+                color: accent.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 20, color: accent),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: _labText,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    subtitle,
+                    style: const TextStyle(fontSize: 11, color: _labMuted),
+                  ),
+                ],
+              ),
+            ),
+            Icon(Icons.chevron_right_rounded, size: 18, color: accent),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _exportCanvasToImage(VirtualLabSession session) async {
+    HapticFeedback.lightImpact();
+    try {
+      final boundary = _canvasKey.currentContext?.findRenderObject()
+          as RenderRepaintBoundary?;
+      if (boundary == null) {
+        NlSnackBar.show(context, 'Gagal menemukan kanvas diagram.');
+        return;
+      }
+
+      final image = await boundary.toImage(pixelRatio: 2.5);
+      final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+      if (!mounted) return;
+      if (byteData == null) {
+        NlSnackBar.show(context, 'Gagal mengonversi kanvas ke format PNG.');
+        return;
+      }
+
+      final pngBytes = byteData.buffer.asUint8List();
+
+      if (!mounted) return;
+
+      showDialog(
+        context: context,
+        builder: (dialogCtx) {
+          final pcCount = session.devices
+              .where((d) => d.kind == VirtualLabDeviceKind.pc)
+              .length;
+          final routerCount = session.devices
+              .where((d) => d.kind == VirtualLabDeviceKind.router)
+              .length;
+          final switchCount = session.devices
+              .where((d) => d.kind == VirtualLabDeviceKind.switch_)
+              .length;
+          final cableCount = session.cables.length;
+
+          return AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            titlePadding: const EdgeInsets.fromLTRB(20, 20, 20, 10),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
+            title: Row(
+              children: const [
+                Icon(Icons.photo_library_outlined,
+                    color: Color(0xFF4F46E5), size: 22),
+                SizedBox(width: 8),
+                Text(
+                  'Pratinjau Diagram Topologi',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'Diagram berhasil dirender dalam format PNG resolusi tinggi.',
+                    style: TextStyle(fontSize: 12, color: _labMuted),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Image.memory(pngBytes, fit: BoxFit.contain),
+                  ),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: _labPageBg,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Rincian: $pcCount PC · $routerCount Router · $switchCount Switch · $cableCount Kabel',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w600,
+                          color: _labText),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Tutup'),
+              ),
+              FilledButton.icon(
+                onPressed: () {
+                  Navigator.pop(dialogCtx);
+                  NlSnackBar.show(context,
+                      'Gambar topologi siap dilampirkan ke laporan tugas praktikum.');
+                },
+                icon: const Icon(Icons.check_rounded, size: 16),
+                label: const Text('Simpan / Selesai'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        NlSnackBar.show(context, 'Terjadi kendala saat merender gambar diagram.');
+      }
+    }
   }
 
   void _askNetBotAboutTopology(VirtualLabSession session) {

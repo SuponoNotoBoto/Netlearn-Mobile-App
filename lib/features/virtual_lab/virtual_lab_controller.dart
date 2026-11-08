@@ -74,6 +74,143 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     );
   }
 
+  /// Template 1: Topologi Star (1 Switch + 3 PC satu subnet)
+  static VirtualLabSession presetStar() {
+    final sw = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.switch_),
+      kind: VirtualLabDeviceKind.switch_,
+      position: const Offset(160, 110),
+      name: 'Switch1',
+    );
+    final pc1 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(60, 45),
+      name: 'PC1',
+      ipAddress: '192.168.1.10',
+      subnetMask: '255.255.255.0',
+    );
+    final pc2 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(260, 45),
+      name: 'PC2',
+      ipAddress: '192.168.1.20',
+      subnetMask: '255.255.255.0',
+    );
+    final pc3 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(160, 185),
+      name: 'PC3',
+      ipAddress: '192.168.1.30',
+      subnetMask: '255.255.255.0',
+    );
+    return VirtualLabSession(
+      devices: [sw, pc1, pc2, pc3],
+      cables: [
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: pc1.id, to: sw.id),
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: pc2.id, to: sw.id),
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: pc3.id, to: sw.id),
+      ],
+      selectedDeviceId: pc1.id,
+    );
+  }
+
+  /// Template 2: Inter-Network Dual Subnet (Router + 2 Switch + 2 PC)
+  static VirtualLabSession presetDualSubnet() {
+    final router = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.router),
+      kind: VirtualLabDeviceKind.router,
+      position: const Offset(160, 110),
+      name: 'Router1',
+      ipAddress: '192.168.1.1',
+      subnetMask: '255.255.255.0',
+      ipAddress2: '192.168.2.1',
+      subnetMask2: '255.255.255.0',
+    );
+    final sw1 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.switch_),
+      kind: VirtualLabDeviceKind.switch_,
+      position: const Offset(70, 110),
+      name: 'Switch1',
+    );
+    final pc1 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(30, 45),
+      name: 'PC1',
+      ipAddress: '192.168.1.10',
+      subnetMask: '255.255.255.0',
+      defaultGateway: '192.168.1.1',
+    );
+    final sw2 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.switch_),
+      kind: VirtualLabDeviceKind.switch_,
+      position: const Offset(250, 110),
+      name: 'Switch2',
+    );
+    final pc2 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(290, 45),
+      name: 'PC2',
+      ipAddress: '192.168.2.10',
+      subnetMask: '255.255.255.0',
+      defaultGateway: '192.168.2.1',
+    );
+    return VirtualLabSession(
+      devices: [router, sw1, pc1, sw2, pc2],
+      cables: [
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: pc1.id, to: sw1.id),
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: sw1.id, to: router.id),
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: router.id, to: sw2.id),
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: sw2.id, to: pc2.id),
+      ],
+      selectedDeviceId: router.id,
+    );
+  }
+
+  /// Template 3: Peer-to-Peer (2 PC terhubung langsung)
+  static VirtualLabSession presetPeerToPeer() {
+    final pc1 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(80, 110),
+      name: 'PC1',
+      ipAddress: '10.0.0.1',
+      subnetMask: '255.255.255.0',
+    );
+    final pc2 = VirtualLabDevice(
+      id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
+      kind: VirtualLabDeviceKind.pc,
+      position: const Offset(240, 110),
+      name: 'PC2',
+      ipAddress: '10.0.0.2',
+      subnetMask: '255.255.255.0',
+    );
+    return VirtualLabSession(
+      devices: [pc1, pc2],
+      cables: [
+        VirtualLabCable(
+            id: VirtualLabSession.nextCableId(), from: pc1.id, to: pc2.id),
+      ],
+      selectedDeviceId: pc1.id,
+    );
+  }
+
+  /// Template 4: Kanvas Kosong (Reset Bersih)
+  static VirtualLabSession presetBlank() {
+    return const VirtualLabSession(devices: [], cables: []);
+  }
+
   /// Loads this account's saved canvas (once per provider lifetime).
   ///
   /// `resetUserSession` invalidates this provider on sign-in and sign-out, so
@@ -238,6 +375,10 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     final updated = [...state.devices];
     updated[idx] = updated[idx].copyWith(clearNetwork: true);
     _commit(state.copyWith(devices: updated));
+  }
+
+  void loadPreset(VirtualLabSession preset) {
+    _commit(preset);
   }
 
   /// v1.2: "Reset" di toolbar mengembalikan kanvas ke kondisi awal Skenario 1
