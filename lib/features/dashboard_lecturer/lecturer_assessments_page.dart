@@ -14,6 +14,9 @@ import '../../shared/widgets/status_badge.dart'
 import 'lecturer_assessments_controller.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_score_overview.dart';
+import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
+import '../classes/lecturer_manage_class_section.dart';
 
 class LecturerAssessmentsPage extends ConsumerStatefulWidget {
   const LecturerAssessmentsPage({super.key});
@@ -33,6 +36,8 @@ class _LecturerAssessmentsPageState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final activeClass = ref.watch(activeLecturerClassProvider).value;
+    final classes = ref.watch(lecturerClassesProvider).value;
 
     return Scaffold(
       backgroundColor: context.background,
@@ -44,6 +49,24 @@ class _LecturerAssessmentsPageState
 
       body: Column(
         children: [
+          if (classes != null &&
+              activeClass != null &&
+              activeClass.id != kLegacyFallbackClassId) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                NetLearnSpace.s20,
+                NetLearnSpace.s12,
+                NetLearnSpace.s20,
+                0,
+              ),
+              child: LecturerActiveClassBar(
+                classes: classes,
+                activeClass: activeClass,
+              ),
+            ),
+          ],
+          // `.tabs` dari desain — pola yang sama dengan halaman Daftar
+          // Mahasiswa: track abu, pill putih untuk tab terpilih.
           Padding(
             padding: const EdgeInsets.fromLTRB(
               NetLearnSpace.s20,
@@ -65,6 +88,9 @@ class _LecturerAssessmentsPageState
 
           const SizedBox(height: NetLearnSpace.s16),
 
+          // Tab pertama: kelola Pretest/Post Test (isi lama). Tab kedua:
+          // Rekap Nilai — widget yang sama dengan tab Rekap Nilai di
+          // halaman Daftar Mahasiswa ([LecturerScoreOverviewTab]).
           Expanded(
             child: _selectedTab == _scoreOverviewTab
                 ? const LecturerScoreOverviewTab()
@@ -139,7 +165,7 @@ class _LecturerAssessmentsPageState
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.error_outline,
                     size: 46,
                     color: NetLearnColors.danger,
@@ -289,8 +315,10 @@ class _AssessmentCard extends ConsumerWidget {
     final bool isPublished = assessment.isPublished;
     final bool isPretest = assessment.isPretest;
 
+    // Status label for badge
     final String statusLabel = isPublished ? l10n.published : l10n.draft;
 
+    // Circle icon color: purple for Pretest, pink for Post Test (per Figma 62:2).
     final Color typeAccent = isPretest
         ? NetLearnAccents.purple
         : NetLearnAccents.pink;
@@ -305,10 +333,13 @@ class _AssessmentCard extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Circle icon (left) + status badge (right), matching the student
+          // assessment card layout.
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Icon circle — same size as the student card's.
               Container(
                 width: 40,
                 height: 40,
@@ -323,6 +354,7 @@ class _AssessmentCard extends ConsumerWidget {
                 ),
               ),
 
+              // Status badge.
               StatusBadge(
                 status: isPublished
                     ? NetLearnStatus.linked
@@ -334,6 +366,7 @@ class _AssessmentCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s10),
 
+          // Title — same style as the student assessment card.
           Text(
             assessment.title,
             style: theme.textTheme.titleLarge?.copyWith(
@@ -345,6 +378,7 @@ class _AssessmentCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s10),
 
+          // Meta line — "25 Soal · 15 Mnt" format.
           Text(
             l10n.assignmentMeta(
               assessment.questionCount.toString(),
@@ -357,9 +391,11 @@ class _AssessmentCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s4),
 
+          // Answer keys line — shield icon (green) matching the Figma
+          // `Assesment Dosen` reference design.
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.shield_outlined,
                 size: 16,
                 color: NetLearnColors.forest,
@@ -381,6 +417,9 @@ class _AssessmentCard extends ConsumerWidget {
             ],
           ),
 
+          // Warning if not published and missing answer keys.
+          // Style lebih subtle dari Figma — warning tetap terasa mengganggu
+          // tanpa mendominasi card.
           if (!isPublished && assessment.unansweredCount > 0) ...[
             const SizedBox(height: NetLearnSpace.s12),
             Row(
@@ -406,9 +445,12 @@ class _AssessmentCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s16),
 
+          // Action buttons — stacked vertically, full width.
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Manage Questions — Filled light purple (primaryTint) dengan
+              // arrow di kanan, sesuai Figma `Assesment Dosen` (86:656).
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -445,6 +487,7 @@ class _AssessmentCard extends ConsumerWidget {
 
               const SizedBox(height: NetLearnSpace.s12),
 
+              // Publish/Unpublish.
               SizedBox(
                 width: double.infinity,
                 height: 48,
@@ -494,7 +537,9 @@ class _AssessmentCard extends ConsumerWidget {
     try {
       await setAssessmentPublished(ref, assessment, next);
 
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
       NlSnackBar.show(
         context,
@@ -502,7 +547,9 @@ class _AssessmentCard extends ConsumerWidget {
         tone: NlSnackTone.success,
       );
     } on AssessmentWriteException catch (error) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
 
       NlSnackBar.show(
         context,
@@ -515,13 +562,6 @@ class _AssessmentCard extends ConsumerWidget {
           AssessmentWriteFailure.notPermitted => l10n.notPermittedError,
           AssessmentWriteFailure.unknown => l10n.assessmentSaveFailed,
         },
-        tone: NlSnackTone.error,
-      );
-    } catch (_) {
-      if (!context.mounted) return;
-      NlSnackBar.show(
-        context,
-        l10n.assessmentSaveFailed,
         tone: NlSnackTone.error,
       );
     }
@@ -589,6 +629,7 @@ class _TaskCard extends ConsumerWidget {
           ),
           const SizedBox(height: NetLearnSpace.s8),
 
+          // Category & configuration chips
           Wrap(
             spacing: 6,
             runSpacing: 6,
@@ -662,6 +703,7 @@ class _TaskCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s10),
 
+          // Meta info
           Row(
             children: [
               Icon(Icons.help_outline_rounded, size: 15, color: context.mutedText),
@@ -695,9 +737,11 @@ class _TaskCard extends ConsumerWidget {
 
           const SizedBox(height: NetLearnSpace.s16),
 
+          // Action buttons
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Manage Questions
               SizedBox(
                 width: double.infinity,
                 height: 44,
@@ -802,13 +846,9 @@ class _TaskCard extends ConsumerWidget {
         },
         tone: NlSnackTone.error,
       );
-    } catch (_) {
-      if (!context.mounted) return;
-      NlSnackBar.show(
-        context,
-        l10n.assessmentSaveFailed,
-        tone: NlSnackTone.error,
-      );
     }
   }
 }
+
+
+

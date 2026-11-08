@@ -12,14 +12,28 @@ import '../../shared/widgets/nl_snack_bar.dart';
 import 'lecturer_students_controller.dart';
 import 'lecturer_students_csv.dart';
 import 'lecturer_students_pdf.dart';
+import '../classes/class_controller.dart';
 
-/// Tab Rekap Nilai — tabel nilai seluruh mahasiswa beserta tombol ekspor CSV dan PDF.
+/// Tab Rekap Nilai — tabel nilai seluruh mahasiswa beserta tombol ekspor
+/// CSV-nya.
+///
+/// Widget ini dipakai di dua tempat: tab kedua halaman Daftar Mahasiswa
+/// (`lecturer_student_list_page.dart`) dan tab kedua halaman Assessment
+/// (`lecturer_assessments_page.dart`). Ekstraksinya yang membuat kedua
+/// tempat menampilkan tabel yang persis sama tanpa salin-tempel; dulu
+/// metode-metodenya privat pada satu halaman, dan menautkannya dari halaman
+/// lain berarti menduplikasi seluruh tabel.
+///
+/// Data dinonton sendiri ([lecturerStudentsProvider(null)]) supaya widget
+/// ini bisa dipasang di mana pun tanpa parameter tambahan — halaman Daftar
+/// Mahasiswa juga menonton provider yang sama untuk tab Data-nya.
 class LecturerScoreOverviewTab extends ConsumerWidget {
   const LecturerScoreOverviewTab({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+
     final studentsAsync = ref.watch(lecturerStudentsProvider(null));
 
     return studentsAsync.when(
@@ -75,6 +89,8 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
           },
           child: ListView(
             physics: const AlwaysScrollableScrollPhysics(),
+            // Sama dengan tab Data: 8 di tepi kiri membuat tabel menempel ke
+            // layar — 20 memberi napas yang sama seperti tab Data.
             padding: const EdgeInsets.fromLTRB(
               NetLearnSpace.s20,
               NetLearnSpace.s8,
@@ -121,11 +137,22 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
               ),
               const SizedBox(height: NetLearnSpace.s16),
 
+              // Tabel nilai versi compact — setara <table class="w-full
+              // text-xs"> di desain. DataTable bawaan membuat baris 56px dan
+              // divider Material; Table custom di sini memakai sel padding 8
+              // dan garis antarbaris saja. Tanpa scroll horizontal: kolom
+              // nama fleksibel (boleh wrap), NIM nowrap, dan kedua kolom
+              // nilai berbagi sisa lebar — scroll horizontal justru
+              // menyembunyikan kolom Posttest di layar 360dp.
               Semantics(
                 label: l10n.scoreTableSemantics,
                 container: true,
                 child: Container(
                   key: const ValueKey('score-table-card'),
+                  // `radius: 18` — `.card` di index.css desain. Padding kartu
+                  // dihapus: band header harus selebar kartu dan menempel ke
+                  // tepi atasnya (clipBehavior memotong band di radius 18),
+                  // jadi 12/10 dipindah ke dalam sel header dan sel data.
                   decoration: BoxDecoration(
                     color: context.surface,
                     borderRadius: BorderRadius.circular(18),
@@ -133,7 +160,14 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
                   ),
                   clipBehavior: Clip.antiAlias,
                   child: Table(
-                    defaultVerticalAlignment: TableCellVerticalAlignment.top,
+                    defaultVerticalAlignment:
+                        TableCellVerticalAlignment.top,
+                    // border-collapse: nama boleh wrap; NIM nowrap
+                    // (intrinsic); kedua kolom nilai berbagi sisa lebar.
+                    // Bobot 1.7 : 1.35 : 1.35, bukan 2.4 : 1 : 1 — dengan
+                    // porsi 1:1 kata "Posttest" sempit di kolomnya dan
+                    // terpotong ellipsis, padahal nama cukup wrap 2 baris;
+                    // desain Figma menampilkan header nilai dua baris penuh.
                     columnWidths: const {
                       0: FlexColumnWidth(1.7),
                       1: IntrinsicColumnWidth(),
@@ -141,7 +175,9 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
                       3: FlexColumnWidth(1.35),
                     },
                     border: TableBorder(
-                      horizontalInside: BorderSide(color: context.border),
+                      horizontalInside:
+                          BorderSide(color: context.border),
+                      // border-b juga pada sel terakhir, sesuai Figma.
                       bottom: BorderSide(color: context.border),
                     ),
                     children: [
@@ -160,6 +196,13 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
   }
 
   TableRow _scoreHeaderRow(BuildContext context, AppLocalizations l10n) {
+    // Band header: latar raisedSurface dengan sudut atas membulat — berbeda
+    // jelas dari baris data yang di atas surface kartu, dan sel padding 12/10
+    // membuat bandnya selebar kartu (padding kartu dipindah ke sel).
+    // Label uppercase 11px w700 + letterSpacing: kontras tegas dari data
+    // 12px reguler, setara thead di desain.
+    // Perataan mengikuti kolom datanya: nama & NIM rata kiri, kedua nilai
+    // di tengah.
     Widget headerCell(String label, TextAlign textAlign) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -169,6 +212,9 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
             label.toUpperCase(),
             textAlign: textAlign,
             softWrap: true,
+            // "PRETEST SCORE"/"POSTTEST SCORE" boleh dua baris — jangan
+            // dipaksa satu baris, itu yang membuat kolom Posttest perlu
+            // scroll.
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
@@ -201,6 +247,7 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
     AppLocalizations l10n,
     StudentModel student,
   ) {
+    // Sel nama: boleh wrap dan baris boleh tumbuh (break-words di desain).
     Widget nameCell(String value) {
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -208,6 +255,9 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
       );
     }
 
+    // Sel NIM/nilai: satu baris, jangan wrap. Tinggi tetap 18 + FittedBox
+    // scale-down mencegah exception overflow saat text scale 1.3 — teksnya
+    // yang menyesuaikan, bukan lebar kolom yang memaksa scroll horizontal.
     Widget flatCell(
       String value, {
       required Alignment alignment,
@@ -231,6 +281,9 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
       );
     }
 
+    // Sel nilai: — adalah "belum tersedia" (bukan 0), diberi semantics.
+    // Nilai yang ada cukup Text: memberi Semantics tanpa label justru
+    // menghapus teksnya dari pembaca layar.
     Widget scoreCell(double? score) {
       if (score == null) {
         return Semantics(
@@ -267,7 +320,10 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
   ) async {
     try {
       final path = await exportScoresToCsv(students);
-      if (!context.mounted) return;
+
+      if (!context.mounted) {
+        return;
+      }
 
       if (path != null) {
         NlSnackBar.show(
@@ -283,7 +339,10 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
         );
       }
     } catch (e) {
-      if (!context.mounted) return;
+      if (!context.mounted) {
+        return;
+      }
+
       NlSnackBar.show(
         context,
         l10n.csvFailed,
@@ -297,45 +356,42 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
     WidgetRef ref,
     List<StudentModel> students,
   ) async {
+    final activeClass = ref.read(activeLecturerClassProvider).value;
     final isId = ref.read(languageProvider).languageCode == 'id';
 
+    // Resolve lecturer's name
     final user = supabase.auth.currentUser;
-    final lecturerName = user?.userMetadata?['name']?.toString() ??
-        user?.userMetadata?['full_name']?.toString() ??
-        'Rafi Ahmad Fauzan';
+    String? lecturerName = user?.userMetadata?['name']?.toString() ?? user?.userMetadata?['full_name']?.toString();
+    if (lecturerName == null && user != null) {
+      try {
+        final profile = await supabase.from('profiles').select('full_name, name').eq('id', user.id).maybeSingle();
+        lecturerName = profile?['full_name']?.toString() ?? profile?['name']?.toString();
+      } catch (_) {}
+    }
 
-    try {
-      final path = await LecturerStudentsPdfExporter.generateAndOpenPdf(
-        students: students,
-        activeClass: null,
-        lecturerName: lecturerName,
-      );
+    final path = await LecturerStudentsPdfExporter.generateAndOpenPdf(
+      students: students,
+      activeClass: activeClass,
+      lecturerName: lecturerName,
+    );
 
-      if (!context.mounted) return;
+    if (!context.mounted) return;
 
-      if (path != null) {
-        final fileName = path.contains('/')
-            ? path.split('/').last
-            : path.split(r'\').last;
-        NlSnackBar.show(
-          context,
-          isId
-              ? 'Laporan PDF berhasil dicetak: $fileName'
-              : 'PDF report generated: $fileName',
-          tone: NlSnackTone.success,
-        );
-      } else {
-        NlSnackBar.show(
-          context,
-          isId ? 'Gagal mencetak dokumen PDF' : 'Failed to generate PDF document',
-          tone: NlSnackTone.error,
-        );
-      }
-    } catch (_) {
-      if (!context.mounted) return;
+    if (path != null) {
+      final fileName = path.contains('/') ? path.split('/').last : path.split(r'\').last;
       NlSnackBar.show(
         context,
-        isId ? 'Gagal mencetak dokumen PDF' : 'Failed to generate PDF document',
+        isId
+            ? 'Laporan PDF berhasil dicetak: $fileName'
+            : 'PDF report generated: $fileName',
+        tone: NlSnackTone.success,
+      );
+    } else {
+      NlSnackBar.show(
+        context,
+        isId
+            ? 'Gagal mencetak dokumen PDF'
+            : 'Failed to generate PDF document',
         tone: NlSnackTone.error,
       );
     }

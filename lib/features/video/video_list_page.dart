@@ -1,0 +1,613 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
+import '../../core/localization/language_controller.dart';
+import '../../core/supabase/supabase_client.dart';
+import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/utils/youtube_link.dart';
+import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_topbar.dart';
+import '../classes/class_controller.dart';
+
+/// Fetch published core-module materials, one card per module (1–4).
+///
+/// Desain Figma Make (`LearningVideos.tsx`) memetakan daftar video ke empat
+/// kartu modul — termasuk modul yang belum punya tautan video, yang lalu
+/// ditampilkan dengan badge "Video belum tersedia" dan tanpa navigasi. Query
+/// lama membuang material tanpa video sehingga modul tersebut menghilang dari
+/// daftar; dari semua baris yang dipublikasikan, [buildVideoListItems] memilih
+/// satu material per modul.
+final videoListProvider = FutureProvider.autoDispose<List<VideoListItem>>((ref) async {
+  final activeClass = await resolveActiveStudentClass(ref);
+  if (activeClass != null && !activeClass.isLegacyFallback) {
+    final response = await supabase
+        .from('materials')
+        .select(
+          'id, module_number, title, title_en, title_id, '
+          'order_index, video_url, video_id',
+        )
+        .eq('class_id', activeClass.id)
+        .eq('published', true)
+        .order('module_number')
+        .order('order_index');
+
+    final items = buildVideoListItems(response as List);
+    if (items.isNotEmpty) {
+      return items;
+    }
+  }
+
+  final response = await supabase
+      .from('materials')
+      .select(
+        'id, module_number, title, title_en, title_id, '
+        'order_index, video_url, video_id',
+      )
+      .eq('published', true)
+      .order('module_number')
+      .order('order_index');
+
+  // Baris sudah terurut `module_number, order_index` dari database —
+  // penyusunan kartu modul bergantung pada urutan ini (material pertama
+  // tiap modul menjadi pilihan "material pertama").
+  return buildVideoListItems(response as List);
+});
+
+/// Memetakan baris `materials` menjadi satu [VideoListItem] per modul inti.
+///
+/// Fungsi murni — tanpa Supabase, tanpa Flutter — supaya pemilihan representatif
+/// modul dapat diuji offline dengan pola yang sama seperti
+/// `buildStudentModules` di `student_materials_controller.dart`.
+///
+/// Untuk tiap modul 1–4:
+/// - representatif wajib **material ber-video pertama** (urutan `order_index`),
+///   supaya kartu selalu menautkan video yang benar-benar bisa diputar;
+/// - bila seluruh material modul itu tanpa video, representatif jatuh ke
+///   **material pertama** modul, dan kartu kehilangan `youtubeVideoId`.
+///
+/// Material tanpa nomor modul (materi pendukung) tidak masuk daftar —
+/// desainnya satu kartu per modul inti; akses videonya tetap lewat alur
+/// Materials → detail.
+List<VideoListItem> buildVideoListItems(List<dynamic> rows) {
+  // Modul -> material ber-video pertama.
+  final withVideo = <int, VideoListItem>{};
+  // Modul -> material pertama apa pun adanya (fallback kartu "belum tersedia").
+  final anyMaterial = <int, VideoListItem>{};
+
+  for (final dynamic raw in rows) {
+    final map = Map<String, dynamic>.from(raw as Map);
+    final moduleNumber = (map['module_number'] as num?)?.toInt() ?? 0;
+
+    // Hanya empat modul inti yang muncul di daftar video.
+    if (moduleNumber < 1) {
+      continue;
+    }
+
+    final id = map['id']?.toString() ?? '';
+
+    if (id.isEmpty) {
+      continue;
+    }
+
+    final videoId = map['video_id']?.toString().trim() ?? '';
+    final videoUrl = map['video_url']?.toString().trim() ?? '';
+    final youtubeId =
+        resolveYoutubeVideoId(videoId: videoId, videoUrl: videoUrl);
+
+    final item = VideoListItem(
+      id: id,
+      title: map['title']?.toString() ?? '',
+      titleEn: map['title_en']?.toString() ?? '',
+      titleId: map['title_id']?.toString() ?? '',
+      moduleNumber: moduleNumber,
+      youtubeVideoId: youtubeId,
+    );
+
+    if (youtubeId != null && !withVideo.containsKey(moduleNumber)) {
+      withVideo[moduleNumber] = item;
+    }
+    anyMaterial.putIfAbsent(moduleNumber, () => item);
+  }
+
+  final moduleNumbers = <int>{...withVideo.keys, ...anyMaterial.keys}.toList()
+    ..sort();
+
+  return [
+    for (final moduleNumber in moduleNumbers)
+      withVideo[moduleNumber] ?? anyMaterial[moduleNumber]!,
+  ];
+}
+
+/// One card in the Learning Video list — always represents one module
+/// (Modul 1–4). `youtubeVideoId` null berarti modulnya tidak punya tautan
+/// video yang bisa dimainkan, dan kartu tidak boleh dinavigasi.
+class VideoListItem {
+  final String id;
+  final String title;
+  final String titleEn;
+  final String titleId;
+  final int moduleNumber;
+  final String? youtubeVideoId;
+
+  const VideoListItem({
+    required this.id,
+    required this.title,
+    required this.titleEn,
+    required this.titleId,
+    required this.moduleNumber,
+    this.youtubeVideoId,
+  });
+
+  String localizedTitle(String languageCode) {
+    if (languageCode == 'id') {
+      return titleId.isNotEmpty ? titleId : title;
+    }
+    return titleEn.isNotEmpty ? titleEn : title;
+  }
+}
+
+/// The Learning Video list page — one card per core module, ordered by
+/// module number. Both students and lecturers can access this page.
+class VideoListPage extends ConsumerWidget {
+  const VideoListPage({super.key});
+
+  /// `/student` atau `/lecturer`, diambil dari matched location saat ini.
+  ///
+  /// Halaman ini terdaftar di kedua cabang role dengan widget yang sama, jadi
+  /// tautan sisanya (notifikasi, pemutar video) harus mengikuti cabang yang
+  /// sedang aktif — mendorong dosen ke `/student/video/...` membuat role guard
+  /// memantulkannya kembali ke dashboard.
+  static String? _areaBase(BuildContext context) {
+    final location = GoRouter.of(context).state.matchedLocation;
+
+    if (location == '/student/video-list' ||
+        location.startsWith('/student/video-list/')) {
+      return '/student';
+    }
+
+    if (location == '/lecturer/video-list' ||
+        location.startsWith('/lecturer/video-list/')) {
+      return '/lecturer';
+    }
+
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final videosAsync = ref.watch(videoListProvider);
+
+    return Scaffold(
+      backgroundColor: context.background,
+      appBar: NlTopBar(
+        title: l10n.learningVideo,
+        onBack: () => context.pop(),
+        actions: IconButton(
+          onPressed: () {
+            // Notification navigation follows the role branch this page was
+            // opened from, so a lecturer stays inside /lecturer/**.
+            final base = _areaBase(context);
+            if (base != null) {
+              context.push('$base/notifications');
+            }
+          },
+          icon: const Icon(Icons.notifications_none_rounded),
+        ),
+      ),
+      body: RefreshIndicator(
+        color: context.accent,
+        onRefresh: () async {
+          ref.invalidate(videoListProvider);
+          await ref.read(videoListProvider.future);
+        },
+        child: videosAsync.when(
+          loading: () => const Center(child: CircularProgressIndicator()),
+          error: (error, stackTrace) => _ErrorView(
+            onRetry: () => ref.invalidate(videoListProvider),
+          ),
+          data: (videos) {
+            if (videos.isEmpty) {
+              return NlEmptyState(
+                icon: Icons.video_library_outlined,
+                title: l10n.noVideoAvailable,
+                message: l10n.noVideoAvailableMessage,
+              );
+            }
+
+            return ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+              children: [
+                // Header section — circle icon + title + subtitle.
+                _HeaderSection(moduleCount: videos.length),
+                const SizedBox(height: 20),
+
+                // Video list grouped by module.
+                for (final video in videos)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: _VideoCard(
+                      video: video,
+                      // Modul tanpa tautan video yang bisa dimainkan tidak
+                      // boleh dinavigasi: VideoPage hanya memainkan YouTube
+                      // yang resolusi id-nya berhasil, jadi `onTap` diset
+                      // null dan badge yang berbicara.
+                      onTap: video.youtubeVideoId == null
+                          ? null
+                          : () {
+                              // The player route follows the role branch this
+                              // page was opened from. The route itself is
+                              // identical on both branches (same VideoPage),
+                              // but pushing a lecturer onto
+                              // `/student/video/...` makes the role guard
+                              // bounce them back to the dashboard.
+                              final base = _areaBase(context);
+
+                              if (base == null) {
+                                return;
+                              }
+
+                              context.push('$base/video/${video.id}');
+                            },
+                    ),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderSection extends StatelessWidget {
+  final int moduleCount;
+
+  const _HeaderSection({required this.moduleCount});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Row(
+      children: [
+        Container(
+          width: 48,
+          height: 48,
+          decoration: const BoxDecoration(
+            // `.circle.purple` dari index.css.
+            color: NetLearnAccents.purple,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: const Icon(
+            Icons.videocam_outlined,
+            color: Colors.white,
+            size: 24,
+          ),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.learningVideo,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                l10n.videoListSubtitle(moduleCount),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: context.mutedText,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoCard extends ConsumerWidget {
+  final VideoListItem video;
+
+  /// Null saat video tidak tersedia — `InkWell.onTap` menerima null juga,
+  /// jadi ripple dan navigasi sama sekali tidak terjadi.
+  final VoidCallback? onTap;
+
+  const _VideoCard({required this.video, required this.onTap});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+    final languageCode = ref.watch(languageProvider).languageCode;
+    final title = video.localizedTitle(languageCode);
+    final available = video.youtubeVideoId != null;
+
+    return Semantics(
+      button: available,
+      label: '${l10n.moduleEyebrow(
+        video.moduleNumber.toString().padLeft(2, '0'),
+      ).toUpperCase()}, $title, '
+          '${available ? l10n.videoLinkAvailable : l10n.videoLinkUnavailable}',
+      child: ExcludeSemantics(
+        child: Material(
+          color: context.surface,
+          borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          // Thumbnail 16:9 menempel ke tepi kartu; clip antiAlias membuat
+          // sudut atasnya simetris dengan radius kartu — pola yang sama dengan
+          // `_ModuleCard` di halaman Materials.
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(NetLearnRadius.card),
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(NetLearnRadius.card),
+                border: Border.all(color: context.border),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _VideoThumbnail(
+                    moduleNumber: video.moduleNumber,
+                    youtubeVideoId: video.youtubeVideoId,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(NetLearnSpace.s15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          l10n.moduleEyebrow(
+                            video.moduleNumber.toString().padLeft(2, '0'),
+                          ).toUpperCase(),
+                          style: theme.textTheme.labelSmall,
+                        ),
+                        const SizedBox(height: NetLearnSpace.s6),
+                        Text(
+                          title,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.titleLarge?.copyWith(
+                            fontSize: 16,
+                            height: 1.3,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: NetLearnSpace.s12),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.videocam_outlined,
+                              size: 14,
+                              color: context.mutedText,
+                            ),
+                            const SizedBox(width: NetLearnSpace.s8),
+                            Expanded(
+                              child: Text(
+                                l10n.videoListWatchVideo,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: context.mutedText,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: NetLearnSpace.s12),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            _InfoBadge(
+                              label: available
+                                  ? l10n.videoLinkAvailable
+                                  : l10n.videoLinkUnavailable,
+                            ),
+                            Icon(
+                              Icons.chevron_right_rounded,
+                              size: 18,
+                              color: available
+                                  ? context.accent
+                                  : context.mutedText,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Thumbnail 16:9 dari `LearningVideos.tsx`:
+///
+/// 1. lapisan dasar selalu ilustrasi `.material-art` (gradien + ikon video +
+///    nomor modul besar) — kalau thumbnail resmi gagal dimuat, inilah
+///    yang tampil;
+/// 2. di atasnya gambar `i.ytimg.com/vi/<id>/hqdefault.jpg` yang id ``ya
+///    diresolusi dari kolom `video_id`/`video_url` yang tersimpan — bukan data
+///    baru, hanya URL thumbnail resmi YouTube);
+/// 3. lingkaran ungu Play hanya tampil ketika gambar itu dipakai.
+class _VideoThumbnail extends StatefulWidget {
+  final int moduleNumber;
+  final String? youtubeVideoId;
+
+  const _VideoThumbnail({
+    required this.moduleNumber,
+    required this.youtubeVideoId,
+  });
+
+  @override
+  State<_VideoThumbnail> createState() => _VideoThumbnailState();
+}
+
+class _VideoThumbnailState extends State<_VideoThumbnail> {
+  bool _thumbnailFailed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final youtubeId = widget.youtubeVideoId;
+    final showThumbnail = youtubeId != null && !_thumbnailFailed;
+
+    return AspectRatio(
+      aspectRatio: 16 / 9,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          // Lapisan dasar = `.material-art`, gaya identik `_ModuleArt`:
+          // gradien sama, ikon 44px, nomor modul 54px weight 800.
+          Container(
+            decoration: const BoxDecoration(
+              gradient: NetLearnGradients.materialArt,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Icon(
+                  Icons.videocam_outlined,
+                  size: 44,
+                  color: NetLearnColors.materialArtFg,
+                ),
+                Text(
+                  widget.moduleNumber.toString().padLeft(2, '0'),
+                  maxLines: 1,
+                  style: const TextStyle(
+                    fontFamily: AppTheme.displayFontFamily,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 54,
+                    height: 1,
+                    color: NetLearnColors.materialArtNumber,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (showThumbnail)
+            Image.network(
+              'https://i.ytimg.com/vi/$youtubeId/hqdefault.jpg',
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                // Flag tidak boleh diset langsung di sini (mid-build);
+                // jadwalkan rebuild satu frame setelahnya sehingga overlay
+                // Play ikut hilang bersama gambarnya.
+                if (!_thumbnailFailed) {
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    if (mounted && _thumbnailFailed == false) {
+                      setState(() => _thumbnailFailed = true);
+                    }
+                  });
+                }
+
+                return const SizedBox.shrink();
+              },
+            ),
+          if (showThumbnail)
+            Center(
+              // `.circle.purple` 40px + ikon Play putih 20px.
+              child: Container(
+                width: 40,
+                height: 40,
+                decoration: const BoxDecoration(
+                  color: NetLearnAccents.purple,
+                  shape: BoxShape.circle,
+                ),
+                alignment: Alignment.center,
+                child: const Icon(
+                  Icons.play_arrow_rounded,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+/// `.badge` netral: latar `#f0f1f5` (gelap: `#252938`), teks muted, radius 6px.
+///
+/// [StatusBadge] selalu membawa ikon status; badge video ini teks pola, jadi
+/// dibangun di sini dengan token yang sama (warna yang dibaca dari theme
+/// extension agar varian gelap otomatis benar).
+class _InfoBadge extends StatelessWidget {
+  final String label;
+
+  const _InfoBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final statusColors = theme.extension<NetLearnStatusColors>();
+
+    return Container(
+      // `.badge` — padding 5px 7px, radius 6px, teks 9px weight 600.
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 5),
+      decoration: BoxDecoration(
+        color: statusColors?.neutralBg ?? NetLearnColors.neutralBg,
+        borderRadius: BorderRadius.circular(NetLearnRadius.badge),
+      ),
+      child: Text(
+        label,
+        style: theme.textTheme.bodySmall?.copyWith(
+          fontSize: 9,
+          fontWeight: FontWeight.w600,
+          color: statusColors?.neutralText ?? NetLearnColors.muted,
+        ),
+      ),
+    );
+  }
+}
+
+class _ErrorView extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _ErrorView({required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 46,
+              color: context.mutedText,
+            ),
+            const SizedBox(height: 12),
+            Text(
+              l10n.failedToLoad,
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 12),
+            OutlinedButton(
+              onPressed: onRetry,
+              child: Text(l10n.retry),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}

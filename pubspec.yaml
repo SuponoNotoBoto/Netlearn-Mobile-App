@@ -42,6 +42,8 @@ flutter:
 
   assets:
     - assets/logo/
+    - assets/audio/sfx/
+    - assets/downloads/
 
   fonts:
     - family: DMSans

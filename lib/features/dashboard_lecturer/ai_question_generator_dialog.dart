@@ -5,9 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../core/constants/env.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/nl_button.dart';
-import '../../core/constants/env.dart';
 import 'lecturer_assessments_controller.dart';
 
 /// Dialog allowing lecturers to generate draft multiple-choice quiz questions
@@ -149,7 +149,10 @@ class _AiQuestionGeneratorDialogState
     if (saved != null && saved.isNotEmpty) {
       return saved;
     }
-    return Env.groqApiKey;
+    if (Env.groqApiKey.isNotEmpty) {
+      return Env.groqApiKey;
+    }
+    return null;
   }
 
   Future<void> _generateQuestions() async {
@@ -200,7 +203,10 @@ Format respon HARUS berupa array JSON murni (JSON array of objects) tanpa awalan
       http.Response? response;
       String? lastError;
 
-      const candidateModels = ['llama-3.3-70b-versatile', 'llama-3.1-8b-instant'];
+      const candidateModels = [
+        'llama-3.3-70b-versatile',
+        'llama-3.1-8b-instant',
+      ];
 
       for (final model in candidateModels) {
         try {

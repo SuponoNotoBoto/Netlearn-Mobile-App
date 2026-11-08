@@ -5,6 +5,21 @@ import '../../core/theme/app_theme.dart';
 /// Logo NetLearn — tile bersudut dengan huruf "N" yang disusun sebagai jalur
 /// (path) jaringan: dua titik simpul yang dihubungkan garis diagonal, bentuk
 /// tulang punggung dari logo Make `NetLearnLogo.tsx`.
+///
+/// Geometrinya diambil 1:1 dari `design_figma/src_figma/NetLearnLogo.tsx`
+/// (viewBox `0 0 40 40`), bukan di-approximasi ulang: rect tile `1,1,38,38`
+/// radius `11`, path `M12 28V12L28 28V12` stroke `3` dengan ujung/tikungan
+/// membulat, dan dua lingkaran simpul `r=3` di `(12,12)` dan `(28,28)`.
+///
+/// Versi `inverse` seperti prop `inverse` pada komponen React: tile terang,
+/// N-nya memakai warna brand. Dipakai di atas gradient ungu hero autentikasi,
+/// tempat tile ungu solid tidak akan terlihat. Default (tile
+/// [NetLearnColors.primary] + N putih) adalah bentuk brand untuk permukaan
+/// terang, mis. bar atas register.
+///
+/// Satu-satunya implementasi mark NetLearn di aplikasi. Jangan menyalin
+/// painter-nya ke widget lain: dua geometri logo yang berbeda adalah persis
+/// regresi yang pernah muncul di layar autentikasi.
 class NlNetLearnLogo extends StatelessWidget {
   const NlNetLearnLogo({
     super.key,
@@ -24,6 +39,7 @@ class NlNetLearnLogo extends StatelessWidget {
     final mark = inverse ? NetLearnColors.primary : NetLearnColors.white;
 
     return Semantics(
+      // Meniru `aria-label="NetLearn"` pada komponen React.
       label: 'NetLearn',
       image: true,
       child: CustomPaint(
@@ -89,4 +105,3 @@ class _NetLearnMarkPainter extends CustomPainter {
         oldDelegate.markColor != markColor;
   }
 }
-

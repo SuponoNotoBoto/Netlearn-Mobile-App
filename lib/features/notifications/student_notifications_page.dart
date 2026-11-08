@@ -1,624 +1,416 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+
 import '../../core/notifications/announcement_read_store.dart';
+import '../../core/router/safe_back.dart';
+import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
 import '../../shared/models/announcement_model.dart';
 import '../../shared/models/reminder_model.dart';
+import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_error_view.dart';
+import '../../shared/widgets/nl_segmented_tabs.dart';
+import '../../shared/widgets/nl_snack_bar.dart';
+import '../../shared/widgets/nl_topbar.dart';
+import '../../shared/widgets/student_bottom_navbar.dart';
+import '../dashboard_lecturer/notification_controller.dart';
+import 'notification_widgets.dart';
 
-class StudentNotificationsPage extends StatefulWidget {
-  final String userId;
-
-  const StudentNotificationsPage({
-    super.key,
-    this.userId = 'student-2201010042',
-  });
+/// Halaman Notifikasi mahasiswa, frame `16:1063` ("Notifikasi Announcement").
+///
+/// Struktur dari Figma (revisi terbaru): bar atas hanya tombol kembali dan
+/// judul — lonceng di bar atas halaman ini dihapus karena redundan (panel
+/// lonceng tetap hidup di dasbor). Tersisa segmented tab
+/// Pengumuman/Pengingat; tombol "Mark All as Read"; lalu daftar kartu. Bar
+/// navigasi mahasiswa tetap di bawah, dengan tidak ada tab yang aktif —
+/// halaman ini bukan salah satu dari lima tab itu.
+class StudentNotificationsPage extends ConsumerStatefulWidget {
+  const StudentNotificationsPage({super.key});
 
   @override
-  State<StudentNotificationsPage> createState() => _StudentNotificationsPageState();
+  ConsumerState<StudentNotificationsPage> createState() =>
+      _StudentNotificationsPageState();
 }
 
-class _StudentNotificationsPageState extends State<StudentNotificationsPage> {
-  int _selectedTabIndex = 0; // 0 = Pengumuman, 1 = Pengingat
-  bool _isLoading = true;
-  bool _isSavingRead = false;
-  Set<String> _readAnnouncementIds = {};
+class _StudentNotificationsPageState
+    extends ConsumerState<StudentNotificationsPage> {
+  static const _announcementsTab = 0;
 
-  // Mock data pengumuman sesuai struktur netlearn-2.0
-  late List<AnnouncementModel> _announcements;
-  late List<ReminderItem> _reminders;
+  int _tabIndex = _announcementsTab;
 
-  @override
-  void initState() {
-    super.initState();
-    _initData();
-    _loadReadState();
-  }
+  /// Mencegah dua kali tap pada "Mark All as Read" saat penyimpanan berjalan.
+  bool _savingReadState = false;
 
-  void _initData() {
-    _announcements = [
-      AnnouncementModel(
-        id: 'announcement-1',
-        lecturerId: 'Dr. Supono, M.Kom.',
-        classId: 'TI-2026-A',
-        title: 'Jadwal Praktikum Tambahan Modul 3',
-        content:
-            'Praktikum tatap muka untuk materi crimping kabel UTP Cat5e/6 akan diadakan pada hari Rabu pukul 10:00 WIB di Laboratorium Jaringan 2. Mohon membawa perlengkapan masing-masing.',
-        recipientScope: 'class',
-        published: true,
-        publishedAt: DateTime.now().subtract(const Duration(hours: 2)),
-        createdAt: DateTime.now().subtract(const Duration(hours: 2)),
-        updatedAt: DateTime.now().subtract(const Duration(hours: 2)),
-      ),
-      AnnouncementModel(
-        id: 'announcement-2',
-        lecturerId: 'Dr. Supono, M.Kom.',
-        classId: 'TI-2026-A',
-        title: 'Panduan Evaluasi & Tugas AR Scanner',
-        content:
-            'Mahasiswa diharapkan mengunduh marker 3D yang tersedia pada menu AR Scanner untuk latihan identifikasi port switch dan router sebelum sesi ujian tengah semester dimulai.',
-        recipientScope: 'class',
-        published: true,
-        publishedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-        createdAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 1, hours: 3)),
-      ),
-      AnnouncementModel(
-        id: 'announcement-3',
-        lecturerId: 'Bagian Akademik FT',
-        classId: null,
-        title: 'Pemeliharaan Server Virtual Lab Kampus',
-        content:
-            'Server virtual lab 2D akan menjalani pemeliharaan berkala pada hari Sabtu pukul 22:00–02:00 WIB. Akses praktikum simulasi paket data dihentikan sementara selama masa pemeliharaan.',
-        recipientScope: 'all_students',
-        published: true,
-        publishedAt: DateTime.now().subtract(const Duration(days: 3)),
-        createdAt: DateTime.now().subtract(const Duration(days: 3)),
-        updatedAt: DateTime.now().subtract(const Duration(days: 3)),
-      ),
-    ];
+  Future<void> _openAnnouncement(
+    AnnouncementModel announcement, {
+    required bool unread,
+  }) async {
+    final userId = ref.read(notificationUserIdProvider);
+    final l10n = AppLocalizations.of(context)!;
 
-    _reminders = [
-      ReminderItem(
-        id: 'reminder-1',
-        title: 'Tugas Praktikum 3: Simulasi Jaringan LAN',
-        deadline: DateTime.now().add(const Duration(days: 1, hours: 2)),
-        assessmentType: 'assignment',
-        reason: ReminderReason.deadline,
-      ),
-      ReminderItem(
-        id: 'reminder-2',
-        title: 'Kuis Modul 2: Konfigurasi VLAN',
-        deadline: DateTime.now().add(const Duration(hours: 8)),
-        assessmentType: 'quiz',
-        reason: ReminderReason.deadline,
-      ),
-      ReminderItem(
-        id: 'reminder-3',
-        title: 'Pretest Jaringan Komputer',
-        subject: 'Wajib diselesaikan sebelum membuka materi',
-        deadline: null,
-        assessmentType: 'pretest',
-        reason: ReminderReason.notCompleted,
-      ),
-    ];
-  }
+    // Urutannya: simpan dulu, baru buka detail. Kalau penyimpanan gagal, dot-nya
+    // tetap ada dan pengguna diberi tahu — status baca tidak pernah diklaim
+    // padahal tidak tersimpan.
+    if (unread && userId != null) {
+      final saved = await persistAnnouncementRead(
+        ref,
+        userId: userId,
+        announcementId: announcement.id,
+      );
 
-  Future<void> _loadReadState() async {
-    setState(() => _isLoading = true);
-    final readIds = await AnnouncementReadStore.load(widget.userId);
-    if (mounted) {
-      setState(() {
-        _readAnnouncementIds = readIds;
-        _isLoading = false;
-      });
+      if (!saved) {
+        if (!mounted) {
+          return;
+        }
+
+        NlSnackBar.show(
+          context,
+          l10n.notificationReadSaveFailed,
+          tone: NlSnackTone.error,
+        );
+      }
     }
-  }
 
-  Future<void> _markAnnouncementAsRead(AnnouncementModel announcement) async {
-    if (_readAnnouncementIds.contains(announcement.id)) {
-      _showDetailModal(announcement);
+    if (!mounted) {
       return;
     }
 
-    final success = await AnnouncementReadStore.markRead(
-      userId: widget.userId,
-      announcementId: announcement.id,
-    );
-
-    if (success && mounted) {
-      setState(() {
-        _readAnnouncementIds.add(announcement.id);
-      });
-    }
-
-    if (mounted) {
-      _showDetailModal(announcement);
-    }
+    showAnnouncementDetail(context, announcement);
   }
 
-  Future<void> _markAllAnnouncementsRead() async {
-    if (_isSavingRead || _announcements.isEmpty) return;
+  Future<void> _markAllRead(List<AnnouncementModel> announcements) async {
+    final userId = ref.read(notificationUserIdProvider);
+    final l10n = AppLocalizations.of(context)!;
 
-    setState(() => _isSavingRead = true);
+    if (userId == null || announcements.isEmpty || _savingReadState) {
+      return;
+    }
 
-    final success = await AnnouncementReadStore.markAllRead(
-      userId: widget.userId,
-      announcementIds: _announcements.map((a) => a.id),
+    setState(() {
+      _savingReadState = true;
+    });
+
+    final saved = await persistAllAnnouncementsRead(
+      ref,
+      userId: userId,
+      announcementIds: announcements.map((announcement) => announcement.id),
     );
 
-    if (mounted) {
-      setState(() {
-        _isSavingRead = false;
-        if (success) {
-          _readAnnouncementIds.addAll(_announcements.map((a) => a.id));
-        }
-      });
+    if (!mounted) {
+      return;
+    }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Semua pengumuman berhasil ditandai telah dibaca.')),
+    setState(() {
+      _savingReadState = false;
+    });
+
+    if (!saved) {
+      NlSnackBar.show(
+        context,
+        l10n.notificationReadSaveFailed,
+        tone: NlSnackTone.error,
       );
     }
   }
 
-  String _formatTimeAgo(DateTime timestamp) {
-    final difference = DateTime.now().difference(timestamp);
-    if (difference.inMinutes < 60) {
-      return difference.inMinutes <= 1 ? 'Baru saja' : '${difference.inMinutes} menit lalu';
+  Future<void> _refresh() async {
+    final userId = ref.read(notificationUserIdProvider);
+    if (userId == null) {
+      return;
     }
-    if (difference.inHours < 24) {
-      return '${difference.inHours} jam lalu';
-    }
-    return '${difference.inDays} hari lalu';
+
+    ref.invalidate(userAnnouncementsProvider(userId));
+    ref.invalidate(studentDeadlineRemindersProvider(userId));
+    ref.invalidate(announcementReadIdsProvider(userId));
+
+    await ref.read(userAnnouncementsProvider(userId).future);
   }
 
   @override
   Widget build(BuildContext context) {
-    final int unreadCount = _announcements
-        .where((a) => !_readAnnouncementIds.contains(a.id))
+    final l10n = AppLocalizations.of(context)!;
+    final userId = ref.watch(notificationUserIdProvider);
+
+    // Daftar pengumuman dibaca di build, bukan di dalam tab, karena hitungan
+    // "belum dibaca" milik halaman menentukan tombol "Mark All as Read"
+    // tampil atau tidak. Satu sumber data untuk tombol dan isi.
+    final announcementsAsync =
+        userId == null ? null : ref.watch(userAnnouncementsProvider(userId));
+    final readIdsAsync =
+        userId == null ? null : ref.watch(announcementReadIdsProvider(userId));
+
+    final announcements =
+        announcementsAsync?.value ?? const <AnnouncementModel>[];
+
+    // Status baca yang belum termuat dianggap kosong: kartu tampil belum dibaca
+    // sampai penyimpanan lokal selesai dibaca, bukan sebaliknya.
+    final readIds = readIdsAsync?.value ?? const <String>{};
+
+    final unreadCount = announcements
+        .where((announcement) => !readIds.contains(announcement.id))
         .length;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        backgroundColor: Colors.white,
-        elevation: 0,
-        scrolledUnderElevation: 1,
-        title: const Text(
-          'Pusat Notifikasi',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
-          ),
-        ),
-        actions: [
-          if (_selectedTabIndex == 0 && unreadCount > 0)
-            TextButton.icon(
-              onPressed: _isSavingRead ? null : _markAllAnnouncementsRead,
-              icon: const Icon(Icons.done_all_rounded, size: 16, color: Color(0xFF6366F1)),
-              label: const Text(
-                'Tandai Dibaca',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
-            ),
-          const SizedBox(width: 8),
-        ],
+      backgroundColor: context.background,
+      // Bar atas di sini adalah `appBar`, bukan anak dari sebuah `Column`:
+      // `NlTopBar` membungkus `AppBar`, yang butuh tinggi terbatas dan akan
+      // gagal diukur di dalam kolom tanpa batas tinggi.
+      appBar: NlTopBar(
+        title: l10n.notificationsTitle,
+        onBack: () => goBack(context, fallback: '/student'),
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF6366F1)))
-          : RefreshIndicator(
-              color: const Color(0xFF6366F1),
-              onRefresh: _loadReadState,
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                children: [
-                  _buildSegmentedTab(),
-                  const SizedBox(height: 16),
-                  if (_selectedTabIndex == 0)
-                    ..._buildAnnouncementsSection(unreadCount)
-                  else
-                    ..._buildRemindersSection(),
-                ],
-              ),
+      // Tidak ada tab yang aktif: halaman ini bukan salah satu dari lima tab
+      // mahasiswa, jadi tidak ada tujuan yang bisa disorot di bar bawah.
+      bottomNavigationBar: const StudentBottomNavbar(currentIndex: -1),
+      body: userId == null
+          ? NlEmptyState(
+              icon: Icons.notifications_off_outlined,
+              title: l10n.noNotifications,
+            )
+          : _buildContent(
+              l10n,
+              userId: userId,
+              announcementsAsync: announcementsAsync!,
+              readIdsAsync: readIdsAsync!,
+              announcements: announcements,
+              unreadCount: unreadCount,
             ),
     );
   }
 
-  Widget _buildSegmentedTab() {
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE2E8F0),
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _buildTabButton(
-              title: 'Pengumuman',
-              index: 0,
-              icon: Icons.campaign_rounded,
-            ),
-          ),
-          Expanded(
-            child: _buildTabButton(
-              title: 'Pengingat Deadline',
-              index: 1,
-              icon: Icons.alarm_rounded,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildTabButton({
-    required String title,
-    required int index,
-    required IconData icon,
+  Widget _buildContent(
+    AppLocalizations l10n, {
+    required String userId,
+    required AsyncValue<List<AnnouncementModel>> announcementsAsync,
+    required AsyncValue<Set<String>> readIdsAsync,
+    required List<AnnouncementModel> announcements,
+    required int unreadCount,
   }) {
-    final isSelected = _selectedTabIndex == index;
-    return GestureDetector(
-      onTap: () => setState(() => _selectedTabIndex = index),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(vertical: 10),
-        decoration: BoxDecoration(
-          color: isSelected ? Colors.white : Colors.transparent,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: isSelected
-              ? [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ]
-              : null,
+    return RefreshIndicator(
+      color: context.accent,
+      onRefresh: _refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        // `.content` = `padding:22px 22px 28px`.
+        padding: const EdgeInsets.fromLTRB(
+          NetLearnSpace.s22,
+          NetLearnSpace.s22,
+          NetLearnSpace.s22,
+          28,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              icon,
-              size: 16,
-              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF64748B),
-            ),
-            const SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF64748B),
-              ),
-            ),
-          ],
-        ),
+        children: [
+          NlSegmentedTabs(
+            labels: [l10n.announcements, l10n.reminders],
+            selectedIndex: _tabIndex,
+            semanticLabel: l10n.notificationsTitle,
+            onChanged: (index) => setState(() => _tabIndex = index),
+          ),
+          const SizedBox(height: NetLearnSpace.s16),
+          if (_tabIndex == _announcementsTab)
+            ..._announcementsChildren(
+              l10n,
+              announcementsAsync: announcementsAsync,
+              readIdsAsync: readIdsAsync,
+              announcements: announcements,
+              unreadCount: unreadCount,
+            )
+          else
+            ..._remindersChildren(l10n, userId: userId),
+        ],
       ),
     );
   }
 
-  List<Widget> _buildAnnouncementsSection(int unreadCount) {
-    if (_announcements.isEmpty) {
+  List<Widget> _announcementsChildren(
+    AppLocalizations l10n, {
+    required AsyncValue<List<AnnouncementModel>> announcementsAsync,
+    required AsyncValue<Set<String>> readIdsAsync,
+    required List<AnnouncementModel> announcements,
+    required int unreadCount,
+  }) {
+    // Hanya daftar pengumumannya yang menahan tab ini. Status baca lokal
+    // (`announcementReadIdsProvider`) sengaja tidak ikut ditunggu: kalau
+    // penyimpanan lokal lambat atau gagal, daftarnya tetap tampil — kartu
+    // sementara dibaca sebagai belum dibaca — alih-alih berputar selamanya.
+    if (announcementsAsync.isLoading) {
+      return const [_NotificationLoading()];
+    }
+
+    if (announcementsAsync.hasError) {
       return [
-        _buildEmptyState(
+        NlErrorView(
+          message: l10n.failedToLoad,
+          onRetry: () {
+            final userId = ref.read(notificationUserIdProvider);
+            if (userId != null) {
+              ref.invalidate(userAnnouncementsProvider(userId));
+            }
+          },
+        ),
+      ];
+    }
+
+    if (announcements.isEmpty) {
+      return [
+        NlEmptyState(
           icon: Icons.campaign_outlined,
-          title: 'Tidak Ada Pengumuman',
-          message: 'Saat ini belum ada pengumuman baru dari dosen atau akademik.',
+          title: l10n.noAnnouncements,
+          message: l10n.noAnnouncementsMessage,
         ),
       ];
     }
 
-    return _announcements.map((announcement) {
-      final isUnread = !_readAnnouncementIds.contains(announcement.id);
-      return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: isUnread ? const Color(0xFFF5F3FF) : Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: isUnread ? const Color(0xFFC7D2FE) : const Color(0xFFE2E8F0),
-            width: isUnread ? 1.5 : 1,
-          ),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    final readIds = readIdsAsync.value ?? const <String>{};
+
+    final children = <Widget>[];
+
+    // Tombol hanya muncul kalau masih ada yang belum dibaca: menandai semua
+    // sebagai dibaca saat semuanya sudah dibaca tidak melakukan apa pun.
+    if (unreadCount > 0) {
+      children.add(
+        _MarkAllAsReadButton(
+          label: l10n.markAllAsRead,
+          busy: _savingReadState,
+          onPressed: () => _markAllRead(announcements),
         ),
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-          child: InkWell(
-            borderRadius: BorderRadius.circular(14),
-            onTap: () => _markAnnouncementAsRead(announcement),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    width: 42,
-                    height: 42,
-                    decoration: BoxDecoration(
-                      color: isUnread ? const Color(0xFFEEF2FF) : const Color(0xFFF1F5F9),
-                      shape: BoxShape.circle,
-                    ),
-                    child: const Icon(
-                      Icons.campaign_rounded,
-                      color: Color(0xFF6366F1),
-                      size: 22,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                announcement.title,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: isUnread ? FontWeight.bold : FontWeight.w600,
-                                  color: const Color(0xFF1E293B),
-                                ),
-                              ),
-                            ),
-                            if (isUnread) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                width: 8,
-                                height: 8,
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF6366F1),
-                                  shape: BoxShape.circle,
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          '${announcement.lecturerId} • ${_formatTimeAgo(announcement.publishedAt ?? announcement.createdAt)}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          announcement.displayContent,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFF475569),
-                            height: 1.4,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
+      );
+    }
+
+    for (final announcement in announcements) {
+      children.add(
+        AnnouncementCard(
+          announcement: announcement,
+          unread: !readIds.contains(announcement.id),
+          onTap: () => _openAnnouncement(
+            announcement,
+            unread: !readIds.contains(announcement.id),
           ),
         ),
       );
-    }).toList();
+    }
+
+    return _withGaps(children);
   }
 
-  List<Widget> _buildRemindersSection() {
-    if (_reminders.isEmpty) {
+  List<Widget> _remindersChildren(AppLocalizations l10n, {required String userId}) {
+    final remindersAsync = ref.watch(studentDeadlineRemindersProvider(userId));
+
+    if (remindersAsync.isLoading) {
+      return const [_NotificationLoading()];
+    }
+
+    if (remindersAsync.hasError) {
       return [
-        _buildEmptyState(
-          icon: Icons.alarm_off_rounded,
-          title: 'Tidak Ada Pengingat',
-          message: 'Semua tugas dan evaluasi telah Anda selesaikan dengan baik.',
+        NlErrorView(
+          message: l10n.failedToLoad,
+          onRetry: () => ref.invalidate(studentDeadlineRemindersProvider(userId)),
         ),
       ];
     }
 
-    return _reminders.map((reminder) {
-      final isDeadline = reminder.reason == ReminderReason.deadline;
-      return Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE2E8F0)),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(0xFF0F172A).withOpacity(0.03),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
+    final reminders = remindersAsync.value ?? const <ReminderItem>[];
+
+    if (reminders.isEmpty) {
+      return [
+        NlEmptyState(
+          icon: Icons.schedule_outlined,
+          title: l10n.noReminders,
+          message: l10n.noRemindersMessage,
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: isDeadline ? const Color(0xFFFEE2E2) : const Color(0xFFFEF3C7),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  isDeadline ? Icons.alarm_rounded : Icons.info_outline_rounded,
-                  color: isDeadline ? const Color(0xFFEF4444) : const Color(0xFFF59E0B),
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reminder.title,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: isDeadline ? const Color(0xFFFEF2F2) : const Color(0xFFFFFBEB),
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(
-                          color: isDeadline ? const Color(0xFFFECACA) : const Color(0xFFFDE68A),
-                        ),
-                      ),
-                      child: Text(
-                        reminder.subtitle(),
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: isDeadline ? const Color(0xFFDC2626) : const Color(0xFFD97706),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
+      ];
+    }
+
+    // Setiap pengingat adalah deadline assessment, jadi tujuannya tab
+    // Assessment — bukan detail yang tidak ada. `go` dipakai supaya tab
+    // menggantikan stack, sama seperti bar bawah.
+    return _withGaps([
+      for (final reminder in reminders)
+        ReminderCard(
+          reminder: reminder,
+          onTap: () => context.go('/student/assessment'),
         ),
-      );
-    }).toList();
+    ]);
   }
 
-  Widget _buildEmptyState({
-    required IconData icon,
-    required String title,
-    required String message,
-  }) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 40),
-      child: Column(
-        children: [
-          Icon(icon, size: 54, color: const Color(0xFFCBD5E1)),
-          const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-          ),
-        ],
-      ),
-    );
-  }
+  /// Jarak antar anak `.content` di Figma adalah `gap:16px`.
+  List<Widget> _withGaps(List<Widget> children) {
+    final spaced = <Widget>[];
 
-  void _showDetailModal(AnnouncementModel announcement) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
+    for (var index = 0; index < children.length; index++) {
+      if (index > 0) {
+        spaced.add(const SizedBox(height: NetLearnSpace.s16));
+      }
+
+      spaced.add(children[index]);
+    }
+
+    return spaced;
+  }
+}
+
+/// Tombol "Mark All as Read" — teks aksen dengan ikon centang, di tengah.
+class _MarkAllAsReadButton extends StatelessWidget {
+  final String label;
+  final bool busy;
+  final VoidCallback onPressed;
+
+  const _MarkAllAsReadButton({
+    required this.label,
+    required this.busy,
+    required this.onPressed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          // Tombol mati saat penyimpanan berjalan, bukan menghilang, supaya
+          // letaknya tidak melompat.
+          onTap: busy ? null : onPressed,
+          borderRadius: BorderRadius.circular(NetLearnRadius.sm),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              NetLearnSpace.s8,
+              NetLearnSpace.s15,
+              NetLearnSpace.s8,
+              NetLearnSpace.s8,
             ),
-            const SizedBox(height: 20),
-            Text(
-              announcement.title,
-              style: const TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.person_outline_rounded, size: 14, color: Color(0xFF64748B)),
-                const SizedBox(width: 4),
-                Text(
-                  announcement.lecturerId,
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                Icon(
+                  Icons.done_all_rounded,
+                  size: 14,
+                  color: context.accent,
                 ),
-                const SizedBox(width: 12),
-                const Icon(Icons.access_time_rounded, size: 14, color: Color(0xFF64748B)),
-                const SizedBox(width: 4),
+                const SizedBox(width: NetLearnSpace.s6),
                 Text(
-                  _formatTimeAgo(announcement.publishedAt ?? announcement.createdAt),
-                  style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+                  label,
+                  style: context.linkSmallStyle?.copyWith(
+                    fontSize: 11,
+                    color: context.accent,
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 16),
-            const Divider(),
-            const SizedBox(height: 12),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const BouncingScrollPhysics(),
-                child: Text(
-                  announcement.displayContent,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    height: 1.6,
-                    color: Color(0xFF334155),
-                  ),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
 }
 
+class _NotificationLoading extends StatelessWidget {
+  const _NotificationLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Padding(
+      padding: EdgeInsets.symmetric(vertical: NetLearnSpace.s32),
+      child: Center(child: CircularProgressIndicator()),
+    );
+  }
+}

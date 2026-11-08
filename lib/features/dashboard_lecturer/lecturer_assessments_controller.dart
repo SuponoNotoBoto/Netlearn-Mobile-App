@@ -1,10 +1,15 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
+import '../../core/localization/language_controller.dart';
 import '../../core/supabase/supabase_client.dart';
+import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
 import 'lecturer_dashboard_controller.dart';
 
 // ============================================================
-// ASSESSMENT MODELS
+// ASSESSMENT LIST
 // ============================================================
 
 class LecturerAssessment {
@@ -34,35 +39,27 @@ class LecturerAssessment {
 
   bool get isPublished => status == 'published';
 
+  /// Whether the `quizzes_before_write` trigger would accept a publish.
+  ///
+  /// The trigger rejects `status = 'published'` unless every question has a row
+  /// in `question_keys`. Recomputing it here means the button can be disabled
+  /// with a reason instead of letting the lecturer submit and read a
+  /// `QUIZ_INCOMPLETE` check violation.
   bool get canPublish => questionCount > 0 && answeredCount == questionCount;
 
+  /// Questions still missing an answer key, or 0 when the assessment is not
+  /// ready to publish for some other reason.
   int get unansweredCount => questionCount - answeredCount;
-
-  LecturerAssessment copyWith({
-    String? id,
-    String? title,
-    String? titleEn,
-    String? titleId,
-    String? assessmentType,
-    int? durationMinutes,
-    String? status,
-    int? questionCount,
-    int? answeredCount,
-  }) {
-    return LecturerAssessment(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      titleEn: titleEn ?? this.titleEn,
-      titleId: titleId ?? this.titleId,
-      assessmentType: assessmentType ?? this.assessmentType,
-      durationMinutes: durationMinutes ?? this.durationMinutes,
-      status: status ?? this.status,
-      questionCount: questionCount ?? this.questionCount,
-      answeredCount: answeredCount ?? this.answeredCount,
-    );
-  }
 }
 
+/// Visual order for the assessments list: Post-test first, then Pre-test,
+/// then anything else.
+///
+/// The database order (`created_at`) is not the order the design shows, and
+/// `assessment_type` sorts `posttest` before `pretest` only by the accident of
+/// the alphabet. Ranking is explicit here so the two assessments always render
+/// Post Test → Pretest regardless of row insertion order. The original index
+/// breaks ties, so this is a stable sort and no assessment is dropped.
 List<LecturerAssessment> orderAssessments(
   List<LecturerAssessment> assessments,
 ) {
@@ -70,6 +67,7 @@ List<LecturerAssessment> orderAssessments(
 
   indexed.sort((a, b) {
     final rank = _assessmentRank(a.value).compareTo(_assessmentRank(b.value));
+
     return rank != 0 ? rank : a.key.compareTo(b.key);
   });
 
@@ -87,130 +85,192 @@ int _assessmentRank(LecturerAssessment assessment) {
   }
 }
 
-// ============================================================
-// TASK MODEL
-// ============================================================
+/// Every assessment, published or not.
+///
+/// The two assessments are global to the course rather than per module, so this
+/// is a fixed, very small list. `question_keys` is fetched alongside the
+/// questions in one round trip because PostgREST cannot count rows on an
+/// embedded resource that RLS keeps separate.
+final lecturerAssessmentsProvider =
+    FutureProvider.autoDispose<List<LecturerAssessment>>((ref) async {
+      final languageCode = ref.watch(languageProvider).languageCode;
+      final activeClass = await resolveActiveLecturerClass(ref);
+      final validClass = activeClass != null &&
+          activeClass.id.isNotEmpty &&
+          activeClass.id != kLegacyFallbackClassId;
+      if (validClass) {
+        await ensureClassGateAssessmentsExist(activeClass.id);
+      }
 
-class LecturerTask {
-  final String id;
-  final String title;
-  final String titleEn;
-  final String titleId;
-  final String assessmentType;
-  final int durationMinutes;
-  final String status;
-  final int questionCount;
-  final int answeredCount;
-  final int? module;
-  final bool required;
-  final bool leaderboardEnabled;
-  final int attemptsAllowed;
-  final double weight;
-  final String? description;
-  final String? descriptionEn;
-  final String? descriptionId;
-  final String? instructions;
-  final String? instructionsEn;
-  final String? instructionsId;
-  final int timeLimit;
-  final DateTime? deadline;
-  final int submittedCount;
+      final response = await supabase.from('quizzes').select('''
+            class_id,
+            id,
+            title,
+            title_en,
+            title_id,
+            assessment_type,
+            duration_minutes,
+            status
+          ''')
+          .order('assessment_type')
+          .order('created_at');
 
-  const LecturerTask({
-    required this.id,
-    required this.title,
-    required this.titleEn,
-    required this.titleId,
-    required this.assessmentType,
-    required this.durationMinutes,
-    required this.status,
-    required this.questionCount,
-    required this.answeredCount,
-    this.module,
-    this.required = false,
-    this.leaderboardEnabled = true,
-    this.attemptsAllowed = 1,
-    this.weight = 1.0,
-    this.description,
-    this.descriptionEn,
-    this.descriptionId,
-    this.instructions,
-    this.instructionsEn,
-    this.instructionsId,
-    this.timeLimit = 0,
-    this.deadline,
-    this.submittedCount = 0,
-  });
+      final rawQuizzes = (response as List)
+          .map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          )
+          .toList();
 
-  bool get isPublished => status == 'published';
+      final classQuizzes = validClass
+          ? rawQuizzes
+              .where((q) => q['class_id']?.toString() == activeClass.id)
+              .toList()
+          : const <Map<String, dynamic>>[];
+      final quizzes = classQuizzes.isNotEmpty
+          ? classQuizzes
+          : rawQuizzes.where((q) => q['class_id'] == null).toList();
+      if (quizzes.isEmpty) {
+        return [];
+      }
 
-  bool get canPublish => questionCount > 0 && answeredCount == questionCount;
+      final quizIds =
+          quizzes.map((quiz) => quiz['id'].toString()).toList();
 
-  int get unansweredCount => questionCount - answeredCount;
+      final questionsResponse = await supabase
+          .from('questions')
+          .select('id, quiz_id')
+          .inFilter('quiz_id', quizIds);
 
-  String get localizedTitle => titleId.isNotEmpty ? titleId : title;
+      final keysResponse = await supabase
+          .from('question_keys')
+          .select('question_id')
+          .inFilter(
+            'question_id',
+            (questionsResponse as List)
+                .map((row) => (row as Map)['id'].toString())
+                .toList(),
+          );
 
-  String get localizedDescription =>
-      descriptionId?.isNotEmpty == true ? descriptionId! : (description ?? '');
+      final answeredQuestionIds = <String>{
+        for (final row in keysResponse as List)
+          (row as Map)['question_id'].toString(),
+      };
 
-  String get localizedInstructions =>
-      instructionsId?.isNotEmpty == true ? instructionsId! : (instructions ?? '');
+      final totals = <String, int>{};
+      final answered = <String, int>{};
 
-  LecturerTask copyWith({
-    String? id,
-    String? title,
-    String? titleEn,
-    String? titleId,
-    String? assessmentType,
-    int? durationMinutes,
-    String? status,
-    int? questionCount,
-    int? answeredCount,
-    int? module,
-    bool? required,
-    bool? leaderboardEnabled,
-    int? attemptsAllowed,
-    double? weight,
-    String? description,
-    String? descriptionEn,
-    String? descriptionId,
-    String? instructions,
-    String? instructionsEn,
-    String? instructionsId,
-    int? timeLimit,
-    DateTime? deadline,
-    int? submittedCount,
-  }) {
-    return LecturerTask(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      titleEn: titleEn ?? this.titleEn,
-      titleId: titleId ?? this.titleId,
-      assessmentType: assessmentType ?? this.assessmentType,
-      durationMinutes: durationMinutes ?? this.durationMinutes,
-      status: status ?? this.status,
-      questionCount: questionCount ?? this.questionCount,
-      answeredCount: answeredCount ?? this.answeredCount,
-      module: module ?? this.module,
-      required: required ?? this.required,
-      leaderboardEnabled: leaderboardEnabled ?? this.leaderboardEnabled,
-      attemptsAllowed: attemptsAllowed ?? this.attemptsAllowed,
-      weight: weight ?? this.weight,
-      description: description ?? this.description,
-      descriptionEn: descriptionEn ?? this.descriptionEn,
-      descriptionId: descriptionId ?? this.descriptionId,
-      instructions: instructions ?? this.instructions,
-      instructionsEn: instructionsEn ?? this.instructionsEn,
-      instructionsId: instructionsId ?? this.instructionsId,
-      timeLimit: timeLimit ?? this.timeLimit,
-      deadline: deadline ?? this.deadline,
-      submittedCount: submittedCount ?? this.submittedCount,
+      for (final row in questionsResponse) {
+        final question = row as Map;
+        final quizId = question['quiz_id'].toString();
+
+        totals.update(
+          quizId,
+          (count) => count + 1,
+          ifAbsent: () => 1,
+        );
+
+        if (answeredQuestionIds.contains(question['id'].toString())) {
+          answered.update(
+            quizId,
+            (count) => count + 1,
+            ifAbsent: () => 1,
+          );
+        }
+      }
+
+      return quizzes.map((quiz) {
+        final id = quiz['id'].toString();
+
+        return LecturerAssessment(
+          id: id,
+          title: quiz['title']?.toString() ?? '',
+          titleEn: quiz['title_en']?.toString() ?? '',
+          titleId: quiz['title_id']?.toString() ?? '',
+          assessmentType:
+              quiz['assessment_type']?.toString() ?? 'posttest',
+          durationMinutes:
+              (quiz['duration_minutes'] as num?)?.toInt() ?? 0,
+          status: quiz['status']?.toString() ?? 'draft',
+          questionCount: totals[id] ?? 0,
+          answeredCount: answered[id] ?? 0,
+        );
+      }).map(
+            // The base `title` column is NOT NULL and holds the Indonesian copy,
+            // so it is the fallback for both locales -- same order as
+            // MaterialModel.localizedTitle.
+            (assessment) => _localizedAssessment(
+              assessment,
+              languageCode,
+            ),
+          )
+          .toList();
+    });
+
+LecturerAssessment _localizedAssessment(
+  LecturerAssessment assessment,
+  String languageCode,
+) {
+  String pick(
+    String localized,
+    String fallback,
+  ) {
+    final value = localized.trim();
+
+    return value.isNotEmpty ? value : fallback;
+  }
+
+  final title = languageCode == 'id'
+      ? pick(assessment.titleId, assessment.title)
+      : pick(assessment.titleEn, assessment.title);
+
+  return LecturerAssessment(
+    id: assessment.id,
+    title: title,
+    titleEn: assessment.titleEn,
+    titleId: assessment.titleId,
+    assessmentType: assessment.assessmentType,
+    durationMinutes: assessment.durationMinutes,
+    status: assessment.status,
+    questionCount: assessment.questionCount,
+    answeredCount: assessment.answeredCount,
+  );
+}
+
+/// Publishes or unpublishes an assessment.
+///
+/// The `quizzes_before_write` trigger is the real gate: it refuses
+/// `status = 'published'` while any question lacks an answer key. This only
+/// refuses early with a readable reason.
+Future<void> setAssessmentPublished(
+  WidgetRef ref,
+  LecturerAssessment assessment,
+  bool published,
+) async {
+  if (published && !assessment.canPublish) {
+    throw const AssessmentWriteException(
+      AssessmentWriteFailure.missingAnswerKey,
     );
+  }
+
+  try {
+    await supabase
+        .from('quizzes')
+        .update({'status': published ? 'published' : 'draft'})
+        .eq('id', assessment.id);
+
+    ref.invalidate(lecturerAssessmentsProvider);
+    ref.invalidate(lecturerDashboardStatsProvider);
+    ref.invalidate(classGateAssessmentsProvider);
+    ref.invalidate(classLeaderboardQuizzesProvider);
+    ref.invalidate(classLeaderboardProvider);
+    ref.invalidate(lecturerClassesProvider);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
   }
 }
 
 // ============================================================
-// QUESTION MODEL
+// QUESTIONS
 // ============================================================
 
 class LecturerQuestion {
@@ -259,61 +319,126 @@ class LecturerQuestion {
     required this.optionBId,
     required this.optionCId,
     required this.optionDId,
-    this.imageUrl,
-    this.correctAnswer,
+    required this.imageUrl,
+    required this.correctAnswer,
   });
 
-  bool get hasAnswerKey => correctAnswer != null && correctAnswer!.isNotEmpty;
+  factory LecturerQuestion.fromMap(
+    Map<String, dynamic> map,
+  ) {
+    String text(String key) => map[key]?.toString() ?? '';
 
-  LecturerQuestion copyWith({
-    String? id,
-    String? quizId,
-    int? orderIndex,
-    String? questionText,
-    String? questionTextEn,
-    String? questionTextId,
-    String? optionA,
-    String? optionB,
-    String? optionC,
-    String? optionD,
-    String? optionAEn,
-    String? optionBEn,
-    String? optionCEn,
-    String? optionDEn,
-    String? optionAId,
-    String? optionBId,
-    String? optionCId,
-    String? optionDId,
-    String? imageUrl,
-    String? correctAnswer,
-  }) {
     return LecturerQuestion(
-      id: id ?? this.id,
-      quizId: quizId ?? this.quizId,
-      orderIndex: orderIndex ?? this.orderIndex,
-      questionText: questionText ?? this.questionText,
-      questionTextEn: questionTextEn ?? this.questionTextEn,
-      questionTextId: questionTextId ?? this.questionTextId,
-      optionA: optionA ?? this.optionA,
-      optionB: optionB ?? this.optionB,
-      optionC: optionC ?? this.optionC,
-      optionD: optionD ?? this.optionD,
-      optionAEn: optionAEn ?? this.optionAEn,
-      optionBEn: optionBEn ?? this.optionBEn,
-      optionCEn: optionCEn ?? this.optionCEn,
-      optionDEn: optionDEn ?? this.optionDEn,
-      optionAId: optionAId ?? this.optionAId,
-      optionBId: optionBId ?? this.optionBId,
-      optionCId: optionCId ?? this.optionCId,
-      optionDId: optionDId ?? this.optionDId,
-      imageUrl: imageUrl ?? this.imageUrl,
-      correctAnswer: correctAnswer ?? this.correctAnswer,
+      id: map['id'].toString(),
+      quizId: map['quiz_id'].toString(),
+      orderIndex: (map['order_index'] as num?)?.toInt() ?? 0,
+
+      questionText: text('question_text'),
+      questionTextEn: text('question_text_en'),
+      questionTextId: text('question_text_id'),
+
+      optionA: text('option_a'),
+      optionB: text('option_b'),
+      optionC: text('option_c'),
+      optionD: text('option_d'),
+
+      optionAEn: text('option_a_en'),
+      optionBEn: text('option_b_en'),
+      optionCEn: text('option_c_en'),
+      optionDEn: text('option_d_en'),
+
+      optionAId: text('option_a_id'),
+      optionBId: text('option_b_id'),
+      optionCId: text('option_c_id'),
+      optionDId: text('option_d_id'),
+
+      imageUrl: map['image_url']?.toString(),
+      correctAnswer: map['correct_answer']?.toString(),
     );
   }
+
+  bool get hasAnswerKey =>
+      correctAnswer != null && correctAnswer!.isNotEmpty;
 }
 
+final lecturerQuestionsProvider = FutureProvider.autoDispose
+    .family<List<LecturerQuestion>, String>((ref, quizId) async {
+      // Only columns that actually exist on `questions`. The previous version
+      // selected `explanation`, `explanation_en`, `explanation_id` and ordered
+      // by `created_at` — none of which exist on the table, so PostgREST
+      // answered every request with a 400 (PGRST204) and the page could never
+      // leave its loading state.
+      final response = await supabase
+          .from('questions')
+          .select('''
+            id,
+            quiz_id,
+            order_index,
+
+            question_text,
+            question_text_en,
+            question_text_id,
+
+            option_a,
+            option_b,
+            option_c,
+            option_d,
+
+            option_a_en,
+            option_b_en,
+            option_c_en,
+            option_d_en,
+
+            option_a_id,
+            option_b_id,
+            option_c_id,
+            option_d_id,
+
+            image_url
+          ''')
+          .eq('quiz_id', quizId)
+          .order('order_index');
+
+      final questions = (response as List)
+          .map(
+            (item) => Map<String, dynamic>.from(item as Map),
+          )
+          .toList();
+
+      if (questions.isEmpty) {
+        return [];
+      }
+
+      // Answer keys are fetched separately rather than embedded, so the choice
+      // list and the key travel together into one editor round trip.
+      final keysResponse = await supabase
+          .from('question_keys')
+          .select('question_id, correct_answer')
+          .inFilter(
+            'question_id',
+            questions
+                .map((question) => question['id'].toString())
+                .toList(),
+          );
+
+      final keys = <String, String>{
+        for (final row in keysResponse as List)
+          (row as Map)['question_id'].toString():
+              row['correct_answer']?.toString() ?? '',
+      };
+
+      return questions.map((question) {
+        final id = question['id'].toString();
+
+        return LecturerQuestion.fromMap({
+          ...question,
+          'correct_answer': keys[id],
+        });
+      }).toList();
+    });
+
 // ============================================================
-// EXCEPTIONS
+// QUESTION WRITES
 // ============================================================
 
 enum AssessmentWriteFailure {
@@ -327,470 +452,982 @@ class AssessmentWriteException implements Exception {
   final AssessmentWriteFailure failure;
   final String? detail;
 
-  const AssessmentWriteException(this.failure, {this.detail});
+  const AssessmentWriteException(this.failure, [this.detail]);
 
   @override
-  String toString() => 'AssessmentWriteException($failure, detail: $detail)';
+  String toString() => 'AssessmentWriteException($failure)';
 }
 
-// ============================================================
-// IN-MEMORY DATA STORE (FOR RELIABLE OFFLINE & PREVIEW MODE)
-// ============================================================
-
-final List<LecturerAssessment> _storeAssessments = [
-  const LecturerAssessment(
-    id: 'core-posttest',
-    title: 'Post Test',
-    titleEn: 'Post Test',
-    titleId: 'Post Test',
-    assessmentType: 'posttest',
-    durationMinutes: 15,
-    status: 'published',
-    questionCount: 25,
-    answeredCount: 25,
-  ),
-  const LecturerAssessment(
-    id: 'core-pretest',
-    title: 'Pretest',
-    titleEn: 'Pretest',
-    titleId: 'Pretest',
-    assessmentType: 'pretest',
-    durationMinutes: 15,
-    status: 'published',
-    questionCount: 25,
-    answeredCount: 25,
-  ),
-];
-
-final List<LecturerTask> _storeTasks = [
-  LecturerTask(
-    id: 'task-1',
-    title: 'Kuis Subnetting & Pengalamatan IP',
-    titleEn: 'Subnetting & IP Addressing Quiz',
-    titleId: 'Kuis Subnetting & Pengalamatan IP',
-    assessmentType: 'task',
-    durationMinutes: 20,
-    status: 'published',
-    questionCount: 10,
-    answeredCount: 10,
-    module: 1,
-    required: true,
-    leaderboardEnabled: true,
-    attemptsAllowed: 2,
-    weight: 1.0,
-    timeLimit: 30,
-    deadline: DateTime.now().add(const Duration(days: 7)),
-    submittedCount: 42,
-    description:
-        'Uji pemahaman tentang konsep subnetting IPv4, network ID, broadcast ID, dan usable host range pada Classless Inter-Domain Routing (CIDR).',
-    descriptionId:
-        'Uji pemahaman tentang konsep subnetting IPv4, network ID, broadcast ID, dan usable host range pada Classless Inter-Domain Routing (CIDR).',
-    descriptionEn:
-        'Test your understanding of IPv4 subnetting concepts, network ID, broadcast ID, and usable host range in CIDR.',
-    instructions:
-        'Kerjakan seluruh butir soal secara mandiri tanpa menggunakan kalkulator subnetting online.',
-    instructionsId:
-        'Kerjakan seluruh butir soal secara mandiri tanpa menggunakan kalkulator subnetting online.',
-    instructionsEn:
-        'Solve all multiple-choice questions independently without using an online subnet calculator.',
-  ),
-  LecturerTask(
-    id: 'task-2',
-    title: 'Tugas Mandiri: Analisis Topologi Jaringan Hybrid',
-    titleEn: 'Independent Task: Hybrid Network Topology Analysis',
-    titleId: 'Tugas Mandiri: Analisis Topologi Jaringan Hybrid',
-    assessmentType: 'task',
-    durationMinutes: 45,
-    status: 'published',
-    questionCount: 8,
-    answeredCount: 8,
-    module: null,
-    required: false,
-    leaderboardEnabled: false,
-    attemptsAllowed: 1,
-    weight: 1.5,
-    timeLimit: 60,
-    deadline: DateTime.now().add(const Duration(days: 14)),
-    submittedCount: 38,
-    description:
-        'Analisis performa, redundansi kabel, dan skalabilitas topologi hybrid (Star-Bus) dalam perancangan kampus cerdas.',
-    descriptionId:
-        'Analisis performa, redundansi kabel, dan skalabilitas topologi hybrid (Star-Bus) dalam perancangan kampus cerdas.',
-    descriptionEn:
-        'Analyze performance, cable redundancy, and scalability of hybrid topologies in smart campus designs.',
-    instructions:
-        'Pelajari diagram topologi yang disediakan lalu jawab setiap butir evaluasi dengan teliti.',
-    instructionsId:
-        'Pelajari diagram topologi yang disediakan lalu jawab setiap butir evaluasi dengan teliti.',
-    instructionsEn:
-        'Review the provided topology diagram and answer each question carefully.',
-  ),
-  LecturerTask(
-    id: 'task-3',
-    title: 'Kuis Routing Dinamis (OSPF & BGP)',
-    titleEn: 'Dynamic Routing Quiz (OSPF & BGP)',
-    titleId: 'Kuis Routing Dinamis (OSPF & BGP)',
-    assessmentType: 'task',
-    durationMinutes: 25,
-    status: 'draft',
-    questionCount: 12,
-    answeredCount: 12,
-    module: 3,
-    required: false,
-    leaderboardEnabled: true,
-    attemptsAllowed: 3,
-    weight: 1.0,
-    timeLimit: 40,
-    deadline: DateTime.now().add(const Duration(days: 21)),
-    submittedCount: 0,
-    description:
-        'Kuis evaluasi protokol link-state OSPF dan path-vector BGP pada autonomous system modern.',
-    descriptionId:
-        'Kuis evaluasi protokol link-state OSPF dan path-vector BGP pada autonomous system modern.',
-    descriptionEn:
-        'Evaluation quiz on OSPF link-state protocol and BGP path-vector protocol in modern autonomous systems.',
-    instructions: 'Pilih opsi jawaban yang paling tepat.',
-    instructionsId: 'Pilih opsi jawaban yang paling tepat.',
-    instructionsEn: 'Select the most appropriate answer choice.',
-  ),
-];
-
-final Map<String, List<LecturerQuestion>> _storeQuestionsByQuiz = {
-  'core-posttest': _buildDefaultQuestions('core-posttest'),
-  'core-pretest': _buildDefaultQuestions('core-pretest'),
-  'task-1': _buildDefaultQuestions('task-1'),
-  'task-2': _buildDefaultQuestions('task-2'),
-  'task-3': _buildDefaultQuestions('task-3'),
-};
-
-List<LecturerQuestion> _buildDefaultQuestions(String qid) {
-  return [
-    LecturerQuestion(
-      id: '${qid}_q1',
-      quizId: qid,
-      orderIndex: 1,
-      questionText:
-          'Berapakah jumlah host yang dapat digunakan (usable host) pada network dengan subnet mask /26?',
-      questionTextId:
-          'Berapakah jumlah host yang dapat digunakan (usable host) pada network dengan subnet mask /26?',
-      questionTextEn:
-          'How many usable hosts can be assigned on a network with a /26 subnet mask?',
-      optionA: '62 host',
-      optionAId: '62 host',
-      optionAEn: '62 hosts',
-      optionB: '64 host',
-      optionBId: '64 host',
-      optionBEn: '64 hosts',
-      optionC: '30 host',
-      optionCId: '30 host',
-      optionCEn: '30 hosts',
-      optionD: '126 host',
-      optionDId: '126 host',
-      optionDEn: '126 hosts',
-      correctAnswer: 'A',
-    ),
-    LecturerQuestion(
-      id: '${qid}_q2',
-      quizId: qid,
-      orderIndex: 2,
-      questionText:
-          'Protokol routing manakah yang menggunakan algoritma Dijkstra Shortest Path First (SPF)?',
-      questionTextId:
-          'Protokol routing manakah yang menggunakan algoritma Dijkstra Shortest Path First (SPF)?',
-      questionTextEn:
-          'Which routing protocol uses the Dijkstra Shortest Path First (SPF) algorithm?',
-      optionA: 'RIPv2',
-      optionAId: 'RIPv2',
-      optionAEn: 'RIPv2',
-      optionB: 'OSPF',
-      optionBId: 'OSPF',
-      optionBEn: 'OSPF',
-      optionC: 'EIGRP',
-      optionCId: 'EIGRP',
-      optionCEn: 'EIGRP',
-      optionD: 'BGP',
-      optionDId: 'BGP',
-      optionDEn: 'BGP',
-      correctAnswer: 'B',
-    ),
-    LecturerQuestion(
-      id: '${qid}_q3',
-      quizId: qid,
-      orderIndex: 3,
-      questionText:
-          'Pada layer OSI manakah protokol TCP dan UDP beroperasi?',
-      questionTextId:
-          'Pada layer OSI manakah protokol TCP dan UDP beroperasi?',
-      questionTextEn:
-          'At which OSI layer do the TCP and UDP protocols operate?',
-      optionA: 'Data Link Layer (Layer 2)',
-      optionAId: 'Data Link Layer (Layer 2)',
-      optionAEn: 'Data Link Layer (Layer 2)',
-      optionB: 'Network Layer (Layer 3)',
-      optionBId: 'Network Layer (Layer 3)',
-      optionBEn: 'Network Layer (Layer 3)',
-      optionC: 'Transport Layer (Layer 4)',
-      optionCId: 'Transport Layer (Layer 4)',
-      optionCEn: 'Transport Layer (Layer 4)',
-      optionD: 'Session Layer (Layer 5)',
-      optionDId: 'Session Layer (Layer 5)',
-      optionDEn: 'Session Layer (Layer 5)',
-      correctAnswer: 'C',
-    ),
-    LecturerQuestion(
-      id: '${qid}_q4',
-      quizId: qid,
-      orderIndex: 4,
-      questionText:
-          'Alamat IP 192.168.10.0/24 termasuk ke dalam kelas pengalamatan apa?',
-      questionTextId:
-          'Alamat IP 192.168.10.0/24 termasuk ke dalam kelas pengalamatan apa?',
-      questionTextEn:
-          'The IP address 192.168.10.0/24 belongs to which address class?',
-      optionA: 'Class A',
-      optionAId: 'Class A',
-      optionAEn: 'Class A',
-      optionB: 'Class B',
-      optionBId: 'Class B',
-      optionBEn: 'Class B',
-      optionC: 'Class C',
-      optionCId: 'Class C',
-      optionCEn: 'Class C',
-      optionD: 'Class D (Multicast)',
-      optionDId: 'Class D (Multicast)',
-      optionDEn: 'Class D (Multicast)',
-      correctAnswer: 'C',
-    ),
-    LecturerQuestion(
-      id: '${qid}_q5',
-      quizId: qid,
-      orderIndex: 5,
-      questionText:
-          'Karakteristik utama dari arsitektur model peer-to-peer dibandingkan client-server adalah...',
-      questionTextId:
-          'Karakteristik utama dari arsitektur model peer-to-peer dibandingkan client-server adalah...',
-      questionTextEn:
-          'The primary characteristic of peer-to-peer architecture compared to client-server is...',
-      optionA: 'Memerlukan server terpusat dengan performa tinggi',
-      optionAId: 'Memerlukan server terpusat dengan performa tinggi',
-      optionAEn: 'Requires a high-performance central server',
-      optionB: 'Setiap node dapat bertindak sebagai client sekaligus server',
-      optionBId: 'Setiap node dapat bertindak sebagai client sekaligus server',
-      optionBEn: 'Every node can act as both client and server',
-      optionC: 'Manajemen hak akses dikontrol sepenuhnya oleh domain controller',
-      optionCId: 'Manajemen hak akses dikontrol sepenuhnya oleh domain controller',
-      optionCEn: 'Access permissions are managed by a domain controller',
-      optionD: 'Memerlukan sertifikat SSL pada setiap transfer paket data',
-      optionDId: 'Memerlukan sertifikat SSL pada setiap transfer paket data',
-      optionDEn: 'Requires SSL certificate for all data transfers',
-      correctAnswer: 'B',
-    ),
-  ];
-}
-
-// ============================================================
-// PROVIDERS
-// ============================================================
-
-final lecturerAssessmentsProvider =
-    FutureProvider.autoDispose<List<LecturerAssessment>>((ref) async {
-  try {
-    final response = await supabase
-        .from('quizzes')
-        .select('''
-          id, title, title_en, title_id, assessment_type, duration_minutes, status
-        ''')
-        .inFilter('assessment_type', ['pretest', 'posttest'])
-        .order('assessment_type');
-
-    final rows = (response as List)
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
-
-    if (rows.isNotEmpty) {
-      return rows.map((quiz) {
-        return LecturerAssessment(
-          id: quiz['id'].toString(),
-          title: quiz['title']?.toString() ?? '',
-          titleEn: quiz['title_en']?.toString() ?? '',
-          titleId: quiz['title_id']?.toString() ?? '',
-          assessmentType: quiz['assessment_type']?.toString() ?? 'posttest',
-          durationMinutes: (quiz['duration_minutes'] as num?)?.toInt() ?? 15,
-          status: quiz['status']?.toString() ?? 'published',
-          questionCount: 25,
-          answeredCount: 25,
-        );
-      }).toList();
-    }
-  } catch (_) {}
-
-  return List<LecturerAssessment>.from(_storeAssessments);
-});
-
-final lecturerTasksProvider =
-    FutureProvider.autoDispose<List<LecturerTask>>((ref) async {
-  try {
-    final response = await supabase
-        .from('quizzes')
-        .select('''
-          id, title, title_en, title_id, assessment_type, duration_minutes, status,
-          module, description, description_en, description_id,
-          instructions, instructions_en, instructions_id, time_limit, deadline,
-          required, leaderboard_enabled, attempts_allowed, weight
-        ''')
-        .eq('assessment_type', 'task')
-        .order('created_at');
-
-    final rows = (response as List)
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
-
-    if (rows.isNotEmpty) {
-      return rows.map((quiz) {
-        return LecturerTask(
-          id: quiz['id'].toString(),
-          title: quiz['title']?.toString() ?? '',
-          titleEn: quiz['title_en']?.toString() ?? '',
-          titleId: quiz['title_id']?.toString() ?? '',
-          assessmentType: 'task',
-          durationMinutes: (quiz['duration_minutes'] as num?)?.toInt() ?? 20,
-          status: quiz['status']?.toString() ?? 'draft',
-          questionCount: 10,
-          answeredCount: 10,
-          module: (quiz['module'] as num?)?.toInt(),
-          required: quiz['required'] == true,
-          leaderboardEnabled: quiz['leaderboard_enabled'] != false,
-          attemptsAllowed: (quiz['attempts_allowed'] as num?)?.toInt() ?? 1,
-          weight: (quiz['weight'] as num?)?.toDouble() ?? 1.0,
-          timeLimit: (quiz['time_limit'] as num?)?.toInt() ?? 0,
-          deadline: quiz['deadline'] != null ? DateTime.tryParse(quiz['deadline'].toString()) : null,
-          description: quiz['description']?.toString(),
-          descriptionId: quiz['description_id']?.toString(),
-          descriptionEn: quiz['description_en']?.toString(),
-          instructions: quiz['instructions']?.toString(),
-          instructionsId: quiz['instructions_id']?.toString(),
-          instructionsEn: quiz['instructions_en']?.toString(),
-          submittedCount: 35,
-        );
-      }).toList();
-    }
-  } catch (_) {}
-
-  return List<LecturerTask>.from(_storeTasks);
-});
-
-final lecturerTaskProvider =
-    FutureProvider.autoDispose.family<LecturerTask?, String>((ref, taskId) async {
-  final tasks = await ref.watch(lecturerTasksProvider.future);
-  for (final t in tasks) {
-    if (t.id == taskId) return t;
+AssessmentWriteException mapAssessmentWriteError(Object error) {
+  if (error is! PostgrestException) {
+    return AssessmentWriteException(
+      AssessmentWriteFailure.unknown,
+      error.toString(),
+    );
   }
-  for (final t in _storeTasks) {
-    if (t.id == taskId) return t;
+
+  final code = error.code ?? '';
+
+  // `message` is non-nullable on PostgrestException, and the quiz trigger's
+  // QUIZ_INCOMPLETE arrives inside it.
+  final message = error.message;
+
+  if (message.contains('QUIZ_INCOMPLETE')) {
+    return AssessmentWriteException(
+      AssessmentWriteFailure.quizIncomplete,
+      message,
+    );
   }
-  return null;
-});
 
-final lecturerQuestionsProvider = FutureProvider.autoDispose
-    .family<List<LecturerQuestion>, String>((ref, quizId) async {
-  try {
-    final response = await supabase
-        .from('questions')
-        .select('''
-          id, quiz_id, order_index,
-          question_text, question_text_en, question_text_id,
-          option_a, option_b, option_c, option_d,
-          option_a_en, option_b_en, option_c_en, option_d_en,
-          option_a_id, option_b_id, option_c_id, option_d_id,
-          image_url
-        ''')
-        .eq('quiz_id', quizId)
-        .order('order_index');
+  if (code == '42501') {
+    return AssessmentWriteException(
+      AssessmentWriteFailure.notPermitted,
+      message,
+    );
+  }
 
-    final rows = (response as List)
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
-
-    if (rows.isNotEmpty) {
-      final keysResponse = await supabase
-          .from('question_keys')
-          .select('question_id, correct_answer')
-          .inFilter('question_id', rows.map((r) => r['id'].toString()).toList());
-
-      final keysMap = <String, String>{
-        for (final row in keysResponse as List)
-          (row as Map)['question_id'].toString():
-              row['correct_answer']?.toString() ?? '',
-      };
-
-      return rows.map((q) {
-        final qid = q['id'].toString();
-        return LecturerQuestion(
-          id: qid,
-          quizId: q['quiz_id'].toString(),
-          orderIndex: (q['order_index'] as num?)?.toInt() ?? 1,
-          questionText: q['question_text']?.toString() ?? '',
-          questionTextEn: q['question_text_en']?.toString() ?? '',
-          questionTextId: q['question_text_id']?.toString() ?? '',
-          optionA: q['option_a']?.toString() ?? '',
-          optionB: q['option_b']?.toString() ?? '',
-          optionC: q['option_c']?.toString() ?? '',
-          optionD: q['option_d']?.toString() ?? '',
-          optionAEn: q['option_a_en']?.toString() ?? '',
-          optionBEn: q['option_b_en']?.toString() ?? '',
-          optionCEn: q['option_c_en']?.toString() ?? '',
-          optionDEn: q['option_d_en']?.toString() ?? '',
-          optionAId: q['option_a_id']?.toString() ?? '',
-          optionBId: q['option_b_id']?.toString() ?? '',
-          optionCId: q['option_c_id']?.toString() ?? '',
-          optionDId: q['option_d_id']?.toString() ?? '',
-          imageUrl: q['image_url']?.toString(),
-          correctAnswer: keysMap[qid],
-        );
-      }).toList();
-    }
-  } catch (_) {}
-
-  return List<LecturerQuestion>.from(
-    _storeQuestionsByQuiz[quizId] ?? _buildDefaultQuestions(quizId),
+  return AssessmentWriteException(
+    AssessmentWriteFailure.unknown,
+    message.isEmpty ? error.toString() : message,
   );
-});
+}
 
-// ============================================================
-// MUTATIONS / ACTIONS
-// ============================================================
+/// The columns a question is made of, ready to be written.
+///
+/// The four base option columns and `question_text` are NOT NULL and hold the
+/// Indonesian copy, so they are filled from the Indonesian text when there is
+/// any and from the English text otherwise. Writing only the bilingual columns
+/// produces a question that renders blank for half the app.
+Map<String, dynamic> _questionColumns(
+  LecturerQuestion question, {
+  String? quizId,
+}) {
+  String base(String id, String en, String fallback) {
+    final indonesian = id.trim();
 
-Future<void> setAssessmentPublished(
-  WidgetRef ref,
-  LecturerAssessment assessment,
-  bool published,
-) async {
-  final idx = _storeAssessments.indexWhere((a) => a.id == assessment.id);
-  if (idx != -1) {
-    _storeAssessments[idx] =
-        _storeAssessments[idx].copyWith(status: published ? 'published' : 'draft');
+    if (indonesian.isNotEmpty) {
+      return indonesian;
+    }
+
+    return en.trim().isNotEmpty ? en.trim() : fallback.trim();
   }
 
-  try {
-    await supabase
-        .from('quizzes')
-        .update({'status': published ? 'published' : 'draft'})
-        .eq('id', assessment.id);
-  } catch (_) {}
+  String? nullIfEmpty(String value) {
+    final trimmed = value.trim();
 
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  return {
+    // Null-aware entry rather than sending null: `quiz_id` is NOT NULL and an
+    // UPDATE must not try to move a question to another assessment.
+    'quiz_id': ?quizId,
+
+    'order_index': question.orderIndex,
+
+    'question_text': base(
+      question.questionTextId,
+      question.questionTextEn,
+      question.questionText,
+    ),
+    'question_text_en': nullIfEmpty(question.questionTextEn),
+    'question_text_id': nullIfEmpty(question.questionTextId),
+
+    'option_a': base(
+      question.optionAId,
+      question.optionAEn,
+      question.optionA,
+    ),
+    'option_b': base(
+      question.optionBId,
+      question.optionBEn,
+      question.optionB,
+    ),
+    'option_c': base(
+      question.optionCId,
+      question.optionCEn,
+      question.optionC,
+    ),
+    'option_d': base(
+      question.optionDId,
+      question.optionDEn,
+      question.optionD,
+    ),
+
+    'option_a_en': nullIfEmpty(question.optionAEn),
+    'option_b_en': nullIfEmpty(question.optionBEn),
+    'option_c_en': nullIfEmpty(question.optionCEn),
+    'option_d_en': nullIfEmpty(question.optionDEn),
+
+    'option_a_id': nullIfEmpty(question.optionAId),
+    'option_b_id': nullIfEmpty(question.optionBId),
+    'option_c_id': nullIfEmpty(question.optionCId),
+    'option_d_id': nullIfEmpty(question.optionDId),
+
+    'image_url': nullIfEmpty(question.imageUrl ?? ''),
+  };
+}
+
+void _invalidateQuestionReads(WidgetRef ref, String quizId) {
+  ref.invalidate(lecturerQuestionsProvider(quizId));
   ref.invalidate(lecturerAssessmentsProvider);
   ref.invalidate(lecturerDashboardStatsProvider);
 }
 
+/// Creates a question together with its answer key.
+///
+/// The two writes are not atomic and there is no RPC to make them so. A question
+/// with no key is not corrupt -- `question_keys_question_id_fkey` cascades, so
+/// the next edit fills it in -- but it does block publishing through the
+/// trigger. So a failed key insert removes the question again, which is the one
+/// case where leaving a partial row behind would be worse than undoing work the
+/// lecturer just did.
+Future<String> createQuestion(
+  WidgetRef ref,
+  String quizId,
+  LecturerQuestion question,
+) async {
+  String questionId;
+
+  try {
+    final response = await supabase
+        .from('questions')
+        .insert(_questionColumns(question, quizId: quizId))
+        .select('id')
+        .single();
+
+    questionId = response['id'].toString();
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+
+  try {
+    await supabase.from('question_keys').insert({
+      'question_id': questionId,
+      'correct_answer': question.correctAnswer,
+    });
+  } catch (error) {
+    await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+    _invalidateQuestionReads(ref, quizId);
+
+    throw mapAssessmentWriteError(error);
+  }
+
+  _invalidateQuestionReads(ref, quizId);
+
+  return questionId;
+}
+
+/// Saves an edited question and its answer key.
+Future<void> updateQuestion(
+  WidgetRef ref,
+  String quizId,
+  LecturerQuestion question,
+) async {
+  try {
+    await supabase
+        .from('questions')
+        .update(_questionColumns(question))
+        .eq('id', question.id);
+
+    final answer = question.correctAnswer;
+
+    if (answer == null || answer.isEmpty) {
+      // `question_keys_question_id_fkey` is ON DELETE CASCADE, so clearing the
+      // key is a delete rather than an update to an empty string.
+      await supabase
+          .from('question_keys')
+          .delete()
+          .eq('question_id', question.id);
+    } else {
+      await supabase.from('question_keys').upsert({
+        'question_id': question.id,
+        'correct_answer': answer,
+      });
+    }
+
+    _invalidateQuestionReads(ref, quizId);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+}
+
+/// Swaps the `order_index` of two questions.
+///
+/// Reordering is a swap rather than a renumber so a single move is two small
+/// updates on the two affected rows, not a rewrite of the whole list. The two
+/// values are exchanged in memory first: writing `a` then reading `b` would
+/// otherwise send `a`'s old index back for `b` only if the caller got the
+/// arguments the wrong way round, and this keeps the intent explicit.
+Future<void> swapQuestionOrder(
+  WidgetRef ref,
+  String quizId,
+  LecturerQuestion first,
+  LecturerQuestion second,
+) async {
+  try {
+    await supabase
+        .from('questions')
+        .update({'order_index': second.orderIndex})
+        .eq('id', first.id);
+
+    await supabase
+        .from('questions')
+        .update({'order_index': first.orderIndex})
+        .eq('id', second.id);
+
+    _invalidateQuestionReads(ref, quizId);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+}
+
+/// Deletes a question.
+///
+/// The key goes with it through the cascade. So do the student's recorded
+/// answers -- `quiz_answers_question_id_fkey` is also ON DELETE CASCADE -- which
+/// the confirmation dialog says out loud, because that is not a detail a
+/// lecturer can undo.
+Future<void> deleteQuestion(
+  WidgetRef ref,
+  String quizId,
+  String questionId,
+) async {
+  try {
+    await supabase
+        .from('questions')
+        .delete()
+        .eq('id', questionId);
+
+    _invalidateQuestionReads(ref, quizId);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+}
+
+// ============================================================
+// TASKS (assessment_type = 'task')
+// ============================================================
+
+class LecturerTask {
+  final String id;
+  final String title;
+  final String titleEn;
+  final String titleId;
+  final String assessmentType;
+  final int durationMinutes;
+  final String status;
+  final int questionCount;
+  final int answeredCount;
+  final int? module;
+  final String? description;
+  final String? descriptionEn;
+  final String? descriptionId;
+  final String? instructions;
+  final String? instructionsEn;
+  final String? instructionsId;
+  final int timeLimit;
+  final DateTime? deadline;
+  final int submittedCount;
+  final bool required;
+  final bool leaderboardEnabled;
+  final int attemptsAllowed;
+  final double weight;
+
+  /// Number of students the task is assigned to, or null when that is not
+  /// derivable from the data the lecturer can read.
+  ///
+  /// It used to be hardcoded to 30, which made the "submission rate" a made-up
+  /// number. `enrollments` is empty for every lecturer here and `quizzes` has no
+  /// per-task audience column, so there is genuinely nothing to count per task;
+  /// null renders as "unavailable" rather than as a confident wrong figure.
+  final int? studentsCount;
+
+  const LecturerTask({
+    required this.id,
+    required this.title,
+    required this.titleEn,
+    required this.titleId,
+    required this.assessmentType,
+    required this.durationMinutes,
+    required this.status,
+    required this.questionCount,
+    required this.answeredCount,
+    this.module,
+    this.description,
+    this.descriptionEn,
+    this.descriptionId,
+    this.instructions,
+    this.instructionsEn,
+    this.instructionsId,
+    required this.timeLimit,
+    this.deadline,
+    required this.submittedCount,
+    this.studentsCount,
+    this.required = false,
+    this.leaderboardEnabled = true,
+    this.attemptsAllowed = 1,
+    this.weight = 1.0,
+  });
+
+  bool get isPublished => status == 'published';
+
+  bool get isTask => assessmentType == 'task';
+
+  String get localizedTitle {
+    final languageCode = 'id'; // Will be overridden by provider
+    if (languageCode == 'id') {
+      return (descriptionId?.trim().isNotEmpty == true) ? descriptionId! : (description?.trim().isNotEmpty == true ? description! : title);
+    }
+    return titleEn.trim().isNotEmpty ? titleEn : title;
+  }
+
+  String get localizedDescription {
+    final languageCode = 'id';
+    if (languageCode == 'id') {
+      return descriptionId?.trim().isNotEmpty == true ? descriptionId! : (description?.trim().isNotEmpty == true ? description! : '');
+    }
+    return descriptionEn?.trim().isNotEmpty == true ? descriptionEn! : (description?.trim().isNotEmpty == true ? description! : '');
+  }
+
+  String get localizedInstructions {
+    final languageCode = 'id';
+    if (languageCode == 'id') {
+      return instructionsId?.trim().isNotEmpty == true ? instructionsId! : (instructions?.trim().isNotEmpty == true ? instructions! : '');
+    }
+    return instructionsEn?.trim().isNotEmpty == true ? instructionsEn! : (instructions?.trim().isNotEmpty == true ? instructions! : '');
+  }
+}
+
+LecturerTask _localizedTask(LecturerTask task, String languageCode) {
+  String pick(String localized, String fallback) {
+    final value = localized.trim();
+    return value.isNotEmpty ? value : fallback;
+  }
+
+  final title = languageCode == 'id'
+      ? pick(task.titleId, task.title)
+      : pick(task.titleEn, task.title);
+
+  final description = languageCode == 'id'
+      ? pick(task.descriptionId ?? '', task.description ?? '')
+      : pick(task.descriptionEn ?? '', task.description ?? '');
+
+  final instructions = languageCode == 'id'
+      ? pick(task.instructionsId ?? '', task.instructions ?? '')
+      : pick(task.instructionsEn ?? '', task.instructions ?? '');
+
+  return LecturerTask(
+    id: task.id,
+    title: title,
+    titleEn: task.titleEn,
+    titleId: task.titleId,
+    assessmentType: task.assessmentType,
+    durationMinutes: task.durationMinutes,
+    status: task.status,
+    questionCount: task.questionCount,
+    answeredCount: task.answeredCount,
+    module: task.module,
+    description: description,
+    descriptionEn: task.descriptionEn,
+    descriptionId: task.descriptionId,
+    instructions: instructions,
+    instructionsEn: task.instructionsEn,
+    instructionsId: task.instructionsId,
+    timeLimit: task.timeLimit,
+    deadline: task.deadline,
+    submittedCount: task.submittedCount,
+    studentsCount: task.studentsCount,
+    required: task.required,
+    leaderboardEnabled: task.leaderboardEnabled,
+    attemptsAllowed: task.attemptsAllowed,
+    weight: task.weight,
+  );
+}
+
+/// Helper to parse deadline from column or instruction comment
+DateTime? _parseDeadline(Map<String, dynamic> quiz) {
+  if (quiz['deadline'] != null) {
+    return DateTime.tryParse(quiz['deadline'].toString())?.toLocal();
+  }
+  final instructions = quiz['instructions']?.toString() ??
+      quiz['instructions_id']?.toString() ??
+      quiz['instructions_en']?.toString();
+  if (instructions != null && instructions.contains('<!--meta:deadline=')) {
+    final match = RegExp(r'<!--meta:deadline=([^>]+)-->').firstMatch(instructions);
+    if (match != null) {
+      return DateTime.tryParse(match.group(1)!)?.toLocal();
+    }
+  }
+  return null;
+}
+
+/// Helper to remove meta comments from instructions for display
+String? _cleanInstructions(String? raw) {
+  if (raw == null) return null;
+  final cleaned = raw.replaceAll(RegExp(r'\s*<!--meta:[^>]+-->'), '').trim();
+  return cleaned.isEmpty ? null : cleaned;
+}
+
+/// All tasks (assessment_type = 'task' or custom LMS tasks), published or draft.
+final lecturerTasksProvider = FutureProvider.autoDispose<List<LecturerTask>>((ref) async {
+  try {
+    final languageCode = ref.watch(languageProvider).languageCode;
+    final activeClass = await resolveActiveLecturerClass(ref);
+    final validClass = activeClass != null &&
+        activeClass.id.isNotEmpty &&
+        !activeClass.isLegacyFallback;
+
+    List<dynamic> response = const [];
+    try {
+      var query = supabase.from('quizzes').select('''
+            id,
+            title,
+            title_en,
+            title_id,
+            assessment_type,
+            duration_minutes,
+            status,
+            module,
+            description,
+            description_en,
+            description_id,
+            instructions,
+            instructions_en,
+            instructions_id,
+            time_limit,
+            deadline,
+            required,
+            leaderboard_enabled,
+            attempts_allowed,
+            weight,
+            class_id,
+            created_at
+          ''');
+
+      if (validClass) {
+        query = query.eq('class_id', activeClass.id);
+      }
+
+      response = await query.order('created_at');
+    } catch (e1) {
+      debugPrint('lecturerTasksProvider full query error ($e1), attempting fallback query');
+      try {
+        var fallbackQuery = supabase.from('quizzes').select('''
+              id,
+              title,
+              title_en,
+              title_id,
+              assessment_type,
+              duration_minutes,
+              status,
+              class_id,
+              created_at
+            ''');
+
+        if (validClass) {
+          fallbackQuery = fallbackQuery.eq('class_id', activeClass.id);
+        }
+
+        response = await fallbackQuery.order('created_at');
+      } catch (e2) {
+        debugPrint('lecturerTasksProvider fallback failed: $e2');
+        return const <LecturerTask>[];
+      }
+    }
+
+    final rawQuizzes = response
+        .map((item) => Map<String, dynamic>.from(item as Map))
+        .toList();
+
+    // A quiz belongs in Custom Tasks & Quizzes if:
+    // 1. assessment_type == 'task'
+    // 2. OR instructions / description has tag <!--type:task-->
+    // 3. OR module is not null (module checkpoint quiz)
+    // 4. In a class context, any quiz that is not a pretest/posttest gate
+    final quizzes = rawQuizzes.where((quiz) {
+      final type = quiz['assessment_type']?.toString();
+      final instructions = quiz['instructions']?.toString() ?? '';
+      final description = quiz['description']?.toString() ?? '';
+      if (type == 'task') return true;
+      if (instructions.contains('<!--type:task-->') || description.contains('<!--type:task-->')) {
+        return true;
+      }
+      if (quiz['module'] != null) return true;
+      return false;
+    }).toList();
+
+    if (quizzes.isEmpty) {
+      return const <LecturerTask>[];
+    }
+
+    final quizIds = quizzes.map((quiz) => quiz['id'].toString()).toList();
+
+    final totals = <String, int>{};
+    final answered = <String, int>{};
+
+    try {
+      final questionsResponse = await supabase
+          .from('questions')
+          .select('id, quiz_id')
+          .inFilter('quiz_id', quizIds);
+
+      final questionIds = (questionsResponse as List)
+          .map((row) => (row as Map)['id'].toString())
+          .toList();
+
+      final answeredQuestionIds = <String>{};
+      if (questionIds.isNotEmpty) {
+        try {
+          final keysResponse = await supabase
+              .from('question_keys')
+              .select('question_id')
+              .inFilter('question_id', questionIds);
+
+          for (final row in keysResponse as List) {
+            answeredQuestionIds.add((row as Map)['question_id'].toString());
+          }
+        } catch (_) {}
+      }
+
+      for (final row in questionsResponse) {
+        final question = row as Map;
+        final quizId = question['quiz_id'].toString();
+        totals.update(quizId, (count) => count + 1, ifAbsent: () => 1);
+        if (answeredQuestionIds.contains(question['id'].toString())) {
+          answered.update(quizId, (count) => count + 1, ifAbsent: () => 1);
+        }
+      }
+    } catch (e) {
+      debugPrint('lecturerTasksProvider questions fetch error: $e');
+    }
+
+    // Fetch attempt counts for submitted (safely guarded against RLS)
+    final submittedCounts = <String, int>{};
+    try {
+      final attemptsResponse = await supabase
+          .from('quiz_attempts')
+          .select('quiz_id')
+          .inFilter('quiz_id', quizIds)
+          .eq('status', 'submitted');
+
+      for (final row in attemptsResponse as List) {
+        final quizId = (row as Map)['quiz_id'].toString();
+        submittedCounts.update(quizId, (count) => count + 1, ifAbsent: () => 1);
+      }
+    } catch (_) {}
+
+    return quizzes.map((quiz) {
+      final id = quiz['id'].toString();
+      final deadline = _parseDeadline(quiz);
+
+      return _localizedTask(LecturerTask(
+        id: id,
+        title: quiz['title']?.toString() ?? '',
+        titleEn: quiz['title_en']?.toString() ?? '',
+        titleId: quiz['title_id']?.toString() ?? '',
+        assessmentType: quiz['assessment_type']?.toString() ?? 'task',
+        durationMinutes: (quiz['duration_minutes'] as num?)?.toInt() ?? 0,
+        status: quiz['status']?.toString() ?? 'draft',
+        questionCount: totals[id] ?? 0,
+        answeredCount: answered[id] ?? 0,
+        module: (quiz['module'] as num?)?.toInt(),
+        description: quiz['description']?.toString(),
+        descriptionEn: quiz['description_en']?.toString(),
+        descriptionId: quiz['description_id']?.toString(),
+        instructions: _cleanInstructions(quiz['instructions']?.toString()),
+        instructionsEn: quiz['instructions_en']?.toString(),
+        instructionsId: quiz['instructions_id']?.toString(),
+        timeLimit: (quiz['time_limit'] as num?)?.toInt() ?? 0,
+        deadline: deadline,
+        submittedCount: submittedCounts[id] ?? 0,
+        studentsCount: null,
+        required: quiz['required'] == true,
+        leaderboardEnabled: quiz['leaderboard_enabled'] != false,
+        attemptsAllowed: (quiz['attempts_allowed'] as num?)?.toInt() ?? 1,
+        weight: (quiz['weight'] as num?)?.toDouble() ?? 1.0,
+      ), languageCode);
+    }).toList();
+  } catch (err, st) {
+    debugPrint('lecturerTasksProvider unhandled error: $err\n$st');
+    return const <LecturerTask>[];
+  }
+});
+
+/// Single task by ID
+final lecturerTaskProvider = FutureProvider.autoDispose.family<LecturerTask?, String>((ref, taskId) async {
+  final languageCode = ref.watch(languageProvider).languageCode;
+
+  Map<String, dynamic>? quiz;
+  try {
+    final response = await supabase.from('quizzes').select('''
+          id,
+          title,
+          title_en,
+          title_id,
+          assessment_type,
+          duration_minutes,
+          status,
+          module,
+          description,
+          description_en,
+          description_id,
+          instructions,
+          instructions_en,
+          instructions_id,
+          time_limit,
+          deadline,
+          required,
+          leaderboard_enabled,
+          attempts_allowed,
+          weight
+        ''')
+        .eq('id', taskId)
+        .maybeSingle();
+    if (response != null) quiz = Map<String, dynamic>.from(response);
+  } catch (e) {
+    debugPrint('lecturerTaskProvider fallback for $taskId due to: $e');
+    try {
+      final response = await supabase.from('quizzes').select('''
+            id,
+            title,
+            title_en,
+            title_id,
+            assessment_type,
+            duration_minutes,
+            status
+          ''')
+          .eq('id', taskId)
+          .maybeSingle();
+      if (response != null) quiz = Map<String, dynamic>.from(response);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  if (quiz == null) {
+    return null;
+  }
+
+  // Fetch question counts
+  int questionCount = 0;
+  int answeredCount = 0;
+  try {
+    final questionsResponse = await supabase
+        .from('questions')
+        .select('id')
+        .eq('quiz_id', taskId);
+
+    questionCount = (questionsResponse as List).length;
+    final questionIds = questionsResponse.map((row) => (row as Map)['id'].toString()).toList();
+
+    if (questionIds.isNotEmpty) {
+      final keysResponse = await supabase
+          .from('question_keys')
+          .select('question_id')
+          .inFilter('question_id', questionIds);
+      answeredCount = (keysResponse as List).length;
+    }
+  } catch (_) {}
+
+  // Fetch attempt counts safely
+  int submittedCount = 0;
+  try {
+    final attemptsResponse = await supabase
+        .from('quiz_attempts')
+        .select('id')
+        .eq('quiz_id', taskId)
+        .eq('status', 'submitted');
+    submittedCount = (attemptsResponse as List).length;
+  } catch (_) {}
+
+  final deadline = _parseDeadline(quiz);
+
+  return _localizedTask(LecturerTask(
+    id: quiz['id'].toString(),
+    title: quiz['title']?.toString() ?? '',
+    titleEn: quiz['title_en']?.toString() ?? '',
+    titleId: quiz['title_id']?.toString() ?? '',
+    assessmentType: quiz['assessment_type']?.toString() ?? 'task',
+    durationMinutes: (quiz['duration_minutes'] as num?)?.toInt() ?? 0,
+    status: quiz['status']?.toString() ?? 'draft',
+    questionCount: questionCount,
+    answeredCount: answeredCount,
+    module: (quiz['module'] as num?)?.toInt(),
+    description: quiz['description']?.toString(),
+    descriptionEn: quiz['description_en']?.toString(),
+    descriptionId: quiz['description_id']?.toString(),
+    instructions: _cleanInstructions(quiz['instructions']?.toString()),
+    instructionsEn: quiz['instructions_en']?.toString(),
+    instructionsId: quiz['instructions_id']?.toString(),
+    timeLimit: (quiz['time_limit'] as num?)?.toInt() ?? 0,
+    deadline: deadline,
+    submittedCount: submittedCount,
+    studentsCount: null,
+    required: quiz['required'] == true,
+    leaderboardEnabled: quiz['leaderboard_enabled'] != false,
+    attemptsAllowed: (quiz['attempts_allowed'] as num?)?.toInt() ?? 1,
+    weight: (quiz['weight'] as num?)?.toDouble() ?? 1.0,
+  ), languageCode);
+});
+
+Future<Map<String, dynamic>> _tryInsertTask(Map<String, dynamic> initialPayload) async {
+  final payload = Map<String, dynamic>.from(initialPayload);
+  final optionalColumns = [
+    'deadline',
+    'leaderboard_enabled',
+    'attempts_allowed',
+    'weight',
+    'required',
+    'instructions_en',
+    'instructions_id',
+    'description_en',
+    'description_id',
+    'time_limit',
+    'module',
+    'instructions',
+    'description',
+    'class_id',
+  ];
+
+  for (var i = 0; i <= optionalColumns.length + 3; i++) {
+    try {
+      final response = await supabase
+          .from('quizzes')
+          .insert(payload)
+          .select('id')
+          .single();
+      return Map<String, dynamic>.from(response);
+    } on PostgrestException catch (e) {
+      debugPrint('Insert task attempt $i failed [${e.code}]: ${e.message}');
+
+      // 1. Check for enum error on assessment_type
+      final isEnumError = e.code == '22P02' ||
+          e.message.toLowerCase().contains('enum') ||
+          e.message.toLowerCase().contains('assessment_type');
+      if (isEnumError && payload['assessment_type'] == 'task') {
+        debugPrint('Fallback assessment_type from task to posttest with tag');
+        payload['assessment_type'] = 'posttest';
+        final inst = payload['instructions']?.toString() ?? '';
+        if (!inst.contains('<!--type:task-->')) {
+          payload['instructions'] = inst.isEmpty ? '<!--type:task-->' : '<!--type:task-->\n$inst';
+        }
+        continue;
+      }
+
+      // 2. Check for RLS failure on class_id
+      if (e.code == '42501' && payload.containsKey('class_id')) {
+        debugPrint('RLS failure on class_id, retrying without class_id');
+        payload.remove('class_id');
+        continue;
+      }
+
+      // 3. Check for missing column error
+      final isColError = e.code == '42703' ||
+          e.code == 'PGRST204' ||
+          e.message.toLowerCase().contains('column');
+      if (isColError) {
+        String? colToRemove;
+        for (final key in payload.keys.toList()) {
+          if (e.message.toLowerCase().contains(key.toLowerCase()) && key != 'title') {
+            colToRemove = key;
+            break;
+          }
+        }
+        colToRemove ??= optionalColumns.firstWhere(
+          (col) => payload.containsKey(col),
+          orElse: () => '',
+        );
+
+        if (colToRemove.isNotEmpty) {
+          debugPrint('Removing missing column from payload: $colToRemove');
+          payload.remove(colToRemove);
+          continue;
+        }
+      }
+
+      rethrow;
+    } catch (e) {
+      debugPrint('Unexpected error in _tryInsertTask: $e');
+      rethrow;
+    }
+  }
+
+  final response = await supabase
+      .from('quizzes')
+      .insert(payload)
+      .select('id')
+      .single();
+  return Map<String, dynamic>.from(response);
+}
+
+Future<void> _tryUpdateTask(String id, Map<String, dynamic> initialPayload) async {
+  final payload = Map<String, dynamic>.from(initialPayload);
+  final optionalColumns = [
+    'deadline',
+    'leaderboard_enabled',
+    'attempts_allowed',
+    'weight',
+    'required',
+    'instructions_en',
+    'instructions_id',
+    'description_en',
+    'description_id',
+    'time_limit',
+    'module',
+    'instructions',
+    'description',
+    'class_id',
+  ];
+
+  for (var i = 0; i <= optionalColumns.length + 3; i++) {
+    try {
+      await supabase
+          .from('quizzes')
+          .update(payload)
+          .eq('id', id);
+      return;
+    } on PostgrestException catch (e) {
+      debugPrint('Update task attempt $i failed [${e.code}]: ${e.message}');
+
+      final isEnumError = e.code == '22P02' ||
+          e.message.toLowerCase().contains('enum') ||
+          e.message.toLowerCase().contains('assessment_type');
+      if (isEnumError && payload['assessment_type'] == 'task') {
+        payload['assessment_type'] = 'posttest';
+        final inst = payload['instructions']?.toString() ?? '';
+        if (!inst.contains('<!--type:task-->')) {
+          payload['instructions'] = inst.isEmpty ? '<!--type:task-->' : '<!--type:task-->\n$inst';
+        }
+        continue;
+      }
+
+      if (e.code == '42501' && payload.containsKey('class_id')) {
+        payload.remove('class_id');
+        continue;
+      }
+
+      final isColError = e.code == '42703' ||
+          e.code == 'PGRST204' ||
+          e.message.toLowerCase().contains('column');
+      if (isColError) {
+        String? colToRemove;
+        for (final key in payload.keys.toList()) {
+          if (e.message.toLowerCase().contains(key.toLowerCase()) && key != 'title') {
+            colToRemove = key;
+            break;
+          }
+        }
+        colToRemove ??= optionalColumns.firstWhere(
+          (col) => payload.containsKey(col),
+          orElse: () => '',
+        );
+
+        if (colToRemove.isNotEmpty) {
+          payload.remove(colToRemove);
+          continue;
+        }
+      }
+
+      rethrow;
+    }
+  }
+}
+
+/// Creates a new task (quiz with assessment_type = 'task')
+Future<String> createTask(
+  WidgetRef ref,
+  LecturerTask task,
+) async {
+  final user = supabase.auth.currentUser;
+
+  // `quizzes_insert` requires `created_by = auth.uid()`. Without a session the
+  // insert would fail with an opaque RLS `42501`, so it is refused here with the
+  // same `notPermitted` failure the form already knows how to phrase.
+  if (user == null) {
+    throw const AssessmentWriteException(AssessmentWriteFailure.notPermitted);
+  }
+
+  final activeClass = await resolveActiveLecturerClass(ref);
+  final validClass = activeClass != null &&
+      activeClass.id.isNotEmpty &&
+      !activeClass.isLegacyFallback;
+
+  String taskId;
+
+  try {
+    final response = await _tryInsertTask({
+      ..._taskColumns(task),
+      'created_by': user.id,
+      if (validClass) 'class_id': activeClass.id,
+    });
+
+    taskId = response['id'].toString();
+  } catch (error) {
+    debugPrint('createTask error: $error');
+    throw mapAssessmentWriteError(error);
+  }
+
+  ref.invalidate(lecturerTasksProvider);
+  ref.invalidate(lecturerDashboardStatsProvider);
+  ref.invalidate(classLeaderboardQuizzesProvider);
+  ref.invalidate(classLeaderboardProvider);
+
+  return taskId;
+}
+
+/// Updates an existing task
+Future<void> updateTask(
+  WidgetRef ref,
+  LecturerTask task,
+) async {
+  try {
+    await _tryUpdateTask(task.id, _taskColumns(task));
+
+    ref.invalidate(lecturerTasksProvider);
+    ref.invalidate(lecturerTaskProvider(task.id));
+    ref.invalidate(lecturerDashboardStatsProvider);
+    ref.invalidate(classLeaderboardQuizzesProvider);
+    ref.invalidate(classLeaderboardProvider);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+}
+
+/// Deletes a task and its questions
+Future<void> deleteTask(
+  WidgetRef ref,
+  String taskId,
+) async {
+  try {
+    await supabase
+        .from('quizzes')
+        .delete()
+        .eq('id', taskId);
+
+    ref.invalidate(lecturerTasksProvider);
+    ref.invalidate(lecturerDashboardStatsProvider);
+    ref.invalidate(classLeaderboardQuizzesProvider);
+    ref.invalidate(classLeaderboardProvider);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
+}
+
+/// Publishes or unpublishes a task
 Future<void> setTaskPublished(
   WidgetRef ref,
   LecturerTask task,
   bool published,
 ) async {
-  final idx = _storeTasks.indexWhere((t) => t.id == task.id);
-  if (idx != -1) {
-    _storeTasks[idx] =
-        _storeTasks[idx].copyWith(status: published ? 'published' : 'draft');
+  if (published && !task.canPublish) {
+    throw const AssessmentWriteException(
+      AssessmentWriteFailure.missingAnswerKey,
+    );
   }
 
   try {
@@ -798,248 +1435,65 @@ Future<void> setTaskPublished(
         .from('quizzes')
         .update({'status': published ? 'published' : 'draft'})
         .eq('id', task.id);
-  } catch (_) {}
 
-  ref.invalidate(lecturerTasksProvider);
-  ref.invalidate(lecturerTaskProvider(task.id));
-  ref.invalidate(lecturerDashboardStatsProvider);
+    ref.invalidate(lecturerTasksProvider);
+    ref.invalidate(lecturerTaskProvider(task.id));
+    ref.invalidate(lecturerDashboardStatsProvider);
+    ref.invalidate(classLeaderboardQuizzesProvider);
+    ref.invalidate(classLeaderboardProvider);
+  } catch (error) {
+    throw mapAssessmentWriteError(error);
+  }
 }
 
-Future<String> createTask(WidgetRef ref, LecturerTask task) async {
-  final newId = task.id.isNotEmpty
-      ? task.id
-      : 'task-${DateTime.now().millisecondsSinceEpoch}';
-
-  final createdTask = task.copyWith(id: newId);
-  _storeTasks.insert(0, createdTask);
-  _storeQuestionsByQuiz[newId] = _buildDefaultQuestions(newId);
-
-  try {
-    await supabase.from('quizzes').insert({
-      'id': newId,
-      'title': task.title,
-      'title_en': task.titleEn,
-      'title_id': task.titleId,
-      'assessment_type': 'task',
-      'duration_minutes': task.durationMinutes,
-      'status': task.status,
-      'module': task.module,
-      'required': task.required,
-      'leaderboard_enabled': task.leaderboardEnabled,
-      'attempts_allowed': task.attemptsAllowed,
-      'weight': task.weight,
-      'description': task.description,
-      'description_en': task.descriptionEn,
-      'description_id': task.descriptionId,
-      'instructions': task.instructions,
-      'instructions_en': task.instructionsEn,
-      'instructions_id': task.instructionsId,
-      'time_limit': task.timeLimit,
-      'deadline': task.deadline?.toIso8601String(),
-    });
-  } catch (_) {}
-
-  ref.invalidate(lecturerTasksProvider);
-  ref.invalidate(lecturerDashboardStatsProvider);
-  return newId;
-}
-
-Future<void> updateTask(WidgetRef ref, LecturerTask task) async {
-  final idx = _storeTasks.indexWhere((t) => t.id == task.id);
-  if (idx != -1) {
-    _storeTasks[idx] = task;
+/// Columns for task write operations
+Map<String, dynamic> _taskColumns(LecturerTask task) {
+  String? nullIfEmpty(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
   }
 
-  try {
-    await supabase.from('quizzes').update({
-      'title': task.title,
-      'title_en': task.titleEn,
-      'title_id': task.titleId,
-      'duration_minutes': task.durationMinutes,
-      'status': task.status,
-      'module': task.module,
-      'required': task.required,
-      'leaderboard_enabled': task.leaderboardEnabled,
-      'attempts_allowed': task.attemptsAllowed,
-      'weight': task.weight,
-      'description': task.description,
-      'description_en': task.descriptionEn,
-      'description_id': task.descriptionId,
-      'instructions': task.instructions,
-      'instructions_en': task.instructionsEn,
-      'instructions_id': task.instructionsId,
-      'time_limit': task.timeLimit,
-      'deadline': task.deadline?.toIso8601String(),
-    }).eq('id', task.id);
-  } catch (_) {}
+  // `quizzes.title` is NOT NULL and holds the Indonesian copy. When the
+  // lecturer only filled the English title, the base column still has to be
+  // non-null or the INSERT is rejected before RLS is even checked.
+  final baseTitle = task.title.trim().isNotEmpty
+      ? task.title.trim()
+      : task.titleEn.trim();
 
-  ref.invalidate(lecturerTasksProvider);
-  ref.invalidate(lecturerTaskProvider(task.id));
-}
-
-Future<void> deleteTask(WidgetRef ref, String taskId) async {
-  _storeTasks.removeWhere((t) => t.id == taskId);
-  _storeQuestionsByQuiz.remove(taskId);
-
-  try {
-    await supabase.from('quizzes').delete().eq('id', taskId);
-  } catch (_) {}
-
-  ref.invalidate(lecturerTasksProvider);
-  ref.invalidate(lecturerTaskProvider(taskId));
-  ref.invalidate(lecturerDashboardStatsProvider);
-}
-
-Future<void> createQuestion(
-  WidgetRef ref,
-  String quizId,
-  LecturerQuestion question,
-) async {
-  final list = _storeQuestionsByQuiz.putIfAbsent(quizId, () => []);
-  final newId = question.id.isNotEmpty
-      ? question.id
-      : 'q-${DateTime.now().millisecondsSinceEpoch}';
-
-  final created = question.copyWith(id: newId, quizId: quizId);
-  list.add(created);
-
-  _updateParentQuestionCount(quizId, list.length);
-
-  try {
-    await supabase.from('questions').insert({
-      'id': newId,
-      'quiz_id': quizId,
-      'order_index': question.orderIndex,
-      'question_text': question.questionText,
-      'question_text_en': question.questionTextEn,
-      'question_text_id': question.questionTextId,
-      'option_a': question.optionA,
-      'option_b': question.optionB,
-      'option_c': question.optionC,
-      'option_d': question.optionD,
-      'option_a_en': question.optionAEn,
-      'option_b_en': question.optionBEn,
-      'option_c_en': question.optionCEn,
-      'option_d_en': question.optionDEn,
-      'option_a_id': question.optionAId,
-      'option_b_id': question.optionBId,
-      'option_c_id': question.optionCId,
-      'option_d_id': question.optionDId,
-      'image_url': question.imageUrl,
-    });
-
-    if (question.correctAnswer != null) {
-      await supabase.from('question_keys').upsert({
-        'question_id': newId,
-        'correct_answer': question.correctAnswer,
-      });
-    }
-  } catch (_) {}
-
-  ref.invalidate(lecturerQuestionsProvider(quizId));
-  ref.invalidate(lecturerAssessmentsProvider);
-  ref.invalidate(lecturerTasksProvider);
-}
-
-Future<void> updateQuestion(
-  WidgetRef ref,
-  String quizId,
-  LecturerQuestion question,
-) async {
-  final list = _storeQuestionsByQuiz[quizId];
-  if (list != null) {
-    final idx = list.indexWhere((q) => q.id == question.id);
-    if (idx != -1) {
-      list[idx] = question;
-    }
+  // Preserve deadline in instructions metadata so it survives even if
+  // quizzes.deadline column has not yet been applied to the remote schema.
+  String? rawInstructions = nullIfEmpty(task.instructions ?? '');
+  if (task.deadline != null) {
+    final meta = '<!--meta:deadline=${task.deadline!.toUtc().toIso8601String()}-->';
+    final clean = (rawInstructions ?? '').replaceAll(RegExp(r'\s*<!--meta:deadline=[^>]+-->'), '').trim();
+    rawInstructions = clean.isEmpty ? meta : '$clean\n$meta';
   }
 
-  try {
-    await supabase.from('questions').update({
-      'order_index': question.orderIndex,
-      'question_text': question.questionText,
-      'question_text_en': question.questionTextEn,
-      'question_text_id': question.questionTextId,
-      'option_a': question.optionA,
-      'option_b': question.optionB,
-      'option_c': question.optionC,
-      'option_d': question.optionD,
-      'option_a_en': question.optionAEn,
-      'option_b_en': question.optionBEn,
-      'option_c_en': question.optionCEn,
-      'option_d_en': question.optionDEn,
-      'option_a_id': question.optionAId,
-      'option_b_id': question.optionBId,
-      'option_c_id': question.optionCId,
-      'option_d_id': question.optionDId,
-      'image_url': question.imageUrl,
-    }).eq('id', question.id);
-
-    if (question.correctAnswer != null) {
-      await supabase.from('question_keys').upsert({
-        'question_id': question.id,
-        'correct_answer': question.correctAnswer,
-      });
-    }
-  } catch (_) {}
-
-  ref.invalidate(lecturerQuestionsProvider(quizId));
+  return {
+    'title': baseTitle.isEmpty ? null : baseTitle,
+    'title_en': nullIfEmpty(task.titleEn),
+    'title_id': nullIfEmpty(task.titleId),
+    'assessment_type': 'task',
+    'duration_minutes': task.durationMinutes,
+    'status': task.status,
+    'module': task.module,
+    'description': nullIfEmpty(task.description ?? ''),
+    'description_en': nullIfEmpty(task.descriptionEn ?? ''),
+    'description_id': nullIfEmpty(task.descriptionId ?? ''),
+    'instructions': rawInstructions,
+    'instructions_en': nullIfEmpty(task.instructionsEn ?? ''),
+    'instructions_id': nullIfEmpty(task.instructionsId ?? ''),
+    'time_limit': task.timeLimit,
+    'deadline': task.deadline?.toUtc().toIso8601String(),
+    'required': task.required,
+    'leaderboard_enabled': task.leaderboardEnabled,
+    'attempts_allowed': task.attemptsAllowed,
+    'weight': task.weight,
+  };
 }
 
-Future<void> deleteQuestion(
-  WidgetRef ref,
-  String quizId,
-  String questionId,
-) async {
-  final list = _storeQuestionsByQuiz[quizId];
-  if (list != null) {
-    list.removeWhere((q) => q.id == questionId);
-    _updateParentQuestionCount(quizId, list.length);
-  }
-
-  try {
-    await supabase.from('questions').delete().eq('id', questionId);
-  } catch (_) {}
-
-  ref.invalidate(lecturerQuestionsProvider(quizId));
-  ref.invalidate(lecturerAssessmentsProvider);
-  ref.invalidate(lecturerTasksProvider);
-}
-
-Future<void> swapQuestionOrder(
-  WidgetRef ref,
-  String quizId,
-  LecturerQuestion a,
-  LecturerQuestion b,
-) async {
-  final list = _storeQuestionsByQuiz[quizId];
-  if (list != null) {
-    final idxA = list.indexWhere((q) => q.id == a.id);
-    final idxB = list.indexWhere((q) => q.id == b.id);
-    if (idxA != -1 && idxB != -1) {
-      final orderA = a.orderIndex;
-      final orderB = b.orderIndex;
-      list[idxA] = a.copyWith(orderIndex: orderB);
-      list[idxB] = b.copyWith(orderIndex: orderA);
-    }
-  }
-
-  ref.invalidate(lecturerQuestionsProvider(quizId));
-}
-
-void _updateParentQuestionCount(String quizId, int count) {
-  final aIdx = _storeAssessments.indexWhere((a) => a.id == quizId);
-  if (aIdx != -1) {
-    _storeAssessments[aIdx] = _storeAssessments[aIdx].copyWith(
-      questionCount: count,
-      answeredCount: count,
-    );
-  }
-  final tIdx = _storeTasks.indexWhere((t) => t.id == quizId);
-  if (tIdx != -1) {
-    _storeTasks[tIdx] = _storeTasks[tIdx].copyWith(
-      questionCount: count,
-      answeredCount: count,
-    );
-  }
+// Add canPublish getter to LecturerTask
+extension LecturerTaskExtension on LecturerTask {
+  bool get canPublish => questionCount > 0 && answeredCount == questionCount;
+  int get unansweredCount => questionCount - answeredCount;
 }

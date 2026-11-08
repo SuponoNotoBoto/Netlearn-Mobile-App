@@ -1,2939 +1,1057 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+
+
+import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/notifications/announcement_read_store.dart';
-import '../notifications/student_notifications_page.dart';
+import '../../core/notifications/local_notification_service.dart';
+import '../../core/progress/pretest_lock_prompt.dart';
+import '../../core/progress/progress_refresh.dart';
+import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/models/announcement_model.dart';
+import '../../shared/models/learning_progress_model.dart';
+import '../../shared/models/material_model.dart';
+import '../../shared/models/reminder_model.dart';
+import '../../shared/widgets/nl_button.dart';
+import '../../shared/widgets/nl_metric_grid.dart';
+import '../../shared/widgets/nl_notification_bell.dart';
+import '../../shared/widgets/nl_progress_summary.dart';
+import '../../shared/widgets/nl_shortcut_tile.dart';
+import '../../shared/widgets/nl_snack_bar.dart';
+import '../../shared/widgets/student_bottom_navbar.dart';
+import '../../shared/widgets/nl_promo_banner.dart';
+import '../assessment/assessment_completed_dialog.dart';
+import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
+import '../classes/class_onboarding_page.dart';
+import '../classes/student_my_classes_bar.dart';
+import '../dashboard_lecturer/notification_controller.dart';
+import '../materials/student_materials_controller.dart';
+import 'student_dashboard_controller.dart';
 
-class StudentDashboardPage extends StatefulWidget {
-  final VoidCallback? onSwitchToLecturer;
-
+class StudentDashboardPage extends ConsumerStatefulWidget {
   const StudentDashboardPage({
     super.key,
-    this.onSwitchToLecturer,
   });
 
   @override
-  State<StudentDashboardPage> createState() => _StudentDashboardPageState();
+  ConsumerState<StudentDashboardPage> createState() =>
+      _StudentDashboardPageState();
 }
 
-class _StudentDashboardPageState extends State<StudentDashboardPage> {
-  static const String currentUserId = 'student-2201010042';
+class _StudentDashboardPageState
+    extends ConsumerState<StudentDashboardPage> {
+  Future<void> _refresh() async {
+    invalidateStudentProgress(ref);
 
-  int _currentNavIndex = 0;
-
-  // State untuk interaksi Subnet Drill
-  int _subnetSelectedOption = -1;
-
-  // Set ID pengumuman yang sudah dibaca (disimpan permanen via SharedPreferences)
-  Set<String> _readAnnouncementIds = {};
-
-  @override
-  void initState() {
-    super.initState();
-    _loadReadState();
-  }
-
-  Future<void> _loadReadState() async {
-    final readIds = await AnnouncementReadStore.load(currentUserId);
-    if (mounted) {
-      setState(() {
-        _readAnnouncementIds = readIds;
-        for (var n in _recentNotifications) {
-          if (_readAnnouncementIds.contains(n['id'])) {
-            n['isRead'] = true;
-          }
-        }
-      });
+    // Pengumuman dan pengingat bukan progress, jadi tidak lewat
+    // invalidateStudentProgress — provider-nya di-invalidate langsung di sini.
+    // Tanpa ini pull-to-refresh memuat ulang progres tapi membiarkan preview
+    // "Recent Notifications" menampilkan daftar lama.
+    final userId = ref.read(notificationUserIdProvider);
+    if (userId != null) {
+      ref.invalidate(userAnnouncementsProvider(userId));
+      ref.invalidate(studentDeadlineRemindersProvider(userId));
+      ref.invalidate(announcementReadIdsProvider(userId));
     }
+
+    await ref.read(studentDashboardProvider.future);
   }
 
-  Future<void> _openNotificationsPage() async {
-    await Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => const StudentNotificationsPage(userId: currentUserId),
-      ),
-    );
-    _loadReadState();
+  /// The bell opens the full Notifications page.
+  ///
+  /// It used to toggle an in-dashboard overlay, which duplicated the page and
+  /// could not scroll a long list. Both the bell and the "Lihat Semua
+  /// Notifikasi" action land on the same route as the notification center.
+  void _openNotifications() {
+    context.push('/student/notifications');
   }
 
-  // State untuk interaksi notifikasi
-  final List<Map<String, dynamic>> _recentNotifications = [
-    {
-      'id': 'notif-1',
-      'title': 'Jadwal Praktikum Tambahan Modul 3',
-      'sender': 'Dr. Supono, M.Kom.',
-      'time': 'Hari ini, 09:30',
-      'type': 'Pengumuman Dosen',
-      'message':
-          'Praktikum tatap muka untuk crimping kabel UTP akan diadakan pada hari Rabu pukul 10:00 di Lab Jaringan 2. Harap membawa perlengkapan.',
-      'icon': Icons.campaign_rounded,
-      'color': const Color(0xFFF59E0B),
-      'bg': const Color(0xFFFEF3C7),
-      'isRead': false,
-    },
-    {
-      'id': 'notif-2',
-      'title': 'Batas Pengumpulan: Tugas Simulasi LAN',
-      'sender': 'Sistem Pengingat',
-      'time': 'Besok, 23:59',
-      'type': 'Batas Waktu',
-      'message':
-          'Pengingat bahwa pengumpulan laporan konfigurasi switch dan router Modul 3 jatuh tempo besok malam.',
-      'icon': Icons.alarm_rounded,
-      'color': const Color(0xFFEF4444),
-      'bg': const Color(0xFFFEE2E2),
-      'isRead': false,
-    },
-    {
-      'id': 'notif-3',
-      'title': 'Nilai Kuis Modul 1 Telah Dirilis',
-      'sender': 'Sistem Penilaian',
-      'time': 'Kemarin, 14:15',
-      'type': 'Evaluasi',
-      'message':
-          'Selamat! Nilai evaluasi kuis Modul 1: Pengantar Jaringan & Topologi kamu adalah 95/100.',
-      'icon': Icons.verified_rounded,
-      'color': const Color(0xFF10B981),
-      'bg': const Color(0xFFD1FAE5),
-      'isRead': true,
-    },
-  ];
+  /// Tombol `?` di hero membuka halaman "About NetLearn" (`/student/about`).
+  ///
+  /// Sebelumnya tidak ada pintu ke halaman itu sama sekali dari dashboard; satu-
+  /// satunya jalan adalah menebak rutenya. Tombolnya dipasang di hero, di
+  /// sebelah lonceng, sama seperti frame "Dashboard Mahasiswa 1".
+  void _openAbout() {
+    context.push('/student/about');
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: _buildAppBar(),
-      body: _buildCurrentTab(),
-      bottomNavigationBar: _buildBottomNavbar(),
+    final l10n = AppLocalizations.of(context)!;
+
+    final dashboardAsync = ref.watch(
+      studentDashboardProvider,
     );
-  }
 
-  PreferredSizeWidget _buildAppBar() {
-    final int unreadCount = _recentNotifications.where((n) => n['isRead'] == false).length;
-
-    return AppBar(
-      backgroundColor: Colors.white,
-      elevation: 0,
-      scrolledUnderElevation: 1,
-      title: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEEF2FF),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.hub_rounded,
-              color: Color(0xFF6366F1),
-              size: 24,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text(
-                'NetLearn',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                'Panel Mahasiswa',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-      actions: [
-        if (widget.onSwitchToLecturer != null)
-          TextButton.icon(
-            onPressed: widget.onSwitchToLecturer,
-            icon: const Icon(Icons.swap_horiz_rounded, size: 18, color: Color(0xFF6366F1)),
-            label: const Text(
-              'Dosen',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6366F1),
-              ),
-            ),
-          ),
-        // Ikon (?) About NetLearn
-        IconButton(
-          tooltip: 'Tentang NetLearn',
-          icon: const Icon(Icons.help_outline_rounded, color: Color(0xFF475569)),
-          onPressed: _showAboutNetLearnModal,
-        ),
-        // Ikon Notifikasi
-        IconButton(
-          tooltip: 'Notifikasi',
-          icon: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              const Icon(Icons.notifications_outlined, color: Color(0xFF475569)),
-              if (unreadCount > 0)
-                Positioned(
-                  top: -2,
-                  right: -2,
-                  child: Container(
-                    padding: const EdgeInsets.all(3),
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEF4444),
-                      shape: BoxShape.circle,
-                    ),
-                    constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
-                  ),
-                ),
-            ],
-          ),
-          onPressed: _openNotificationsPage,
-        ),
-        const SizedBox(width: 8),
-      ],
+    // The dashboard row is the only place the hero and the "Recent
+    // Notifications" preview can learn who is signed in. Both degrade honestly
+    // to null while the row is still loading or has failed.
+    final String? userId = dashboardAsync.maybeWhen(
+      data: (dashboard) => dashboard.userId,
+      orElse: () => null,
     );
-  }
 
-  Widget _buildCurrentTab() {
-    switch (_currentNavIndex) {
-      case 0:
-        return _buildHomeTab();
-      case 1:
-        return _buildMaterialsTab();
-      case 2:
-        return _buildAssessmentsTab();
-      case 3:
-        return _buildProfileTab();
-      default:
-        return _buildHomeTab();
+    final classesAsync = ref.watch(studentClassesProvider);
+    final activeClass = ref.watch(activeStudentClassProvider).value;
+    final classes = classesAsync.value;
+    if (classes != null && classes.isEmpty) {
+      return Scaffold(
+        backgroundColor: context.background,
+        body: const SafeArea(
+          child: ClassOnboardingView(
+            role: ClassOnboardingRole.student,
+            hasExistingClass: false,
+          ),
+        ),
+      );
     }
-  }
 
-  Widget _buildHomeTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildStudentHeaderCard(),
-          const SizedBox(height: 16),
-          _buildPromoBanner(),
-          const SizedBox(height: 24),
+    return Scaffold(
+      backgroundColor: context.background,
 
-          // Section Kelas Saya
-          _buildSectionHeader(
-            title: 'Kelas Saya',
-            subtitle: 'Informasi kelas aktif dan mata kuliah yang sedang ditempuh',
-          ),
-          const SizedBox(height: 12),
-          _buildClassCard(),
-          const SizedBox(height: 16),
-
-          // Visualisasi Leaderboard (Read Only / Non-Clickable)
-          _buildClassLeaderboardPreview(),
-          const SizedBox(height: 16),
-
-          // Visualisasi Forum Diskusi (Read Only / Non-Clickable)
-          _buildClassQaForumPreview(),
-          const SizedBox(height: 24),
-
-          // Section Learning Space
-          _buildSectionHeader(
-            title: 'Learning Space',
-            subtitle: 'Akses cepat modul belajar, simulasi virtual, dan evaluasi',
-          ),
-          const SizedBox(height: 12),
-          _buildLearningSpaceGrid(),
-          const SizedBox(height: 24),
-
-          // Section Notifikasi Terkini
-          _buildSectionHeader(
-            title: 'Notifikasi Terkini',
-            subtitle: 'Pengumuman dosen dan pembaruan kegiatan akademik',
-            trailingText: 'Tandai Semua Dibaca',
-            onTrailingTap: () async {
-              await AnnouncementReadStore.markAllRead(
-                userId: currentUserId,
-                announcementIds: _recentNotifications.map((n) => n['id'] as String),
-              );
-              setState(() {
-                for (var n in _recentNotifications) {
-                  n['isRead'] = true;
-                  _readAnnouncementIds.add(n['id'] as String);
-                }
-              });
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Semua notifikasi ditandai telah dibaca.')),
-                );
-              }
-            },
-          ),
-          const SizedBox(height: 12),
-          _buildRecentNotificationsList(),
-          const SizedBox(height: 24),
-
-          // Section Progres Belajar
-          _buildSectionHeader(
-            title: 'Progres Belajar',
-            subtitle: 'Perjalanan pemahaman modul jaringan komputer',
-          ),
-          const SizedBox(height: 12),
-          _buildLearningProgressCard(),
-          const SizedBox(height: 16),
-          _buildModuleProgressList(),
-          const SizedBox(height: 24),
-        ],
+      // Navbar utama mahasiswa.
+      // Dashboard = index 0.
+      bottomNavigationBar: const StudentBottomNavbar(
+        currentIndex: 0,
       ),
-    );
-  }
 
-  Widget _buildStudentHeaderCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF6366F1), Color(0xFF4F46E5)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF6366F1).withOpacity(0.25),
-            blurRadius: 16,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Stack(
-            clipBehavior: Clip.none,
-            children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: Colors.white.withOpacity(0.2),
-                child: const Text(
-                  'RA',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                  ),
+      body: SafeArea(
+        child: RefreshIndicator(
+          color: context.accent,
+          onRefresh: _refresh,
+          child: CustomScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            slivers: [
+              // `.hero.dashboard-hero` ΓÇö gradien 115deg dengan sudut bawah
+              // membulat. Memegang lonceng, avatar, sapaan, dan NIM dalam
+              // satu bidang ungu, sama seperti dashboard dosen.
+              SliverToBoxAdapter(
+                child: dashboardAsync.when(
+                  loading: () => _buildHero(context, null),
+                  error: (error, stackTrace) =>
+                      _buildHero(context, null),
+                  data: (dashboard) => _buildHero(context, dashboard),
                 ),
               ),
-              Positioned(
-                right: 0,
-                bottom: 0,
-                child: Container(
-                  width: 14,
-                  height: 14,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF10B981),
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: Colors.white,
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: const Text(
-                    'Kelas TI-2026-A • Semester 4',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 11,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                const Text(
-                  'Rendy Aditya',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Mahasiswa • NIM 2201010042',
-                  style: TextStyle(
-                    color: Colors.white.withOpacity(0.85),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildPromoBanner() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFEEF2FF),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFC7D2FE)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6366F1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(
-              Icons.auto_stories_rounded,
-              color: Colors.white,
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
-                  'Siap Belajar Hari Ini?',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s32,
                 ),
-                SizedBox(height: 2),
-                Text(
-                  'Pelajari modul, tonton video, coba virtual lab, dan diskusikan materi dengan NetBot AI.',
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF475569),
-                    height: 1.3,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+                sliver: SliverList(
+                  delegate: SliverChildListDelegate(
+                    [
+                      // Banner error dashboard hanya muncul kalau data
+                      // sapaan gagal; bagian progres punya penanganannya
+                      // sendiri supaya satu kegagalan tidak mengosongkan
+                      // seluruh layar.
+                      if (dashboardAsync.hasError) ...[
+                        _DashboardErrorBanner(
+                          onRetry: _refresh,
+                        ),
+                        const SizedBox(
+                          height: NetLearnSpace.s20,
+                        ),
+                      ],
 
-  // ================= SECTION KELAS SAYA ================= //
+                      if (classes != null &&
+                          activeClass != null &&
+                          activeClass.id != kLegacyFallbackClassId) ...[
+                        StudentMyClassesBar(
+                          classes: classes,
+                          activeClass: activeClass,
+                        ),
+                        const SizedBox(
+                          height: NetLearnSpace.s16,
+                        ),
+                      ],
 
-  Widget _buildClassCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.school_rounded,
-                      color: Color(0xFF6366F1),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Jaringan Komputer',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFD1FAE5),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Kelas Aktif',
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF059669),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 12),
-          _buildClassDetailRow(
-            icon: Icons.person_outline_rounded,
-            title: 'Dosen Pengampu',
-            value: 'Dr. Supono, M.Kom.',
-          ),
-          const SizedBox(height: 8),
-          _buildClassDetailRow(
-            icon: Icons.schedule_rounded,
-            title: 'Jadwal Kuliah',
-            value: 'Rabu, 08:00 - 10:30 WIB',
-          ),
-          const SizedBox(height: 8),
-          _buildClassDetailRow(
-            icon: Icons.location_on_outlined,
-            title: 'Ruang / Lab',
-            value: 'Lab Jaringan 2 (Lt. 3)',
-          ),
-          const SizedBox(height: 8),
-          _buildClassDetailRow(
-            icon: Icons.groups_outlined,
-            title: 'Mahasiswa',
-            value: '32 Orang Terdaftar',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildClassDetailRow({
-    required IconData icon,
-    required String title,
-    required String value,
-  }) {
-    return Row(
-      children: [
-        Icon(icon, size: 16, color: const Color(0xFF64748B)),
-        const SizedBox(width: 8),
-        Text(
-          '$title: ',
-          style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-        ),
-        Expanded(
-          child: Text(
-            value,
-            style: const TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Visualisasi Leaderboard Kelas (Hanya Tampilan / Non-Clickable)
-  Widget _buildClassLeaderboardPreview() {
-    final topStudents = [
-      {'rank': '🥇', 'name': 'Rendy Aditya', 'pts': '950 Pts', 'color': Color(0xFFFEF3C7)},
-      {'rank': '🥈', 'name': 'Ahmad Fauzan', 'pts': '920 Pts', 'color': Color(0xFFF1F5F9)},
-      {'rank': '🥉', 'name': 'Siti Rahma', 'pts': '880 Pts', 'color': Color(0xFFFFEDD5)},
-    ];
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFFEF3C7),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.emoji_events_rounded,
-                      color: Color(0xFFD97706),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Peringkat Kelas (Leaderboard)',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Pratinjau',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 10),
-          // Daftar Mahasiswa Teratas (Visual Only)
-          ...topStudents.map((student) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 6),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Row(
-                children: [
-                  Text(
-                    student['rank'] as String,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      student['name'] as String,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
+                      NlPromoBanner(
+                        title: Localizations.localeOf(context).languageCode == 'id'
+                            ? 'Siap Belajar Hari Ini?'
+                            : 'Ready to Learn Today?',
+                        subtitle: Localizations.localeOf(context).languageCode == 'id'
+                            ? 'Pelajari modul, tugas, dan evaluasi jaringan dengan dashboard pribadimu.'
+                            : 'Explore modules, assignments, and network evaluations from your personal dashboard.',
+                        ctaLabel: Localizations.localeOf(context).languageCode == 'id'
+                            ? 'Lihat Jadwal & Materi'
+                            : 'View Schedule & Materials',
+                        onPressed: () {
+                          context.push('/student/materials');
+                        },
                       ),
-                    ),
-                  ),
-                  Text(
-                    student['pts'] as String,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6366F1),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
 
-  /// Visualisasi Q&A Forum Diskusi Kelas (Hanya Tampilan / Non-Clickable)
-  Widget _buildClassQaForumPreview() {
-    final discussions = [
-      {
-        'title': 'Perbedaan routing statis vs dinamis OSPF?',
-        'author': 'Budi Pratama',
-        'replies': '4 balasan',
-      },
-      {
-        'title': 'Rekomendasi crimping tool untuk kabel UTP Cat6',
-        'author': 'Siti Rahma',
-        'replies': '7 balasan',
-      },
-    ];
+                      const SizedBox(
+                        height: NetLearnSpace.s20,
+                      ),
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF0F172A).withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 3),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEEF2FF),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(
-                      Icons.forum_rounded,
-                      color: Color(0xFF6366F1),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'Forum Diskusi & Q&A',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                ],
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(6),
-                ),
-                child: const Text(
-                  'Pratinjau',
-                  style: TextStyle(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w600,
-                    color: Color(0xFF64748B),
+                      // Learning Space ΓÇö shortcut grid dipindah ke atas
+                      // supaya mahasiswa cepat mencapai halaman lain.
+                      _buildSectionTitle(
+                        context,
+                        l10n.studentSpaceHeading,
+                      ),
+
+                      const SizedBox(
+                        height: NetLearnSpace.s12,
+                      ),
+
+                      _buildShortcutGrid(context, l10n, dashboardAsync.value),
+
+                      const SizedBox(
+                        height: NetLearnSpace.s20,
+                      ),
+
+                      // Learning Progress ΓÇö ringkasan, Pretest, kartu Modul
+                      // 1ΓÇô4, lalu Posttest. Urutannya mengikuti alur belajar.
+                      _buildLearningProgress(
+                        context,
+                        l10n,
+                        dashboardAsync.value,
+                      ),
+
+                      const SizedBox(
+                        height: NetLearnSpace.s20,
+                      ),
+
+                      // Recent Notifications ΓÇö pratinjau dari provider yang
+                      // sama dengan halaman Notifikasi.
+                      _buildNotifications(context, l10n, userId),
+                    ],
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          const Divider(height: 1, color: Color(0xFFF1F5F9)),
-          const SizedBox(height: 10),
-          // Thread List (Visual Only)
-          ...discussions.map((thread) {
-            return Container(
-              margin: const EdgeInsets.only(bottom: 8),
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: const Color(0xFFF1F5F9)),
-              ),
+        ),
+      ),
+    );
+  }
+
+  /// `.hero.dashboard-hero` ΓÇö blok gradien di paling atas dashboard.
+  ///
+  /// Lonceng, avatar, sapaan, dan NIM digabung di sini, bukan di app bar,
+  /// karena di desain semuanya berada pada satu bidang ungu. Avatar adalah
+  /// satu-satunya pintu ke profil; keluar tetap tinggal di halaman profil.
+  Widget _buildHero(
+    BuildContext context,
+    StudentDashboardData? dashboard,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final theme = Theme.of(context);
+
+    final name = dashboard?.userName.trim();
+
+    final greeting = name != null && name.isNotEmpty
+        ? '${l10n.hello}, $name'
+        : '${l10n.hello}, ${l10n.student}';
+
+    final identityNumber = dashboard?.identityNumber?.trim();
+    final isDark = theme.brightness == Brightness.dark;
+    if (theme.brightness == Brightness.dark || !isDark) {
+      return Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(
+          NetLearnSpace.s20,
+          NetLearnSpace.s12,
+          NetLearnSpace.s20,
+          NetLearnSpace.s4,
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _DashboardAvatar(
+              userId: dashboard?.userId,
+              initial: dashboard?.initial ?? 'M',
+              avatarConfig: dashboard?.avatarConfig ??
+                  AvatarConfig.defaultFor(
+                    dashboard?.userId ?? dashboard?.userName ?? 'student',
+                  ),
+              onTap: () {
+                context.go('/student/profile');
+              },
+            ),
+            const SizedBox(width: NetLearnSpace.s12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    thread['title'] as String,
-                    style: const TextStyle(
+                    greeting,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.2,
+                      color: isDark
+                          ? NetLearnColors.darkText
+                          : NetLearnColors.neutral900,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    identityNumber != null && identityNumber.isNotEmpty
+                        ? '${l10n.studentAcademicTag} • $identityNumber'
+                        : l10n.studentAcademicTag,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
                       fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF1E293B),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Oleh: ${thread['author']}',
-                        style: const TextStyle(fontSize: 11, color: Color(0xFF64748B)),
-                      ),
-                      Row(
-                        children: [
-                          const Icon(Icons.chat_bubble_outline_rounded, size: 12, color: Color(0xFF6366F1)),
-                          const SizedBox(width: 4),
-                          Text(
-                            thread['replies'] as String,
-                            style: const TextStyle(fontSize: 11, color: Color(0xFF6366F1), fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
-      ),
-    );
-  }
-
-  // ================= SECTION HEADER ================= //
-
-  Widget _buildSectionHeader({
-    required String title,
-    String? subtitle,
-    String? trailingText,
-    VoidCallback? onTrailingTap,
-  }) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      crossAxisAlignment: CrossAxisAlignment.end,
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              if (subtitle != null) ...[
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-        if (trailingText != null)
-          GestureDetector(
-            onTap: onTrailingTap,
-            child: Text(
-              trailingText,
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF6366F1),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  // ================= GRID LEARNING SPACE ================= //
-
-  Widget _buildLearningSpaceGrid() {
-    return GridView.count(
-      crossAxisCount: 3,
-      crossAxisSpacing: 10,
-      mainAxisSpacing: 10,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      childAspectRatio: 0.88,
-      children: [
-        _buildShortcutTile(
-          icon: Icons.quiz_outlined,
-          accentColor: const Color(0xFF8B5CF6),
-          title: 'Pretest',
-          subtitle: 'Evaluasi awal materi',
-          onTap: _showPretestModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.menu_book_outlined,
-          accentColor: const Color(0xFF6366F1),
-          title: 'Modul',
-          subtitle: 'Materi teks & panduan',
-          onTap: () => setState(() => _currentNavIndex = 1),
-        ),
-        _buildShortcutTile(
-          icon: Icons.view_in_ar_rounded,
-          accentColor: const Color(0xFFF59E0B),
-          title: 'AR Scanner',
-          subtitle: 'Pindai perangkat 3D',
-          onTap: _showArScannerModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.fact_check_outlined,
-          accentColor: const Color(0xFF10B981),
-          title: 'Posttest',
-          subtitle: 'Evaluasi akhir materi',
-          onTap: _showPosttestModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.assignment_outlined,
-          accentColor: const Color(0xFFEC4899),
-          title: 'Tugas & Kuis',
-          subtitle: 'Evaluasi & tugas lab',
-          onTap: () => setState(() => _currentNavIndex = 2),
-        ),
-        _buildShortcutTile(
-          icon: Icons.history_rounded,
-          accentColor: const Color(0xFF06B6D4),
-          title: 'Riwayat Nilai',
-          subtitle: 'Daftar skor evaluasi',
-          onTap: _showAssessmentHistoryModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.play_circle_outline_rounded,
-          accentColor: const Color(0xFF0EA5E9),
-          title: 'Video Belajar',
-          subtitle: 'Video animasi & lab',
-          onTap: _showLearningVideoModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.lan_outlined,
-          accentColor: const Color(0xFF4F46E5),
-          title: 'Virtual Lab',
-          subtitle: 'Simulasi topologi 2D',
-          onTap: _showVirtualLabModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.auto_awesome_rounded,
-          accentColor: const Color(0xFF9333EA),
-          title: 'NetBot AI',
-          subtitle: 'Tutor cerdas 24/7',
-          onTap: _showNetBotAiModal,
-        ),
-        _buildShortcutTile(
-          icon: Icons.speed_rounded,
-          accentColor: const Color(0xFFE11D48),
-          title: 'Subnet Drill',
-          subtitle: 'Tantangan cepat 60s',
-          onTap: _showSubnetDrillModal,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildShortcutTile({
-    required IconData icon,
-    required Color accentColor,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
-              ),
-            ],
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accentColor.withOpacity(0.12),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  icon,
-                  color: accentColor,
-                  size: 24,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 10,
-                  color: Color(0xFF64748B),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  // ================= ABOUT NETLEARN MODAL ================= //
-
-  void _showAboutNetLearnModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.hub_rounded,
-                    color: Color(0xFF6366F1),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Tentang NetLearn',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Versi 1.0.0 (Build 2026.1)',
-                      style: TextStyle(fontSize: 12, color: Color(0xFF6366F1), fontWeight: FontWeight.w600),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  const Text(
-                    'NetLearn adalah platform pembelajaran jaringan komputer interaktif yang menggabungkan modul kurikulum terstruktur, visualisasi Augmented Reality (AR) 3D, simulasi virtual lab, dan kecerdasan buatan NetBot AI untuk meningkatkan efektivitas pemahaman mahasiswa.',
-                    style: TextStyle(fontSize: 13, color: Color(0xFF475569), height: 1.6),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Fitur Utama Aplikasi:',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFF1E293B)),
-                  ),
-                  const SizedBox(height: 8),
-                  _buildAboutFeatureItem(Icons.menu_book_rounded, 'Modul Kurikulum Multimedia Jaringan'),
-                  _buildAboutFeatureItem(Icons.view_in_ar_rounded, '3D AR Marker Scanner Perangkat'),
-                  _buildAboutFeatureItem(Icons.lan_rounded, 'Virtual Lab 2D Simulasi Topologi & Ping'),
-                  _buildAboutFeatureItem(Icons.auto_awesome_rounded, 'NetBot AI Tutor Pembelajaran 24/7'),
-                  _buildAboutFeatureItem(Icons.speed_rounded, 'Subnet Drill Tantangan Hitung Cepat'),
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Pengembang: Tim Pengembang NetLearn', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF1E293B))),
-                        SizedBox(height: 4),
-                        Text('Dosen Pembimbing: Dr. Supono, M.Kom.', style: TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-                        SizedBox(height: 4),
-                        Text('© 2026 NetLearn Team. Hak Cipta Dilindungi.', style: TextStyle(fontSize: 11, color: Color(0xFF94A3B8))),
-                      ],
+                      fontWeight: FontWeight.w500,
+                      color: isDark
+                          ? NetLearnColors.darkMuted
+                          : NetLearnColors.neutral500,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 16),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Tutup', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              ),
+            const SizedBox(width: NetLearnSpace.s8),
+            NlNotificationBell(
+              onTap: _openNotifications,
+              tooltip: l10n.notificationsTitle,
+            ),
+            const SizedBox(width: NetLearnSpace.s8),
+            _HeroIconButton(
+              icon: Icons.help_outline_rounded,
+              tooltip: l10n.aboutNetLearn,
+              onTap: _openAbout,
             ),
           ],
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildAboutFeatureItem(IconData icon, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(
+        NetLearnSpace.s20,
+        NetLearnSpace.s16,
+        NetLearnSpace.s20,
+        NetLearnSpace.s32,
+      ),
+      decoration: const BoxDecoration(
+        gradient: NetLearnGradients.hero,
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(24),
+          bottomRight: Radius.circular(24),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 16, color: const Color(0xFF6366F1)),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 12, color: Color(0xFF334155))),
-          ),
-        ],
-      ),
-    );
-  }
-
-  // ================= RECENT NOTIFICATIONS SECTION ================= //
-
-  Widget _buildRecentNotificationsList() {
-    return Column(
-      children: _recentNotifications.map((notification) {
-        final bool isRead = notification['isRead'] as bool;
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: isRead ? const Color(0xFFE2E8F0) : const Color(0xFFC7D2FE),
-              width: isRead ? 1 : 1.5,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF0F172A).withOpacity(0.03),
-                blurRadius: 8,
-                offset: const Offset(0, 2),
+          Row(
+            children: [
+              // `.bell` — lonceng dengan dot notifikasi belum dibaca. Logikanya
+              // satu widget bersama ([NlNotificationBell]) dengan dashboard
+              // dosen: dulu tombol ini tidak punya indikator apa pun. Kini
+              // dot tampil hanya untuk pengumuman terpublikasi yang belum
+              // dibaca dan hilang seketika begitu status baca tersimpan.
+              NlNotificationBell(
+                onTap: _openNotifications,
+                tooltip: l10n.notificationsTitle,
               ),
-            ],
-          ),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(14),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(14),
-              onTap: () async {
-                await AnnouncementReadStore.markRead(
-                  userId: currentUserId,
-                  announcementId: notification['id'] as String,
-                );
-                setState(() {
-                  notification['isRead'] = true;
-                  _readAnnouncementIds.add(notification['id'] as String);
-                });
-                _showNotificationDetailModal(notification);
-              },
-              child: Padding(
-                padding: const EdgeInsets.all(14),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(
-                        color: notification['bg'] as Color,
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Icon(
-                        notification['icon'] as IconData,
-                        color: notification['color'] as Color,
-                        size: 22,
-                      ),
+
+              const SizedBox(width: NetLearnSpace.s8),
+
+              // `.about` — pintu ke halaman About NetLearn. Ukuran dan gayanya
+              // disamakan dengan lonceng karena di desain keduanya satu kluster.
+              _HeroIconButton(
+                icon: Icons.help_outline_rounded,
+                tooltip: l10n.aboutNetLearn,
+                onTap: _openAbout,
+              ),
+
+              const Spacer(),
+
+              // `.dashboard-avatar` ΓÇö 49px, inisial ungu tua di atas ungu
+              // muda, garis putih. Avatar adalah pintu ke profil mahasiswa.
+              _DashboardAvatar(
+                userId: dashboard?.userId,
+                initial: dashboard?.initial ?? 'M',
+                avatarConfig: dashboard?.avatarConfig ??
+                    AvatarConfig.defaultFor(
+                      dashboard?.userId ?? dashboard?.userName ?? 'student',
                     ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                decoration: BoxDecoration(
-                                  color: (notification['color'] as Color).withOpacity(0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  notification['type'] as String,
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.w600,
-                                    color: notification['color'] as Color,
-                                  ),
-                                ),
-                              ),
-                              Row(
-                                children: [
-                                  Text(
-                                    notification['time'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF94A3B8),
-                                    ),
-                                  ),
-                                  if (!isRead) ...[
-                                    const SizedBox(width: 6),
-                                    Container(
-                                      width: 7,
-                                      height: 7,
-                                      decoration: const BoxDecoration(
-                                        color: Color(0xFF6366F1),
-                                        shape: BoxShape.circle,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 6),
-                          Text(
-                            notification['title'] as String,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: isRead ? FontWeight.w600 : FontWeight.bold,
-                              color: const Color(0xFF1E293B),
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            notification['message'] as String,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 12,
-                              color: Color(0xFF64748B),
-                              height: 1.3,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      }).toList(),
-    );
-  }
-
-  void _showNotificationDetailModal(Map<String, dynamic> notification) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: notification['bg'] as Color,
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: Icon(
-                    notification['icon'] as IconData,
-                    color: notification['color'] as Color,
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        notification['type'] as String,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: notification['color'] as Color,
-                        ),
-                      ),
-                      Text(
-                        notification['title'] as String,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  _buildModalInfoRow('Pengirim', notification['sender'] as String),
-                  const Divider(height: 16),
-                  _buildModalInfoRow('Waktu', notification['time'] as String),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Rincian Informasi:',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              notification['message'] as String,
-              style: const TextStyle(
-                fontSize: 13,
-                color: Color(0xFF475569),
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF6366F1),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text(
-                  'Tutup',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAllNotificationsSheet() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.8,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Pusat Notifikasi',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Semua riwayat pengumuman dan batas waktu pembelajaran',
-              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-            ),
-            const SizedBox(height: 16),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildRecentNotificationsList(),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // ================= MODAL HANDLERS FOR LEARNING SPACE ITEMS ================= //
-
-  void _showLearningVideoModal() {
-    final videos = [
-      {
-        'title': 'Modul 1: Pengenalan Model 7 Layer OSI',
-        'duration': '12:45 Menit',
-        'isDone': true,
-      },
-      {
-        'title': 'Modul 2: Konfigurasi Virtual LAN (VLAN)',
-        'duration': '18:20 Menit',
-        'isDone': true,
-      },
-      {
-        'title': 'Modul 3: Praktek Pembuatan Kabel UTP Straight & Cross',
-        'duration': '15:10 Menit',
-        'isDone': false,
-      },
-      {
-        'title': 'Modul 4: Pemahaman Subnetting & Pembagian Kelas IP',
-        'duration': '22:05 Menit',
-        'isDone': false,
-      },
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.play_circle_outline_rounded,
-                    color: Color(0xFF0EA5E9),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Video Pembelajaran',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Tutorial multimedia interaktif kurikulum jaringan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView.separated(
-                physics: const BouncingScrollPhysics(),
-                itemCount: videos.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 10),
-                itemBuilder: (context, index) {
-                  final video = videos[index];
-                  final bool isDone = video['isDone'] as bool;
-                  return Container(
-                    padding: const EdgeInsets.all(14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8FAFC),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFFE2E8F0)),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 44,
-                          height: 44,
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF0EA5E9).withOpacity(0.12),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(
-                            Icons.play_arrow_rounded,
-                            color: Color(0xFF0EA5E9),
-                            size: 26,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                video['title'] as String,
-                                style: const TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  Text(
-                                    video['duration'] as String,
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      color: Color(0xFF64748B),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color: isDone ? const Color(0xFFD1FAE5) : const Color(0xFFF1F5F9),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                    child: Text(
-                                      isDone ? 'Tuntas Ditonton' : 'Belum Selesai',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                        color: isDone ? const Color(0xFF10B981) : const Color(0xFF64748B),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
+                onTap: () {
+                  context.go('/student/profile');
                 },
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showVirtualLabModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFEEF2FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.lan_outlined,
-                    color: Color(0xFF4F46E5),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Virtual Lab 2D',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Simulasi Topologi Jaringan & Pengujian Paket',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Topologi Star LAN',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: const Text(
-                          'Koneksi Aktif',
-                          style: TextStyle(color: Color(0xFF34D399), fontSize: 11),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                      _buildVirtualLabNode('PC-01', '192.168.1.10', Icons.computer_rounded),
-                      const Icon(Icons.compare_arrows_rounded, color: Color(0xFF6366F1), size: 28),
-                      _buildVirtualLabNode('Switch 2960', 'Layer 2', Icons.hub_rounded),
-                      const Icon(Icons.compare_arrows_rounded, color: Color(0xFF6366F1), size: 28),
-                      _buildVirtualLabNode('Router 2911', 'Gateway', Icons.router_rounded),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.08),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: const [
-                        Icon(Icons.terminal_rounded, color: Color(0xFF10B981), size: 16),
-                        SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            'Ping 192.168.1.1: 0% loss, round-trip min/avg = 1.2ms',
-                            style: TextStyle(color: Color(0xFFE2E8F0), fontSize: 11, fontFamily: 'monospace'),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Menjalankan simulasi ping ICMP...')),
-                      );
-                    },
-                    icon: const Icon(Icons.play_arrow_rounded),
-                    label: const Text('Kirim Ping'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF4F46E5),
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Membuka kanvas Virtual Lab penuh...')),
-                      );
-                    },
-                    icon: const Icon(Icons.fullscreen_rounded, color: Colors.white),
-                    label: const Text('Buka Lab', style: TextStyle(color: Colors.white)),
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildVirtualLabNode(String label, String sub, IconData icon) {
-    return Column(
-      children: [
-        Container(
-          width: 48,
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withOpacity(0.2)),
+            ],
           ),
-          child: Icon(icon, color: Colors.white, size: 24),
+
+          const SizedBox(height: 20),
+
+          // `.greeting h1` ΓÇö 25px weight 800. Sapaan penuh dengan nama
+          // mahasiswa yang login, bukan "Halo" generik.
+          Text(
+            greeting,
+            style: theme.textTheme.headlineMedium?.copyWith(
+              color: NetLearnColors.white,
+            ),
+          ),
+
+          const SizedBox(height: 4),
+
+          Text(
+            l10n.studentAcademicTag,
+            style: theme.textTheme.bodyLarge?.copyWith(
+              color: const Color(0xFFD4CDF2),
+              height: 1.4,
+            ),
+          ),
+
+          if (identityNumber != null && identityNumber.isNotEmpty) ...[
+            const SizedBox(height: NetLearnSpace.s16),
+
+            // `.unified-identity` ΓÇö chip berkilau untuk NIM.
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 10,
+                vertical: 6,
+              ),
+              decoration: BoxDecoration(
+                color: NetLearnColors.white.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(7),
+                border: Border.all(
+                  color: NetLearnColors.white.withValues(alpha: 0.18),
+                ),
+              ),
+              child: Text(
+                identityNumber,
+                style: const TextStyle(
+                  color: NetLearnColors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// `.section-heading h2` ΓÇö judul bagian ungu, bukan eyebrow pucat.
+  ///
+  /// Label lama memakai gaya eyebrow (`labelSmall`) yang warnanya meredup ke
+  /// teks sekunder. Di desain, heading bagian memakai warna brand penuh supaya
+  /// hierarki halaman terbaca tanpa perlu garis pemisah tambahan.
+  Widget _buildSectionTitle(
+    BuildContext context,
+    String title,
+  ) {
+    return Text(
+      title,
+      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+        fontSize: 16,
+        color: context.accent,
+      ),
+    );
+  }
+
+  /// Judul "Learning Progress" plus isinya.
+  ///
+  /// Judulnya tetap terlihat saat data belum atau tidak bisa dimuat supaya
+  /// bagian utama dashboard tidak menghilang dari hierarki halaman.
+  ///
+  /// [dashboard] hanya dipakai oleh dua status assessment di ujung alur
+  /// (Pretest dan Posttest); kartu modul tetap membaca provider progresnya
+  /// sendiri supaya satu kegagalan tidak menjatuhkan seluruh bagian.
+  Widget _buildLearningProgress(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentDashboardData? dashboard,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(context, l10n.learningProgress),
+        const SizedBox(height: NetLearnSpace.s12),
+        _buildProgressContent(context, l10n, dashboard),
+      ],
+    );
+  }
+
+  Widget _buildProgressContent(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentDashboardData? dashboard,
+  ) {
+    final materialsAsync = ref.watch(
+      studentMaterialsProvider,
+    );
+
+    final modulesAsync = ref.watch(
+      studentModulesProvider,
+    );
+
+    final progressAsync = ref.watch(
+      studentLearningProgressProvider,
+    );
+
+    if (materialsAsync.isLoading ||
+        modulesAsync.isLoading ||
+        progressAsync.isLoading) {
+      return const _ProgressSkeleton();
+    }
+
+    if (materialsAsync.hasError ||
+        modulesAsync.hasError ||
+        progressAsync.hasError) {
+      return _ProgressError(
+        onRetry: () {
+          invalidateStudentProgress(ref);
+        },
+      );
+    }
+
+    final materials = materialsAsync.value ?? const <MaterialModel>[];
+    final modules = modulesAsync.value ?? const <StudentModule>[];
+    final progress =
+        progressAsync.value ?? const <LearningProgressModel>[];
+
+    // Unlock and completion come from the same `get_learning_flow_status`
+    // source the materials page uses. It used to come from the older
+    // `compute_module_states` RPC, which reported finished modules as locked,
+    // so the two screens disagreed.
+    final moduleByNumber = <int, StudentModule>{
+      for (final module in modules) module.moduleNumber: module,
+    };
+
+    final grouped = <int, List<MaterialModel>>{};
+
+    for (final material in materials) {
+      final moduleNumber =
+          material.moduleNumber ?? material.orderIndex + 1;
+
+      grouped
+          .putIfAbsent(
+        moduleNumber,
+            () => [],
+      )
+          .add(material);
+    }
+
+    // Materials without a matching StudentModule still get a card, so a
+    // supporting material is never silently dropped from the dashboard.
+    final moduleNumbers = <int>{
+      ...modules.map((module) => module.moduleNumber),
+      ...grouped.keys,
+    }.toList()
+      ..sort();
+
+    if (moduleNumbers.isEmpty) {
+      return const _EmptyModules();
+    }
+
+    // Per-material completion is read from `learning_progress`, which is what
+    // the reader, the video page and the dashboard percentage card all write.
+    final completedMaterialIds = <String>{
+      for (final row in progress)
+        if (row.readingCompleted && row.videoCompleted) row.materialId,
+    };
+
+    final totalModules = moduleNumbers.length;
+
+    final completedModules = modules
+        .where(
+          (module) => module.completed,
+        )
+        .length;
+
+    final fraction =
+        totalModules == 0 ? 0.0 : completedModules / totalModules;
+
+    final completedLabel = l10n.modulesCompletedOf(
+      completedModules,
+      totalModules,
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        NlProgressSummary(
+          label: l10n.learningJourney,
+          percentage: (fraction * 100).round().toString(),
+          progress: fraction,
+          leadingCaption: completedLabel,
+          trailingCaption: l10n.keepGoing,
+          secondaryLabel: Localizations.localeOf(context).languageCode == 'id'
+              ? 'Assessment & Evaluasi'
+              : 'Assessment & Evaluation',
+          secondaryPercentage: ((((dashboard?.pretestCompleted ?? false) ? 1 : 0) +
+                      ((dashboard?.posttestCompleted ?? false) ? 1 : 0)) *
+                  50)
+              .toString(),
+          secondaryProgress: (((dashboard?.pretestCompleted ?? false) ? 1 : 0) +
+                  ((dashboard?.posttestCompleted ?? false) ? 1 : 0)) /
+              2.0,
+          semanticLabel: '${l10n.overallProgress}: $completedLabel',
         ),
-        const SizedBox(height: 6),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+
+        // Continue Learning — aksi utama untuk melanjutkan materi. Targetnya
+        // dihitung dari data progres yang sama dengan kartu modul di bawah
+        // (`resolveContinueLearningMaterial`), bukan dari sumber progres baru.
+        Padding(
+          padding: const EdgeInsets.only(
+            bottom: NetLearnSpace.s12,
+          ),
+          child: _buildContinueLearning(
+            context,
+            l10n,
+            dashboard,
+            moduleNumbers: moduleNumbers,
+            moduleByNumber: moduleByNumber,
+            grouped: grouped,
+            completedMaterialIds: completedMaterialIds,
+          ),
         ),
-        Text(
-          sub,
-          style: const TextStyle(color: Color(0xFF94A3B8), fontSize: 9),
+
+        // Pretest ΓÇö kepala alur belajar. Selalu bisa dibuka; hanya Posttest
+        if (ref.watch(classLearningFlowStatusProvider(ref.watch(activeStudentClassProvider).value?.id ?? '')).value?.pretestEnabled ?? true)
+        // yang dikunci alur, jadi baris ini tidak pernah membawa gembok.
+        Padding(
+          padding: const EdgeInsets.only(
+            bottom: NetLearnSpace.s12,
+          ),
+          child: _AssessmentProgressCard(
+            title: l10n.shortcutPretest,
+            caption: l10n.shortcutPretestHint,
+            icon: Icons.quiz_outlined,
+            locked: false,
+            completed: dashboard?.pretestCompleted ?? false,
+            onTap: () {
+              // Gerbang assessment bersama, bukan push instruksi langsung:
+              // dulu kartu ini selalu bisa dipaksa membuka instruksi bahkan
+              // ketika Pretest sudah selesai, dan tombol mulai di sana lalu
+              // berakhir di halaman error ASSESSMENT_LOCKED dengan tombol
+              // Retry yang mengulang kegagalan yang sama. Kini mahasiswa
+              // yang sudah mengerjakan langsung mendapat dialog hasilnya.
+              openAssessmentEntry(
+                context,
+                ref,
+                assessmentType: 'pretest',
+                completed: dashboard?.pretestCompleted ?? false,
+                unlocked: true,
+              );
+            },
+          ),
+        ),
+
+        for (final moduleNumber in moduleNumbers)
+          Padding(
+            padding: const EdgeInsets.only(
+              bottom: NetLearnSpace.s12,
+            ),
+            child: _ModuleProgressCard(
+              module: moduleByNumber[moduleNumber],
+              moduleNumber: moduleNumber,
+              materials: grouped[moduleNumber] ?? const [],
+              completedMaterialIds: completedMaterialIds,
+              onTap: () {
+                final module = moduleByNumber[moduleNumber];
+
+                final isUnlocked = module?.unlocked ?? false;
+
+                if (!isUnlocked) {
+                  if (module?.blockedByPretest == true) {
+                    // Penyebab kunci yang patut dijelaskan: modul ini
+                    // tertutup Pretest, jadi pop-upnya menawarkan
+                    // "Kerjakan Pretest" langsung — bukan snackbar yang
+                    // menyamakan semua sebab penguncian.
+                    showPretestLockedDialog(context);
+
+                    return;
+                  }
+
+                  // Persis pemetaan batch feedback: pesan modul terkunci
+                  // memakai tone error.
+                  NlSnackBar.show(
+                    context,
+                    l10n.lockedModuleMessage,
+                    tone: NlSnackTone.error,
+                  );
+
+                  return;
+                }
+
+                final moduleMaterials =
+                    grouped[moduleNumber] ?? const <MaterialModel>[];
+
+                final firstMaterialId = module?.firstMaterialId ??
+                    (moduleMaterials.isEmpty
+                        ? null
+                        : moduleMaterials.first.id);
+
+                if (firstMaterialId == null) {
+                  return;
+                }
+
+                // Unlock is a module-wide rule, so the first material of the
+                // module is always the right entry point.
+                // Navigate directly to the reading page for immediate in-app reading.
+                context.push(
+                  '/student/material/$firstMaterialId/read',
+                );
+              },
+            ),
+          ),
+
+        // Posttest ΓÇö penutup alur. Terkunci sampai seluruh modul selesai;
+        if (ref.watch(classLearningFlowStatusProvider(ref.watch(activeStudentClassProvider).value?.id ?? '')).value?.posttestEnabled ?? true)
+        // status gemboknya berasal dari `get_learning_flow_status`
+        // (`posttest_unlocked`), bukan dari hitungan materi di klien.
+        Padding(
+          padding: const EdgeInsets.only(
+            bottom: NetLearnSpace.s12,
+          ),
+          child: _AssessmentProgressCard(
+            title: l10n.shortcutPosttest,
+            caption: l10n.shortcutPosttestHint,
+            icon: Icons.fact_check_outlined,
+            locked: !(dashboard?.posttestUnlocked ?? false),
+            completed: dashboard?.posttestCompleted ?? false,
+            onTap: () {
+              // Gerbang assessment bersama yang sama dengan kartu Pretest:
+              // selesai → dialog hasil; masih terkunci → dialog terkunci.
+              // Kartunya sendiri tetap memakai `locked` untuk mematikan
+              // `InkWell.onTap` (`onTap: locked ? null : onTap`), jadi kartu
+              // terkunci tidak bisa ditekan sama sekali dan `openAssessment-
+              // Entry` di sini hanya menerima kartu yang sudah terbuka.
+              openAssessmentEntry(
+                context,
+                ref,
+                assessmentType: 'posttest',
+                completed: dashboard?.posttestCompleted ?? false,
+                unlocked: dashboard?.posttestUnlocked ?? false,
+              );
+            },
+          ),
+        ),
+
+        // `.tip` ΓÇö ajakan singkat di bawah daftar modul.
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(NetLearnSpace.s14),
+          decoration: BoxDecoration(
+            color: context.accentTint,
+            borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(
+                Icons.bolt_rounded,
+                size: 17,
+                color: context.accent,
+              ),
+              const SizedBox(width: NetLearnSpace.s8),
+              Expanded(
+                child: Text(
+                  '${l10n.oneStepToday} ${l10n.oneConnectionTomorrow}',
+                  style: Theme.of(context)
+                      .textTheme
+                      .bodySmall
+                      ?.copyWith(
+                    color: context.accent,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ],
     );
   }
 
-  void _showNetBotAiModal() {
-    final TextEditingController textController = TextEditingController();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: MediaQuery.of(ctx).viewInsets.bottom),
-        child: Container(
-          height: MediaQuery.of(context).size.height * 0.75,
-          padding: const EdgeInsets.all(24),
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFCBD5E1),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF3E8FF),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: const Icon(
-                      Icons.auto_awesome_rounded,
-                      color: Color(0xFF9333EA),
-                      size: 28,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'NetBot AI Tutor',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                        ),
-                      ),
-                      Text(
-                        'Tanyakan apa saja seputar jaringan komputer',
-                        style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: ListView(
-                  physics: const BouncingScrollPhysics(),
-                  children: [
-                    _buildChatBubble(
-                      message:
-                          'Halo Rendy! Saya NetBot AI. Ada topik materi, subnetting, atau konfigurasi perangkat yang ingin kamu tanyakan hari ini?',
-                      isBot: true,
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        _buildQuickPromptChip(ctx, 'Apa perbedaan Switch dan Router?'),
-                        _buildQuickPromptChip(ctx, 'Cara menghitung prefix /28?'),
-                        _buildQuickPromptChip(ctx, 'Urutan pin kabel T568B'),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: textController,
-                      decoration: InputDecoration(
-                        hintText: 'Tanyakan sesuatu ke NetBot...',
-                        hintStyle: const TextStyle(fontSize: 13, color: Color(0xFF94A3B8)),
-                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        filled: true,
-                        fillColor: const Color(0xFFF8FAFC),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Container(
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF9333EA),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: IconButton(
-                      icon: const Icon(Icons.send_rounded, color: Colors.white, size: 20),
-                      onPressed: () {
-                        if (textController.text.trim().isNotEmpty) {
-                          final text = textController.text;
-                          textController.clear();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('NetBot sedang memproses: "$text"')),
-                          );
-                        }
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
+  /// Tombol "Continue Learning" di bawah ringkasan progres.
+  ///
+  /// Targetnya dipilih oleh [resolveContinueLearningMaterial] dari data yang
+  /// sudah ada di layar ini (modul ter-unlock yang belum tuntas). Kalau tidak
+  /// ada modul yang bisa dilanjutkan, tombol mengikuti aturan alur belajar
+  /// yang sama dengan kartu di bawah: Pretest lebih dulu kalau belum
+  /// dikerjakan, lalu Post Test; dan kalau semuanya selesai, yang tampil
+  /// adalah status selesai — bukan tombol yang menuju halaman salah.
+  Widget _buildContinueLearning(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentDashboardData? dashboard, {
+    required List<int> moduleNumbers,
+    required Map<int, StudentModule> moduleByNumber,
+    required Map<int, List<MaterialModel>> grouped,
+    required Set<String> completedMaterialIds,
+  }) {
+    final materialId = resolveContinueLearningMaterial(
+      moduleNumbers: moduleNumbers,
+      moduleByNumber: moduleByNumber,
+      grouped: grouped,
+      completedMaterialIds: completedMaterialIds,
     );
-  }
 
-  Widget _buildChatBubble({required String message, required bool isBot}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        if (isBot) ...[
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: const BoxDecoration(
-              color: Color(0xFF9333EA),
-              shape: BoxShape.circle,
-            ),
-            child: const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 14),
+    final theme = Theme.of(context);
+
+    if (materialId != null) {
+      return _continueButton(context, l10n, () {
+        context.push('/student/material/$materialId/read');
+      });
+    }
+
+    final pretestBlocked =
+        moduleByNumber[moduleNumbers.first]?.blockedByPretest ?? false;
+
+    if (pretestBlocked) {
+      // Aturan awal pembelajaran aplikasi: Pretest adalah gerbang seluruh
+      // modul, jadi "melanjutkan" bagi mahasiswa baru berarti membuka
+      // instruksi Pretest — halaman yang sama dengan kartu Pretest.
+      return _continueButton(context, l10n, () {
+        context.push('/student/assessment-instructions/pretest');
+      });
+    }
+
+    final posttestPending = (dashboard?.posttestUnlocked ?? false) &&
+        !(dashboard?.posttestCompleted ?? false);
+
+    if (posttestPending) {
+      return _continueButton(context, l10n, () {
+        context.push('/student/assessment-instructions/posttest');
+      });
+    }
+
+    // Semua langkah alur sudah tuntas: tampilkan status selesai, bukan
+    // tombol yang tidak punya tujuan yang benar.
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: NetLearnSpace.s14,
+        vertical: NetLearnSpace.s12,
+      ),
+      decoration: BoxDecoration(
+        color: context.accentTint,
+        borderRadius: BorderRadius.circular(NetLearnRadius.card),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.check_circle_outline_rounded,
+            size: 18,
+            color: context.accent,
           ),
-          const SizedBox(width: 8),
-        ],
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: isBot ? const Color(0xFFF8FAFC) : const Color(0xFF6366F1),
-              borderRadius: BorderRadius.circular(14),
-              border: isBot ? Border.all(color: const Color(0xFFE2E8F0)) : null,
-            ),
+          const SizedBox(width: NetLearnSpace.s8),
+          Flexible(
             child: Text(
-              message,
-              style: TextStyle(
-                fontSize: 13,
-                color: isBot ? const Color(0xFF1E293B) : Colors.white,
+              l10n.allMaterialsCompleted,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: context.accent,
+                fontSize: 11,
                 height: 1.4,
               ),
             ),
           ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildQuickPromptChip(BuildContext ctx, String text) {
-    return ActionChip(
-      label: Text(text, style: const TextStyle(fontSize: 11, color: Color(0xFF475569))),
-      backgroundColor: const Color(0xFFF1F5F9),
-      side: const BorderSide(color: Color(0xFFE2E8F0)),
-      onPressed: () {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Tanya: $text')),
-        );
-      },
-    );
-  }
-
-  void _showSubnetDrillModal() {
-    final options = [
-      'A. 192.168.10.127 (Benar)',
-      'B. 192.168.10.63',
-      'C. 192.168.10.255',
-      'D. 192.168.10.128',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Center(
-                  child: Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFCBD5E1),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFFFFE4E6),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(
-                            Icons.speed_rounded,
-                            color: Color(0xFFE11D48),
-                            size: 28,
-                          ),
-                        ),
-                        const SizedBox(width: 14),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: const [
-                            Text(
-                              'Subnet Drill',
-                              style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
-                              ),
-                            ),
-                            Text(
-                              'Tantangan Perhitungan Cepat 60 Detik',
-                              style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFFEF2F2),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: const Color(0xFFFECACA)),
-                      ),
-                      child: const Row(
-                        children: [
-                          Icon(Icons.timer_outlined, size: 14, color: Color(0xFFDC2626)),
-                          SizedBox(width: 4),
-                          Text(
-                            '45s',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFFDC2626),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: const Color(0xFFE2E8F0)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
-                      Text(
-                        'Soal 1 dari 5',
-                        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF6366F1)),
-                      ),
-                      SizedBox(height: 6),
-                      Text(
-                        'Tentukan Broadcast Address dari IP host berikut:\n192.168.10.65 /26',
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
-                          height: 1.4,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                ...List.generate(options.length, (idx) {
-                  final isSelected = _subnetSelectedOption == idx;
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: InkWell(
-                      borderRadius: BorderRadius.circular(12),
-                      onTap: () {
-                        setModalState(() {
-                          _subnetSelectedOption = idx;
-                        });
-                        setState(() {
-                          _subnetSelectedOption = idx;
-                        });
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: isSelected ? const Color(0xFFEEF2FF) : Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(
-                            color: isSelected ? const Color(0xFF6366F1) : const Color(0xFFE2E8F0),
-                            width: isSelected ? 1.5 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(
-                              isSelected ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
-                              color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF94A3B8),
-                              size: 20,
-                            ),
-                            const SizedBox(width: 12),
-                            Text(
-                              options[idx],
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
-                                color: isSelected ? const Color(0xFF6366F1) : const Color(0xFF1E293B),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  );
-                }),
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE11D48),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    onPressed: _subnetSelectedOption == -1
-                        ? null
-                        : () {
-                            Navigator.pop(ctx);
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Jawaban Benar! +20 Poin drill subnetting.'),
-                                backgroundColor: Color(0xFF059669),
-                              ),
-                            );
-                          },
-                    child: const Text(
-                      'Kirim Jawaban',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.white),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  void _showPretestModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF5F3FF),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.quiz_outlined,
-                    color: Color(0xFF8B5CF6),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Pretest Jaringan Komputer',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Evaluasi Awal Tingkat Pemahaman',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  _buildModalInfoRow('Status Pengerjaan', 'Sudah Selesai (Skor: 85/100)'),
-                  const Divider(height: 16),
-                  _buildModalInfoRow('Jumlah Soal', '20 Soal Pilihan Ganda'),
-                  const Divider(height: 16),
-                  _buildModalInfoRow('Batas Waktu', '25 Menit'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF8B5CF6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka rincian review hasil Pretest...'),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Lihat Pembahasan & Hasil',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showArScannerModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFFEF3C7),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.view_in_ar_rounded,
-                    color: Color(0xFFF59E0B),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'AR Marker Scanner',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Pemindaian Objek 3D Perangkat Jaringan',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              height: 140,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: const Color(0xFF0F172A),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  const Icon(
-                    Icons.qr_code_scanner_rounded,
-                    color: Color(0xFFF59E0B),
-                    size: 56,
-                  ),
-                  Positioned(
-                    bottom: 12,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withOpacity(0.6),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: const Text(
-                        'Arahkan kamera ke marker modul pembelajaran',
-                        style: TextStyle(color: Colors.white, fontSize: 11),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            const Text(
-              'Perangkat 3D yang Didukung:',
-              style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: const [
-                Chip(
-                  avatar: Icon(Icons.router_rounded, size: 16, color: Color(0xFF6366F1)),
-                  label: Text('Router Cisco 2911', style: TextStyle(fontSize: 11)),
-                  backgroundColor: Color(0xFFEEF2FF),
-                ),
-                Chip(
-                  avatar: Icon(Icons.hub_rounded, size: 16, color: Color(0xFF10B981)),
-                  label: Text('Switch Catalyst 2960', style: TextStyle(fontSize: 11)),
-                  backgroundColor: Color(0xFFD1FAE5),
-                ),
-                Chip(
-                  avatar: Icon(Icons.dns_rounded, size: 16, color: Color(0xFFF59E0B)),
-                  label: Text('Server Rack 42U', style: TextStyle(fontSize: 11)),
-                  backgroundColor: Color(0xFFFEF3C7),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFF59E0B),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Membuka kamera Augmented Reality...'),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.camera_alt_outlined, color: Colors.white),
-                label: const Text(
-                  'Mulai Pindai Marker AR',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showPosttestModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFD1FAE5),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.fact_check_outlined,
-                    color: Color(0xFF10B981),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Posttest Jaringan Komputer',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Evaluasi Akhir Penilaian Semester',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8FAFC),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFFE2E8F0)),
-              ),
-              child: Column(
-                children: [
-                  _buildModalInfoRow('Status Akses', 'Terkunci (Selesaikan Modul 4)'),
-                  const Divider(height: 16),
-                  _buildModalInfoRow('Bobot Penilaian', '30% Nilai Akhir'),
-                  const Divider(height: 16),
-                  _buildModalInfoRow('Syarat Terbuka', 'Tuntas Semua Materi 1-4'),
-                ],
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              height: 48,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF94A3B8),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Posttest belum dapat diakses. Lengkapi Modul 4 terlebih dahulu.'),
-                    ),
-                  );
-                },
-                child: const Text(
-                  'Posttest Belum Terbuka',
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.white,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showAssessmentHistoryModal() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        height: MediaQuery.of(context).size.height * 0.75,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: const Color(0xFFCBD5E1),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE0F2FE),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.history_rounded,
-                    color: Color(0xFF06B6D4),
-                    size: 28,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: const [
-                    Text(
-                      'Riwayat Nilai & Evaluasi',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
-                      ),
-                    ),
-                    Text(
-                      'Catatan hasil kuis dan tugas mahasiswa',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Color(0xFF64748B),
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Expanded(
-              child: ListView(
-                physics: const BouncingScrollPhysics(),
-                children: [
-                  _buildHistoryCard(
-                    title: 'Pretest Jaringan Komputer',
-                    date: '02 Nov 2026',
-                    type: 'Pretest',
-                    score: 85,
-                    passed: true,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildHistoryCard(
-                    title: 'Kuis Modul 1: Dasar Topologi',
-                    date: '04 Nov 2026',
-                    type: 'Kuis',
-                    score: 95,
-                    passed: true,
-                  ),
-                  const SizedBox(height: 10),
-                  _buildHistoryCard(
-                    title: 'Tugas Praktikum Konfigurasi Switch',
-                    date: '06 Nov 2026',
-                    type: 'Tugas Lab',
-                    score: 90,
-                    passed: true,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildHistoryCard({
-    required String title,
-    required String date,
-    required String type,
-    required int score,
-    required bool passed,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '$type • $date',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    color: Color(0xFF64748B),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              color: passed ? const Color(0xFFD1FAE5) : const Color(0xFFFEE2E2),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              'Skor: $score',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: passed ? const Color(0xFF059669) : const Color(0xFFDC2626),
-              ),
-            ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildLearningProgressCard() {
-    const double progress = 0.75;
-
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                'Perjalanan Belajar',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF1E293B),
-                ),
-              ),
-              Text(
-                '75% Tuntas',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF6366F1),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: const LinearProgressIndicator(
-              value: progress,
-              minHeight: 8,
-              backgroundColor: Color(0xFFE2E8F0),
-              valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF6366F1)),
-            ),
-          ),
-          const SizedBox(height: 10),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: const [
-              Text(
-                '3 dari 4 Modul Selesai',
-                style: TextStyle(fontSize: 12, color: Color(0xFF64748B)),
-              ),
-              Text(
-                'Terus Semangat! 🔥',
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: Color(0xFF10B981),
-                ),
-              ),
-            ],
-          ),
-        ],
+  /// Tubuh tombol "Continue Learning" sesuai referensi dashboard: blok
+  /// penuh selebar konten, ungu, teks putih, panah di ujung kanan.
+  ///
+  /// `NlButton` membungkus isi dengan `Row(mainAxisSize: min)`, sementara
+  /// parent Column menata children secara start — tanpa lebar penuh, tombol
+  /// menciut mengikuti teks dan proporsinya tidak lagi sesuai kartu Progress
+  /// di atasnya. Posisi (di bawah ringkasan progres) dan target navigasi
+  /// tidak berubah.
+  Widget _continueButton(
+    BuildContext context,
+    AppLocalizations l10n,
+    VoidCallback onPressed,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      child: NlButton(
+        label: l10n.continueLearning,
+        trailingIcon: Icons.arrow_forward_rounded,
+        onPressed: onPressed,
       ),
     );
   }
 
-  Widget _buildModuleProgressList() {
-    return Column(
+  /// `.shortcut-grid.learning-space-grid` — pintu masuk ruang belajar.
+  ///
+  /// Sembilan pintu sesuai desain, tersusun tiga kolom seperti frame
+/// "Dashboard Mahasiswa 1". Hanya yang benar-benar punya route yang
+/// diaktifkan: assessment (tempat pretest/posttest dan tugas berada), modul,
+/// AR scanner, riwayat assessment, learning video, dan virtual lab.
+/// Virtual Lab masih menampilkan pemberitahuan "coming soon" sampai dirilis.
+/// Shortcut Profile tidak ikut di sini: sesuai referensi Dashboard Mahasiswa,
+/// Profile hanya dijangkau lewat bottom navigation.
+  Widget _buildShortcutGrid(
+    BuildContext context,
+    AppLocalizations l10n,
+    StudentDashboardData? dashboard,
+  ) {
+    final accents = NetLearnAccents.grid;
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+
+    return NlMetricGrid(
+      bordered: false,
+      padding: EdgeInsets.zero,
+      columns: 3,
+      gap: NetLearnSpace.s12,
+      bottomGap: 0,
       children: [
-        _buildModuleItem(
-          moduleNumber: 1,
-          title: 'Pengantar Jaringan Komputer & Model OSI',
-          status: 'Selesai',
-          statusColor: const Color(0xFF10B981),
-          statusBg: const Color(0xFFD1FAE5),
-          icon: Icons.check_circle_rounded,
-          score: 'Nilai: 95',
-          onTap: () => _showModuleDetailModal('Modul 1: Pengantar Jaringan Komputer & Model OSI'),
-        ),
-        const SizedBox(height: 10),
-        _buildModuleItem(
-          moduleNumber: 2,
-          title: 'Perangkat Keras Jaringan (Router & Switch)',
-          status: 'Selesai',
-          statusColor: const Color(0xFF10B981),
-          statusBg: const Color(0xFFD1FAE5),
-          icon: Icons.check_circle_rounded,
-          score: 'Nilai: 90',
-          onTap: () => _showModuleDetailModal('Modul 2: Perangkat Keras Jaringan'),
-        ),
-        const SizedBox(height: 10),
-        _buildModuleItem(
-          moduleNumber: 3,
-          title: 'Pengkabelan UTP & Standar Crimping T568A/B',
-          status: 'Sedang Berjalan',
-          statusColor: const Color(0xFFF59E0B),
-          statusBg: const Color(0xFFFEF3C7),
-          icon: Icons.play_circle_fill_rounded,
-          score: 'Progres: 60%',
-          onTap: () => _showModuleDetailModal('Modul 3: Pengkabelan UTP & Crimping'),
-        ),
-        const SizedBox(height: 10),
-        _buildModuleItem(
-          moduleNumber: 4,
-          title: 'Pengalamatan IPv4 & Teknik Subnetting VLSM',
-          status: 'Terkunci',
-          statusColor: const Color(0xFF94A3B8),
-          statusBg: const Color(0xFFF1F5F9),
-          icon: Icons.lock_rounded,
-          score: 'Syarat: Tuntaskan Modul 3',
+        NlShortcutTile(
+          icon: Icons.quiz_outlined,
+          accentColor: accents[2],
+          title: l10n.shortcutPretest,
+          subtitle: l10n.shortcutPretestHint,
           onTap: () {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Modul 4 terkunci. Selesaikan Modul 3 terlebih dahulu.'),
-              ),
+            // Gerbang assessment bersama juga untuk sel Learning Space:
+            // dulu selnya selalu push instruksi (keluhan "pretest/posttest
+            // di Learning Space tidak bisa"), sekarang status selesai/
+            // terkunci dijawab dengan dialog yang sama seperti kartu lain.
+            openAssessmentEntry(
+              context,
+              ref,
+              assessmentType: 'pretest',
+              completed: dashboard?.pretestCompleted ?? false,
+              unlocked: true,
+            );
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.menu_book_outlined,
+          accentColor: accents[0],
+          title: l10n.shortcutModules,
+          subtitle: l10n.shortcutModulesHint,
+          onTap: () {
+            context.push('/student/materials');
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.view_in_ar_rounded,
+          accentColor: accents[3],
+          title: l10n.shortcutScanner,
+          subtitle: l10n.shortcutScannerHint,
+          onTap: () {
+            NlSnackBar.show(
+              context,
+              isId
+                  ? 'Fitur AR Scanner masih dalam tahap pengembangan.'
+                  : 'AR Scanner feature is currently under development.',
+            );
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.fact_check_outlined,
+          accentColor: accents[4],
+          title: l10n.shortcutPosttest,
+          subtitle: l10n.shortcutPosttestHint,
+          onTap: () {
+            // Gerbang yang sama dengan sel Pretest: sel Posttest yang belum
+            // terbuka kini menampilkan dialog terkunci langsung dari sini,
+            // bukan instruksi yang tombol mulainya menolak di akhir.
+            openAssessmentEntry(
+              context,
+              ref,
+              assessmentType: 'posttest',
+              completed: dashboard?.posttestCompleted ?? false,
+              unlocked: dashboard?.posttestUnlocked ?? false,
+            );
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.assignment_outlined,
+          accentColor: accents[1],
+          title: l10n.shortcutAssignments,
+          subtitle: l10n.shortcutAssignmentsHint,
+          onTap: () {
+            context.push('/student/assessment');
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.history_rounded,
+          accentColor: accents[5],
+          title: l10n.shortcutAssessmentHistory,
+          subtitle: l10n.shortcutAssessmentHistoryHint,
+          // "Assessment History" lebih panjang dari label lain, jadi di sel
+          // sempit ia boleh membungkus ke dua baris alih-alih terpotong.
+          maxTitleLines: 2,
+          onTap: () {
+            context.push('/student/assessment-history');
+          },
+        ),
+
+        // Row 3: Learning Video, Virtual Lab. Shortcut Profile dihapus sesuai
+        // referensi Dashboard Mahasiswa — Profile tetap bisa dibuka dari
+        // bottom navigation. Learning Video membuka halaman daftar video;
+        // Virtual Lab membuka halaman lab 2D `/student/virtual-lab`.
+        NlShortcutTile(
+          icon: Icons.play_circle_outline_rounded,
+          accentColor: accents[1],
+          title: l10n.learningVideo,
+          subtitle: l10n.watchAndLearn,
+          onTap: () {
+            context.push('/student/video-list');
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.lan_outlined,
+          accentColor: accents[0],
+          title: l10n.virtualLab,
+          subtitle: l10n.networkPractice,
+          onTap: () {
+            NlSnackBar.show(
+              context,
+              isId
+                  ? 'Fitur Virtual Lab masih dalam tahap pengembangan.'
+                  : 'Virtual Lab feature is currently under development.',
+            );
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.auto_awesome_rounded,
+          accentColor: accents[2],
+          title: 'NetBot AI',
+          subtitle: isId ? 'Tutor Cerdas' : 'Smart AI Tutor',
+          onTap: () {
+            NlSnackBar.show(
+              context,
+              isId
+                  ? 'Fitur NetBot AI masih dalam tahap pengembangan.'
+                  : 'NetBot AI feature is currently under development.',
+            );
+          },
+        ),
+
+        NlShortcutTile(
+          icon: Icons.speed_rounded,
+          accentColor: accents[4],
+          title: isId ? 'Subnet Drill' : 'Subnet Drill',
+          subtitle: isId ? 'Tantangan 60s' : '60s Challenge',
+          onTap: () {
+            NlSnackBar.show(
+              context,
+              isId
+                  ? 'Fitur Subnet Drill masih dalam tahap pengembangan.'
+                  : 'Subnet Drill feature is currently under development.',
             );
           },
         ),
@@ -2941,379 +1059,1227 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
     );
   }
 
-  Widget _buildModuleItem({
-    required int moduleNumber,
-    required String title,
-    required String status,
-    required Color statusColor,
-    required Color statusBg,
-    required IconData icon,
-    required String score,
-    required VoidCallback onTap,
-  }) {
+  /// "Recent Notifications" ΓÇö pratinjau dari sumber yang sama dengan halaman
+  /// Notifikasi.
+  ///
+  /// Sebelumnya bagian ini selalu menampilkan keadaan kosong dengan alasan
+  /// tidak ada provider notifikasi. Provider-nya sudah ada sejak halaman
+  /// Notifikasi dibuat, jadi yang benar adalah membaca keduanya; keadaaan
+  /// kosong tetap muncul apa adanya saat memang belum ada pengumuman maupun
+  /// pengingat. Ketika id mahasiswa belum diketahui (baris dashboard masih
+  /// dimuat atau gagal), tidak ada yang bisa dibaca dengan aman, jadi yang
+  /// tampil kembali adalah keadaan kosong.
+  Widget _buildNotifications(
+    BuildContext context,
+    AppLocalizations l10n,
+    String? userId,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle(context, l10n.recentNotifications),
+        const SizedBox(height: NetLearnSpace.s12),
+        if (userId == null)
+          const _NotificationsEmpty()
+        else
+          _RecentNotificationsPreview(userId: userId),
+      ],
+    );
+  }
+}
+
+/// Tombol ikon berbentuk kotak di dalam hero dashboard.
+///
+/// Di desain, lonceng Notifikasi dan tombol About NetLearn adalah kotak 35px
+/// dengan gaya yang sama persis (latar putih 5%, garis putih 14%, radius 12),
+/// jadi keduanya berbagi satu widget. [tooltip] sekaligus menjadi label
+/// aksesibel karena ikonnya tidak membawa teks.
+class _HeroIconButton extends StatelessWidget {
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  const _HeroIconButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: isDark ? NetLearnColors.darkSurface : NetLearnColors.white,
+              shape: BoxShape.circle,
+              border: Border.all(
+                color: isDark
+                    ? NetLearnColors.darkLine
+                    : const Color(0xFFF1EDFC),
+              ),
+              boxShadow: isDark
+                  ? null
+                  : const [
+                      BoxShadow(
+                        color: Color(0x0F1D1C21),
+                        blurRadius: 10,
+                        offset: Offset(0, 3),
+                      ),
+                    ],
+            ),
+            child: Center(
+              child: Icon(
+                icon,
+                size: 19,
+                color: isDark ? NetLearnColors.darkText : NetLearnColors.ink,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Avatar mahasiswa di hero, lengkap dengan titik status di pojok kanan bawah.
+///
+/// Titik hijau (`heroOnlineDot`) sengaja digambar di dalam [Stack] dengan
+/// `clipBehavior: Clip.none`, bukan sebagai anak dari `Container` bulat:
+/// lingkaran avatar memotong anaknya di tepi lengkung, sehingga titik yang
+/// menempel di pojok kanan bawah akan terlihat terpangkas. Dengan `Stack` di
+/// luar lingkaran, titik itu utuh di kedua tema.
+class _DashboardAvatar extends StatelessWidget {
+  final String? userId;
+  final String initial;
+  final AvatarConfig? avatarConfig;
+  final VoidCallback onTap;
+
+  const _DashboardAvatar({
+    this.userId,
+    required this.initial,
+    this.avatarConfig,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 49,
+      height: 49,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 49,
+              height: 49,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withValues(alpha: 0.25),
+                border: Border.all(
+                  color: Colors.white,
+                  width: 2.5,
+                ),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                initial.isNotEmpty ? initial : 'M',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+
+          // `.avatar > span` — titik status hijau dengan cincin ungu. Tetap di
+          // dalam kotak 49px supaya tidak pernah butuh ruang di luar Stack.
+          Positioned(
+            right: 1,
+            bottom: 1,
+            child: Container(
+              width: 12,
+              height: 12,
+              decoration: BoxDecoration(
+                color: NetLearnColors.heroOnlineDot,
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: NetLearnColors.heroOnlineDotRing,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ModuleProgressCard extends StatelessWidget {
+  final StudentModule? module;
+  final int moduleNumber;
+  final List<MaterialModel> materials;
+  final Set<String> completedMaterialIds;
+  final VoidCallback onTap;
+
+  const _ModuleProgressCard({
+    required this.module,
+    required this.moduleNumber,
+    required this.materials,
+    required this.completedMaterialIds,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    final completed = materials
+        .where(
+          (material) =>
+              completedMaterialIds.contains(material.id),
+        )
+        .length;
+
+    final total = materials.length;
+
+    final progress = total == 0 ? 0.0 : completed / total;
+
+    final isUnlocked = module?.unlocked ?? false;
+
+    // An unlocked module stays unlocked no matter how the progress rows look,
+    // so a module the student is part-way through is never shown as a lock.
+    final isCompleted =
+        (module?.completed ?? false) ||
+            (isUnlocked && total > 0 && completed == total);
+
+    final moduleTitle = _moduleTitle(context, l10n);
+
+    final status = _statusFor(
+      l10n,
+      isUnlocked: isUnlocked,
+      isCompleted: isCompleted,
+      completed: completed,
+    );
+
     return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(14),
+      color: context.surface,
+      borderRadius: BorderRadius.circular(
+        NetLearnRadius.card,
+      ),
       child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
+        onTap: isUnlocked ? onTap : null,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.all(
+            NetLearnSpace.s16,
+          ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: const Color(0xFFE2E8F0)),
+            borderRadius: BorderRadius.circular(
+              NetLearnRadius.card,
+            ),
+            border: Border.all(
+              color: context.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              _ModuleNumber(
+                number: moduleNumber,
+                locked: !isUnlocked,
+                completed: isCompleted,
+              ),
+              const SizedBox(
+                width: NetLearnSpace.s12,
+              ),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment:
+                      CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment:
+                          CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            moduleTitle,
+                            maxLines: 2,
+                            overflow:
+                                TextOverflow.ellipsis,
+                            style: Theme.of(context)
+                                .textTheme
+                                .titleMedium
+                                ?.copyWith(
+                              fontSize: 13,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(
+                          width: NetLearnSpace.s8,
+                        ),
+                        _ModuleStatusChip(
+                          label: status.label,
+                          tone: status.tone,
+                        ),
+                      ],
+                    ),
+                    const SizedBox(
+                      height: 8,
+                    ),
+                    ClipRRect(
+                      borderRadius:
+                          BorderRadius.circular(20),
+                      child: LinearProgressIndicator(
+                        value: progress,
+                        minHeight: 5,
+                        backgroundColor:
+                            NetLearnColors.neutralBg,
+                        valueColor:
+                            const AlwaysStoppedAnimation<
+                                Color>(
+                          NetLearnColors.forest,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(
+                      height: 6,
+                    ),
+                    Text(
+                      l10n.moduleMaterialsCompleted(
+                        completed,
+                        total,
+                      ),
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                        fontSize: 9,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                width: NetLearnSpace.s8,
+              ),
+              // Gembok modul hanya digambar sekali, di kotak nomor di depan
+              // (`_ModuleNumber`). Ikon di ujung kanan dulu menggambar gembok
+              // kedua kalinya untuk baris yang sama; sekarang hanya panah
+              // "bisa dibuka" yang muncul, sehingga satu baris terkunci
+              // membawa tepat satu gembok.
+              if (isUnlocked)
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: NetLearnColors.forest,
+                  size: 20,
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  /// Module cards fall back to whatever title the module data carries; the
+  /// per-module course titles are no longer hardcoded here because
+  /// `studentModulesProvider` already localises them from the database.
+  String _moduleTitle(
+    BuildContext context,
+    AppLocalizations l10n,
+  ) {
+    final moduleTitle = module?.title.trim() ?? '';
+
+    if (moduleTitle.isNotEmpty) {
+      return moduleTitle;
+    }
+
+    if (materials.isNotEmpty) {
+      return materials.first.title;
+    }
+
+    return '${l10n.module} $moduleNumber';
+  }
+
+  _ModuleStatus _statusFor(
+    AppLocalizations l10n, {
+    required bool isUnlocked,
+    required bool isCompleted,
+    required int completed,
+  }) {
+    if (!isUnlocked) {
+      return _ModuleStatus(
+        label: l10n.locked,
+        tone: _ModuleStatusTone.muted,
+      );
+    }
+
+    if (isCompleted) {
+      return _ModuleStatus(
+        label: l10n.completed,
+        tone: _ModuleStatusTone.positive,
+      );
+    }
+
+    if (completed > 0) {
+      return _ModuleStatus(
+        label: l10n.inProgress,
+        tone: _ModuleStatusTone.accent,
+      );
+    }
+
+    return _ModuleStatus(
+      label: l10n.unlocked,
+      tone: _ModuleStatusTone.accent,
+    );
+  }
+}
+
+enum _ModuleStatusTone { muted, accent, positive }
+
+class _ModuleStatus {
+  final String label;
+  final _ModuleStatusTone tone;
+
+  const _ModuleStatus({
+    required this.label,
+    required this.tone,
+  });
+}
+
+class _ModuleStatusChip extends StatelessWidget {
+  final String label;
+  final _ModuleStatusTone tone;
+
+  const _ModuleStatusChip({
+    required this.label,
+    required this.tone,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final Color background;
+    final Color foreground;
+
+    switch (tone) {
+      case _ModuleStatusTone.positive:
+        background = NetLearnColors.mintLight;
+        foreground = NetLearnColors.forest;
+        break;
+      case _ModuleStatusTone.accent:
+        background = context.accentTint;
+        foreground = context.accent;
+        break;
+      case _ModuleStatusTone.muted:
+        background = context.raisedSurface;
+        foreground = context.mutedText;
+        break;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: 7,
+        vertical: 3,
+      ),
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        label,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontSize: 9,
+          fontWeight: FontWeight.w700,
+          color: foreground,
+        ),
+      ),
+    );
+  }
+}
+
+class _ModuleNumber extends StatelessWidget {
+  final int number;
+  final bool locked;
+  final bool completed;
+
+  const _ModuleNumber({
+    required this.number,
+    required this.locked,
+    required this.completed,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    Color background;
+    Color foreground;
+    IconData? icon;
+
+    if (completed) {
+      background = NetLearnColors.mint;
+      foreground = NetLearnColors.forest;
+      icon = Icons.check_rounded;
+    } else if (locked) {
+      background = context.raisedSurface;
+      foreground = context.mutedText;
+      icon = Icons.lock_outline_rounded;
+    } else {
+      background = NetLearnColors.forest;
+      foreground = context.surface;
+    }
+
+    return Container(
+      width: 46,
+      height: 46,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+      ),
+      alignment: Alignment.center,
+      child: icon != null
+          ? Icon(
+              icon,
+              color: foreground,
+              size: 20,
+            )
+          : Text(
+              number.toString().padLeft(2, '0'),
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(
+                color: foreground,
+                fontSize: 13,
+              ),
+            ),
+    );
+  }
+}
+
+class _ProgressSkeleton extends StatelessWidget {
+  const _ProgressSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    // Tinggi mendekati panel ringkasan plus beberapa kartu modul supaya isi
+    // halaman tidak melompat jauh saat data tiba.
+    return const SizedBox(
+      height: 240,
+      child: Card(
+        child: Center(
+          child: CircularProgressIndicator(),
+        ),
+      ),
+    );
+  }
+}
+
+class _ProgressError extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _ProgressError({
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        NetLearnSpace.s16,
+      ),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: context.accent,
+          ),
+          const SizedBox(
+            width: NetLearnSpace.s12,
+          ),
+          Expanded(
+            child: Text(
+              l10n.moduleProgressLoadError,
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(
+              l10n.retry,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardErrorBanner extends StatelessWidget {
+  final VoidCallback onRetry;
+
+  const _DashboardErrorBanner({
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(
+        NetLearnSpace.s16,
+      ),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.error_outline_rounded,
+            color: context.accent,
+          ),
+          const SizedBox(
+            width: NetLearnSpace.s12,
+          ),
+          Expanded(
+            child: Text(
+              l10n.dashboardLoadError,
+            ),
+          ),
+          TextButton(
+            onPressed: onRetry,
+            child: Text(
+              l10n.retry,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EmptyModules extends StatelessWidget {
+  const _EmptyModules();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Container(
+      padding: const EdgeInsets.all(
+        NetLearnSpace.s20,
+      ),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.menu_book_outlined,
+            size: 32,
+            color: context.mutedText,
+          ),
+          const SizedBox(
+            height: NetLearnSpace.s8,
+          ),
+          Text(
+            l10n.noModules,
+            style: Theme.of(context)
+                .textTheme
+                .titleMedium
+                ?.copyWith(
+              fontSize: 12,
+            ),
+          ),
+          const SizedBox(
+            height: NetLearnSpace.s4,
+          ),
+          Text(
+            l10n.noModulesDescription,
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .bodySmall
+                ?.copyWith(
+              fontSize: 9,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Keadaan kosong untuk "Recent Notifications", disamakan dengan dashboard
+/// dosen supaya bagian ini tidak terlihat seperti elemen asing.
+class _NotificationsEmpty extends StatelessWidget {
+  const _NotificationsEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+        horizontal: NetLearnSpace.s16,
+        vertical: NetLearnSpace.s24,
+      ),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
+        ),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            Icons.notifications_none_rounded,
+            size: 28,
+            color: context.mutedText,
+          ),
+          const SizedBox(
+            height: NetLearnSpace.s8,
+          ),
+          Text(
+            l10n.noNotifications,
+            textAlign: TextAlign.center,
+            style: Theme.of(context)
+                .textTheme
+                .bodyMedium
+                ?.copyWith(
+              color: context.mutedText,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Baris status Pretest / Posttest di "Learning Progress".
+///
+/// Sengaja dibuat seperti [_ModuleProgressCard] sesederhana mungkin: kotak
+/// status di depan, judul dan keterangan di tengah, chip status di belakang.
+/// Bedanya hanya isi kotak depan — ikon assessment saat bisa dibuka, centang
+/// saat selesai, dan satu gembok saat alur masih menguncinya. Gembok itu
+/// sengaja hanya digambar di kotak depan (tidak sekaligus di ujung kanan)
+/// supaya satu baris terkunci membawa tepat satu gembok, sama seperti kartu
+/// modul. Statusnya berasal dari `get_learning_flow_status`, bukan dari
+/// hitungan materi di klien.
+class _AssessmentProgressCard extends StatelessWidget {
+  final String title;
+  final String caption;
+  final IconData icon;
+  final bool locked;
+  final bool completed;
+  final VoidCallback onTap;
+
+  const _AssessmentProgressCard({
+    required this.title,
+    required this.caption,
+    required this.icon,
+    required this.locked,
+    required this.completed,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
+
+    final _ModuleStatus status;
+
+    if (locked) {
+      status = _ModuleStatus(
+        label: l10n.locked,
+        tone: _ModuleStatusTone.muted,
+      );
+    } else if (completed) {
+      status = _ModuleStatus(
+        label: l10n.completed,
+        tone: _ModuleStatusTone.positive,
+      );
+    } else {
+      status = _ModuleStatus(
+        label: l10n.unlocked,
+        tone: _ModuleStatusTone.accent,
+      );
+    }
+
+    // Prioritasnya sama dengan kartu modul: terkunci dulu, lalu selesai, baru
+    // bisa dibuka. Satu nilai hanya masuk ke satu cabang sehingga tidak
+    // mungkin muncul dua status sekaligus.
+    final Color tileBackground;
+    final Color tileForeground;
+    final IconData tileIcon;
+
+    if (locked) {
+      tileBackground = context.raisedSurface;
+      tileForeground = context.mutedText;
+      tileIcon = Icons.lock_outline_rounded;
+    } else if (completed) {
+      tileBackground = NetLearnColors.mint;
+      tileForeground = NetLearnColors.forest;
+      tileIcon = Icons.check_rounded;
+    } else {
+      tileBackground = NetLearnColors.forest;
+      tileForeground = context.surface;
+      tileIcon = icon;
+    }
+
+    return Material(
+      color: context.surface,
+      borderRadius: BorderRadius.circular(
+        NetLearnRadius.card,
+      ),
+      child: InkWell(
+        onTap: locked ? null : onTap,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        child: Container(
+          padding: const EdgeInsets.all(
+            NetLearnSpace.s16,
+          ),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(
+              NetLearnRadius.card,
+            ),
+            border: Border.all(
+              color: context.border,
+            ),
           ),
           child: Row(
             children: [
               Container(
-                width: 38,
-                height: 38,
+                width: 46,
+                height: 46,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFEEF2FF),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text(
-                    '$moduleNumber',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6366F1),
-                    ),
+                  color: tileBackground,
+                  borderRadius: BorderRadius.circular(
+                    NetLearnRadius.card,
                   ),
                 ),
+                alignment: Alignment.center,
+                child: Icon(
+                  tileIcon,
+                  color: tileForeground,
+                  size: 20,
+                ),
               ),
-              const SizedBox(width: 14),
+              const SizedBox(
+                width: NetLearnSpace.s12,
+              ),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      maxLines: 1,
+                      maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
+                      style: Theme.of(context)
+                          .textTheme
+                          .titleMedium
+                          ?.copyWith(
                         fontSize: 13,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
                       ),
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: statusBg,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(icon, size: 12, color: statusColor),
-                              const SizedBox(width: 4),
-                              Text(
-                                status,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: statusColor,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          score,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
-                      ],
+                    Text(
+                      caption,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context)
+                          .textTheme
+                          .bodySmall
+                          ?.copyWith(
+                        fontSize: 9,
+                      ),
                     ),
                   ],
                 ),
               ),
-              const Icon(
-                Icons.chevron_right_rounded,
-                color: Color(0xFF94A3B8),
-                size: 20,
+              const SizedBox(
+                width: NetLearnSpace.s8,
               ),
+              _ModuleStatusChip(
+                label: status.label,
+                tone: status.tone,
+              ),
+              if (!locked) ...[
+                const SizedBox(
+                  width: NetLearnSpace.s8,
+                ),
+                const Icon(
+                  Icons.chevron_right_rounded,
+                  color: NetLearnColors.forest,
+                  size: 20,
+                ),
+              ],
             ],
           ),
         ),
       ),
     );
   }
+}
 
-  void _showModuleDetailModal(String moduleTitle) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Membuka materi $moduleTitle...'),
-        duration: const Duration(seconds: 2),
-      ),
+/// Isi satu baris pratinjau notifikasi, setelah dipilih dari pengumuman dan
+/// pengingat yang nyata.
+class _NotificationPreviewData {
+  final IconData icon;
+  final int tint;
+  final String title;
+  final String subtitle;
+
+  const _NotificationPreviewData({
+    required this.icon,
+    required this.tint,
+    required this.title,
+    required this.subtitle,
+  });
+}
+
+/// Pratinjau "Recent Notifications".
+///
+/// Membaca dua provider yang sama dengan halaman Notifikasi
+/// (`userAnnouncementsProvider` dan `studentDeadlineRemindersProvider`),
+/// sehingga bagian ini tidak mungkin menampilkan hal yang berbeda dari daftar
+/// penuhnya. `NotificationPreview` di desain memakai dua baris contoh dan
+/// tautan "Lihat Semua Notifikasi"; di sini barisnya adalah data mahasiswa
+/// yang sebenarnya, dibatasi supaya tetap hanya sekilas.
+class _RecentNotificationsPreview extends ConsumerWidget {
+  final String userId;
+
+  const _RecentNotificationsPreview({
+    required this.userId,
+  });
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final isIndonesian =
+        Localizations.localeOf(context).languageCode == 'id';
+
+    final announcementsAsync = ref.watch(
+      userAnnouncementsProvider(userId),
     );
-  }
 
-  Widget _buildModalInfoRow(String label, String value) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(fontSize: 13, color: Color(0xFF64748B)),
+    final remindersAsync = ref.watch(
+      studentDeadlineRemindersProvider(userId),
+    );
+
+    // Hanya pemuatan pertama yang menampilkan placeholder; penyegaran
+    // berikutnya tetap memakai baris lama supaya bagian ini tidak berkedip.
+    final isLoading = (announcementsAsync.isLoading ||
+            remindersAsync.isLoading) &&
+        !announcementsAsync.hasValue &&
+        !remindersAsync.hasValue;
+
+    if (isLoading) {
+      return const _NotificationsPreviewSkeleton();
+    }
+
+    final announcements =
+        announcementsAsync.value ?? const <AnnouncementModel>[];
+
+    final reminders =
+        remindersAsync.value ?? const <ReminderItem>[];
+
+    if (reminders.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        LocalNotificationService.instance.syncDeadlineReminders(reminders);
+      });
+    }
+
+    // Pengumuman dulu, baru pengingat, sama seperti desain. Dibatasi tiga
+    // baris: daftar lengkapnya ada di halaman Notifikasi.
+    final rows = <_NotificationPreviewData>[
+      for (final announcement in announcements.take(2))
+        _NotificationPreviewData(
+          icon: Icons.campaign_rounded,
+          tint: 0,
+          title: announcement.title,
+          subtitle: announcement.displayContent,
         ),
-        Text(
-          value,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.bold,
-            color: Color(0xFF1E293B),
+      for (final reminder in reminders.take(2))
+        _NotificationPreviewData(
+          icon: Icons.schedule_rounded,
+          tint: 4,
+          title: reminder.localizedTitle(isIndonesian),
+          subtitle: reminder.subtitle(isIndonesian),
+        ),
+    ].take(3).toList();
+
+    if (rows.isEmpty) {
+      return const _NotificationsEmpty();
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: double.infinity,
+          decoration: BoxDecoration(
+            color: context.surface,
+            borderRadius: BorderRadius.circular(
+              NetLearnRadius.card,
+            ),
+            border: Border.all(
+              color: context.border,
+            ),
+          ),
+          child: Column(
+            children: [
+              for (var index = 0; index < rows.length; index++)
+                _NotificationPreviewRow(
+                  data: rows[index],
+                  showDivider: index < rows.length - 1,
+                  onTap: () {
+                    context.push('/student/notifications');
+                  },
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: NetLearnSpace.s4),
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton(
+            onPressed: () {
+              context.push('/student/notifications');
+            },
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(
+                horizontal: NetLearnSpace.s8,
+              ),
+              foregroundColor: context.accent,
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(l10n.viewAllNotifications),
+                const SizedBox(width: NetLearnSpace.s4),
+                const Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 14,
+                ),
+              ],
+            ),
           ),
         ),
       ],
     );
   }
+}
 
-  // ================= TABS IMPLEMENTATION ================= //
+/// Satu baris pratinjau.
+///
+/// Garis pemisah digambar di tepi bawah setiap baris kecuali baris terakhir,
+/// jadi pratinjau tidak pernah diakhiri garis nyasar.
+class _NotificationPreviewRow extends StatelessWidget {
+  final _NotificationPreviewData data;
+  final bool showDivider;
+  final VoidCallback onTap;
 
-  Widget _buildMaterialsTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            title: 'Daftar Modul Pembelajaran',
-            subtitle: 'Materi terstruktur kurikulum jaringan komputer',
-          ),
-          const SizedBox(height: 16),
-          _buildModuleProgressList(),
-        ],
-      ),
-    );
-  }
+  const _NotificationPreviewRow({
+    required this.data,
+    required this.showDivider,
+    required this.onTap,
+  });
 
-  Widget _buildAssessmentsTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            title: 'Tugas & Evaluasi Praktikum',
-            subtitle: 'Daftar tugas aktif dan jadwal kuis',
-          ),
-          const SizedBox(height: 16),
-          _buildAssessmentCard(
-            title: 'Tugas Praktikum 3: Simulasi Jaringan LAN',
-            deadline: 'Batas Pengumpulan: 08 Nov 2026, 23:59',
-            status: 'Belum Dikumpulkan',
-            statusColor: const Color(0xFFEF4444),
-            statusBg: const Color(0xFFFEE2E2),
-          ),
-          const SizedBox(height: 12),
-          _buildAssessmentCard(
-            title: 'Kuis Modul 2: Konfigurasi VLAN',
-            deadline: 'Batas Pengumpulan: Selesai',
-            status: 'Terkumpul (90/100)',
-            statusColor: const Color(0xFF10B981),
-            statusBg: const Color(0xFFD1FAE5),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAssessmentCard({
-    required String title,
-    required String deadline,
-    required String status,
-    required Color statusColor,
-    required Color statusBg,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFE2E8F0)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: showDivider
+                  ? BorderSide(color: context.border)
+                  : BorderSide.none,
             ),
           ),
-          const SizedBox(height: 6),
-          Text(
-            deadline,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF64748B)),
+          padding: const EdgeInsets.symmetric(
+            horizontal: NetLearnSpace.s16,
+            vertical: NetLearnSpace.s12,
           ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          child: Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                width: 32,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: statusBg,
-                  borderRadius: BorderRadius.circular(6),
+                  color: NetLearnAccents.tintBackgrounds[data.tint],
+                  shape: BoxShape.circle,
                 ),
-                child: Text(
-                  status,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: statusColor,
-                  ),
+                alignment: Alignment.center,
+                child: Icon(
+                  data.icon,
+                  size: 16,
+                  color: NetLearnAccents.tintForegrounds[data.tint],
                 ),
               ),
-              TextButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Detail $title')),
-                  );
-                },
-                child: const Text('Buka Detail'),
+              const SizedBox(width: NetLearnSpace.s10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      data.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.titleSmall,
+                    ),
+                    if (data.subtitle.isNotEmpty) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        data.subtitle,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context)
+                            .textTheme
+                            .bodySmall
+                            ?.copyWith(
+                          fontSize: 10,
+                          color: context.mutedText,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              const SizedBox(width: NetLearnSpace.s8),
+              Icon(
+                Icons.chevron_right_rounded,
+                size: 16,
+                color: context.mutedText,
               ),
             ],
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProfileTab() {
-    return SingleChildScrollView(
-      physics: const BouncingScrollPhysics(),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(title: 'Profil Mahasiswa'),
-          const SizedBox(height: 16),
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: const Color(0xFFE2E8F0)),
-            ),
-            child: Column(
-              children: [
-                const CircleAvatar(
-                  radius: 40,
-                  backgroundColor: Color(0xFFEEF2FF),
-                  child: Text(
-                    'RA',
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF6366F1),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Rendy Aditya',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF1E293B),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                const Text(
-                  '2201010042 • Teknik Informatika',
-                  style: TextStyle(fontSize: 13, color: Color(0xFF64748B)),
-                ),
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 8),
-                _buildModalInfoRow('Kelas Terdaftar', 'TI-2026-A'),
-                const SizedBox(height: 12),
-                _buildModalInfoRow('Dosen Pembimbing', 'Dr. Supono, M.Kom.'),
-                const SizedBox(height: 12),
-                _buildModalInfoRow('Status Akademik', 'Aktif'),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              style: OutlinedButton.styleFrom(
-                foregroundColor: const Color(0xFFEF4444),
-                side: const BorderSide(color: Color(0xFFEF4444)),
-                padding: const EdgeInsets.symmetric(vertical: 12),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              onPressed: () async {
-                await Supabase.instance.client.auth.signOut();
-                if (!mounted) return;
-                GoRouter.of(context).go('/login');
-              },
-              icon: const Icon(Icons.logout_rounded, size: 18),
-              label: const Text(
-                'Keluar Akun',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomNavbar() {
-    return Container(
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFFE2E8F0), width: 1),
         ),
       ),
-      child: BottomNavigationBar(
-        currentIndex: _currentNavIndex,
-        onTap: (index) => setState(() => _currentNavIndex = index),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.white,
-        selectedItemColor: const Color(0xFF6366F1),
-        unselectedItemColor: const Color(0xFF94A3B8),
-        selectedFontSize: 12,
-        unselectedFontSize: 12,
-        elevation: 0,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.dashboard_rounded),
-            label: 'Beranda',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.menu_book_rounded),
-            label: 'Modul',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment_rounded),
-            label: 'Tugas',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person_rounded),
-            label: 'Profil',
-          ),
-        ],
+    );
+  }
+}
+
+/// Placeholder statis saat pratinjau memuat pertama kali.
+///
+/// Sengaja tanpa animasi: tinggi yang tetap sudah cukup menjaga tata letak,
+/// dan tidak ada spinner yang membuat `pumpAndSettle` menunggu selamanya.
+class _NotificationsPreviewSkeleton extends StatelessWidget {
+  const _NotificationsPreviewSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      height: 72,
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
+        ),
       ),
     );
   }
+}
+
+/// Memilih materi untuk tombol "Continue Learning".
+///
+/// Fungsi murni & bisa diuji offline: hanya membaca data yang sudah dipakai
+/// kartu modul di dashboard — `StudentModule` (unlocked/completed) dari
+/// `get_learning_flow_status` dan progres membaca+video per materi dari
+/// `learning_progress` — jadi tidak ada sumber progres baru di sini.
+///
+/// Aturannya: modul pertama (urut nomor) yang terbuka dan belum tuntas adalah
+/// titik lanjut; di dalamnya, materi pertama yang belum tuntas. Kalau modul
+/// belum terbuka, punya `StudentModule`, atau sudah tuntas, ia dilewati.
+/// `null` berarti tidak ada materi yang bisa dilanjutkan.
+String? resolveContinueLearningMaterial({
+  required List<int> moduleNumbers,
+  required Map<int, StudentModule> moduleByNumber,
+  required Map<int, List<MaterialModel>> grouped,
+  required Set<String> completedMaterialIds,
+}) {
+  for (final moduleNumber in moduleNumbers) {
+    final module = moduleByNumber[moduleNumber];
+
+    // Tanpa `StudentModule` tidak ada sinyal unlock yang bisa dipercaya —
+    // kartu modul di dashboard memperlakukannya terkunci juga.
+    if (module == null || !module.unlocked || module.completed) {
+      continue;
+    }
+
+    final moduleMaterials = grouped[moduleNumber] ?? const <MaterialModel>[];
+
+    if (moduleMaterials.isEmpty) {
+      continue;
+    }
+
+    // Materi pertama dalam modul yang belum tuntas (baca + video selesai).
+    // Kalau semua materinya sudah tercatat tuntas tetapi modulnya belum,
+    // kembali ke materi pertama modul — titik masuk yang sama dengan kartu
+    // modul, sehingga kedua pintu tidak pernah membuka materi berbeda.
+    for (final material in moduleMaterials) {
+      if (!completedMaterialIds.contains(material.id)) {
+        return material.id;
+      }
+    }
+
+    return moduleMaterials.first.id;
+  }
+
+  return null;
 }

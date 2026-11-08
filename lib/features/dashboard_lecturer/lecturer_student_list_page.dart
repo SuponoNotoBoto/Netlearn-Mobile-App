@@ -12,7 +12,14 @@ import '../../shared/widgets/nl_topbar.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_score_overview.dart';
 import 'lecturer_students_controller.dart';
+import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
+import '../classes/lecturer_manage_class_section.dart';
 
+/// Holds the current search text for the student list.
+///
+/// Riverpod 3.x does not provide `StateProvider`; a `Notifier` is used
+/// instead, following the same pattern as `LanguageController`.
 class _SearchNotifier extends Notifier<String> {
   @override
   String build() => '';
@@ -22,9 +29,22 @@ class _SearchNotifier extends Notifier<String> {
   }
 }
 
+/// Provides the current search text for the student list page.
 final _searchProvider =
     NotifierProvider.autoDispose<_SearchNotifier, String>(_SearchNotifier.new);
 
+/// Student list for the lecturer, with two tabs: Student Data and Score
+/// Recap — layout mengikuti desain `StudentProgress.tsx` (tab `.tabs`,
+/// kartu mahasiswa `.card`, tabel nilai compact).
+///
+/// Both tabs read the same provider — `lecturerStudentsProvider`, which loads
+/// every profile with role='student' plus the latest submitted pretest/posttest
+/// score through the `get_lecturer_student_overview` RPC. One source, no
+/// duplicated queries.
+///
+/// Searchable by name or student ID (NIM). Email is deliberately not
+/// displayed to avoid exposing contact data unnecessarily. Halaman ini adalah
+/// halaman second-level: kembali lewat NlTopBar, bukan salah satu tab navbar.
 class LecturerStudentListPage extends ConsumerStatefulWidget {
   const LecturerStudentListPage({super.key});
 
@@ -38,6 +58,9 @@ class _LecturerStudentListPageState
   static const _studentDataTab = 0;
   static const _scoreOverviewTab = 1;
 
+  /// Tab navbar yang disorot: Profil (index 4), sesuai screenshot acuan.
+  static const _profileNavIndex = 4;
+
   int _selectedTab = _studentDataTab;
 
   List<StudentModel> _filter(List<StudentModel> students, String search) {
@@ -45,28 +68,49 @@ class _LecturerStudentListPageState
       return students;
     }
 
-    final query = search.toLowerCase();
     return students.where((student) {
-      return student.name.toLowerCase().contains(query) ||
-          (student.identityNumber?.toLowerCase().contains(query) ?? false);
+      return student.name.toLowerCase().contains(search) ||
+          (student.identityNumber?.toLowerCase().contains(search) ??
+              false);
     }).toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
-    final isId = l10n == null || Localizations.localeOf(context).languageCode == 'id';
+    final l10n = AppLocalizations.of(context)!;
 
     final studentsAsync = ref.watch(lecturerStudentsProvider(null));
+    final activeClass = ref.watch(activeLecturerClassProvider).value;
+    final classes = ref.watch(lecturerClassesProvider).value;
 
     return Scaffold(
       backgroundColor: context.background,
+
       appBar: NlTopBar(
-        title: l10n?.studentList ?? 'Daftar Mahasiswa',
+        title: l10n.studentList,
         onBack: () => context.pop(),
       ),
+
       body: Column(
         children: [
+          if (classes != null &&
+              activeClass != null &&
+              activeClass.id != kLegacyFallbackClassId) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                NetLearnSpace.s20,
+                NetLearnSpace.s12,
+                NetLearnSpace.s20,
+                0,
+              ),
+              child: LecturerActiveClassBar(
+                classes: classes,
+                activeClass: activeClass,
+              ),
+            ),
+          ],
+          // `.tabs` dari desain: track abu, pill putih untuk tab terpilih —
+          // bukan pil ungu solid.
           Padding(
             padding: const EdgeInsets.fromLTRB(
               NetLearnSpace.s20,
@@ -75,12 +119,9 @@ class _LecturerStudentListPageState
               0,
             ),
             child: NlSegmentedTabs(
-              labels: [
-                l10n?.studentData ?? 'Data Mahasiswa',
-                l10n?.scoreOverview ?? 'Rekap Nilai',
-              ],
+              labels: [l10n.studentData, l10n.scoreOverview],
               selectedIndex: _selectedTab,
-              semanticLabel: l10n?.studentList ?? 'Daftar Mahasiswa',
+              semanticLabel: l10n.studentList,
               onChanged: (index) {
                 setState(() {
                   _selectedTab = index;
@@ -88,22 +129,30 @@ class _LecturerStudentListPageState
               },
             ),
           ),
+
           const SizedBox(height: NetLearnSpace.s16),
+
+          // Tab content.
           Expanded(
             child: _selectedTab == _scoreOverviewTab
                 ? const LecturerScoreOverviewTab()
-                : _buildStudentDataTab(context, l10n, isId, studentsAsync),
+                : _buildStudentDataTab(context, l10n, studentsAsync),
           ),
         ],
       ),
-      bottomNavigationBar: const LecturerBottomNavbar(currentIndex: 3),
+
+      // Screenshot acuan akhir masih menampilkan bottom navbar (tab Profil
+      // aktif) di halaman ini, jadi navbar dipertahankan — berbeda dengan
+      // instruksi awal menghapusnya; keputusan produk menyusul. Index 4
+      // (Profil) dipakai karena halaman ini di-push dari shortcut Profil.
+      bottomNavigationBar:
+          LecturerBottomNavbar(currentIndex: _profileNavIndex),
     );
   }
 
   Widget _buildStudentDataTab(
     BuildContext context,
-    AppLocalizations? l10n,
-    bool isId,
+    AppLocalizations l10n,
     AsyncValue<List<StudentModel>> studentsAsync,
   ) {
     final search = ref.watch(_searchProvider);
@@ -133,7 +182,7 @@ class _LecturerStudentListPageState
                 onPressed: () {
                   ref.invalidate(lecturerStudentsProvider(null));
                 },
-                child: Text(l10n?.retry ?? 'Coba Lagi'),
+                child: Text(l10n.retry),
               ),
             ],
           ),
@@ -157,27 +206,31 @@ class _LecturerStudentListPageState
               NetLearnSpace.s32,
             ),
             children: [
+              // Blok pengantar. Judul h2 ("Student List") sengaja tidak
+              // diulang di sini: top bar sudah memuat judul yang sama, dan di
+              // prototipe h2 hanya ada karena frame Figma tidak punya top bar.
               Text(
-                l10n?.studentScoreSummary ?? 'Ringkasan Nilai Mahasiswa',
+                l10n.studentScoreSummary,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.mutedText,
                     ),
               ),
               const SizedBox(height: NetLearnSpace.s4),
               Text(
-                l10n?.studentListIntro ??
-                    'Pantau progres pembelajaran, nilai evaluasi, dan keaktifan mahasiswa di kelas Anda.',
+                l10n.studentListIntro,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.mutedText,
                     ),
               ),
               const SizedBox(height: NetLearnSpace.s16),
+
+              // `.search` — permukaan putih, teks 12px, ikon 17px.
               TextField(
                 onChanged: (value) =>
                     ref.read(_searchProvider.notifier).setSearch(value),
                 style: const TextStyle(fontSize: 12),
                 decoration: InputDecoration(
-                  hintText: l10n?.searchStudentsHint ?? 'Cari nama atau NIM mahasiswa...',
+                  hintText: l10n.searchStudentsHint,
                   prefixIcon: const Icon(Icons.search, size: 17),
                   filled: true,
                   fillColor: context.surface,
@@ -199,24 +252,22 @@ class _LecturerStudentListPageState
                   ),
                 ),
               ),
+
               const SizedBox(height: NetLearnSpace.s16),
+
+              // Student list — kartu persis Figma: nama + NIM + tombol.
               if (students.isEmpty)
                 NlEmptyState(
                   icon: Icons.people_outline,
-                  title: l10n?.noStudents ?? 'Belum Ada Mahasiswa',
-                  message: l10n?.noStudentsDescription ?? 'Belum ada mahasiswa yang terdaftar di kelas.',
+                  title: l10n.noStudents,
+                  message: l10n.noStudentsDescription,
                 )
               else if (visible.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Center(
-                    child: Text(
-                      l10n?.noStudentsFound ?? 'Tidak ada mahasiswa yang cocok dengan pencarian.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                            color: context.mutedText,
-                          ),
-                    ),
-                  ),
+                Text(
+                  l10n.noStudentsFound,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: context.mutedText,
+                      ),
                 )
               else
                 for (final student in visible)
@@ -230,8 +281,11 @@ class _LecturerStudentListPageState
       },
     );
   }
+
 }
 
+/// Kartu mahasiswa versi desain: nama, NIM, dan satu tombol ke Rekap Nilai.
+/// Dilengkapi penanda mahasiswa pasif / butuh perhatian dan aksi kirim pengingat cepat.
 class _StudentCard extends StatelessWidget {
   final StudentModel student;
 
@@ -248,9 +302,6 @@ class _StudentCard extends StatelessWidget {
     showDialog<void>(
       context: context,
       builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        ),
         title: Row(
           children: [
             const Icon(Icons.notifications_active_outlined, color: Color(0xFFE65100)),
@@ -315,7 +366,7 @@ class _StudentCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final l10n = AppLocalizations.of(context);
+    final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
     final isId = Localizations.localeOf(context).languageCode == 'id';
 
@@ -374,7 +425,8 @@ class _StudentCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: NetLearnSpace.s6),
-          if (student.identityNumber != null && student.identityNumber!.isNotEmpty)
+          if (student.identityNumber != null &&
+              student.identityNumber!.isNotEmpty)
             Text(
               'NIM: ${student.identityNumber}',
               style: theme.textTheme.bodySmall?.copyWith(
@@ -382,6 +434,7 @@ class _StudentCard extends StatelessWidget {
               ),
             ),
           const SizedBox(height: NetLearnSpace.s16),
+
           if (isAtRisk) ...[
             SizedBox(
               width: double.infinity,
@@ -404,10 +457,11 @@ class _StudentCard extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: NlButton(
-              label: l10n?.viewScoreSummary ?? 'Lihat Rekap Nilai',
+              label: l10n.viewScoreSummary,
               trailingIcon: Icons.arrow_forward,
               variant: NlButtonVariant.secondary,
-              onPressed: () => context.push('/lecturer/students/${student.id}'),
+              onPressed: () =>
+                  context.push('/lecturer/students/${student.id}'),
             ),
           ),
         ],
@@ -415,4 +469,3 @@ class _StudentCard extends StatelessWidget {
     );
   }
 }
-

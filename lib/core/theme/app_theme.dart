@@ -99,9 +99,6 @@ class NetLearnColors {
 
   /// Garis rambut kartu dan pemisah (`--border` = `#eceef2`).
   static const line = Color(0xFFF2EFFE);
-  static const border = Color(0xFFECEEF2);
-  static const neutral400 = Color(0xFFA4A7B4);
-  static const neutral700 = Color(0xFF4B5563);
 
   /// Border isian yang sedikit lebih tegas (`.field input` = `#e3e4ec`).
   static const lineDark = Color(0xFFE3E4EC);
@@ -655,15 +652,6 @@ class NetLearnShadows {
       color: Color(0x0C27233D),
       blurRadius: 8,
       offset: Offset(0, 3),
-    ),
-  ];
-
-  /// Banner shadow
-  static const List<BoxShadow> banner = [
-    BoxShadow(
-      color: Color(0x148C52FF),
-      blurRadius: 20,
-      offset: Offset(0, 6),
     ),
   ];
 

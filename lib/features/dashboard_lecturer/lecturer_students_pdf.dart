@@ -3,6 +3,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
 import '../../shared/models/student_model.dart';
+import '../classes/class_models.dart';
 import 'lecturer_students_pdf_io.dart'
     if (dart.library.html) 'lecturer_students_pdf_web.dart' as platform;
 
@@ -22,7 +23,7 @@ class LecturerStudentsPdfExporter {
 
   static pw.Document buildPdfDocument({
     required List<StudentModel> students,
-    dynamic activeClass,
+    LecturerClass? activeClass,
     String? lecturerName,
   }) {
     final pdf = pw.Document();
@@ -210,7 +211,7 @@ class LecturerStudentsPdfExporter {
 
   static Future<String?> generateAndOpenPdf({
     required List<StudentModel> students,
-    dynamic activeClass,
+    LecturerClass? activeClass,
     String? lecturerName,
   }) async {
     try {
