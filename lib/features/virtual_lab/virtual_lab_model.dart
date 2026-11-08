@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart' show Offset;
 import 'package:flutter/foundation.dart';
 
-enum VirtualLabDeviceKind { pc, switch_ }
+enum VirtualLabDeviceKind { pc, switch_, router }
 
 typedef VirtualLabDeviceId = String;
 
@@ -14,6 +14,9 @@ class VirtualLabDevice {
     this.name,
     this.ipAddress,
     this.subnetMask,
+    this.defaultGateway,
+    this.ipAddress2,
+    this.subnetMask2,
   });
 
   final VirtualLabDeviceId id;
@@ -21,16 +24,26 @@ class VirtualLabDevice {
   final Offset position;
 
   /// Nama tampilan perangkat — label di bawah ikon pada kanvas (desain Figma
-  /// menampilkan PC1/Switch1/PC2). Perangkat baru diberi nama default, dan
+  /// menampilkan PC1/Switch1/Router1). Perangkat baru diberi nama default, dan
   /// mahasiswa dapat menggantinya lewat "Apply configuration".
   final String? name;
   final String? ipAddress;
   final String? subnetMask;
+  final String? defaultGateway;
+  final String? ipAddress2;
+  final String? subnetMask2;
 
   String get displayName {
     final trimmed = (name ?? '').trim();
     if (trimmed.isNotEmpty) return trimmed;
-    return kind == VirtualLabDeviceKind.pc ? 'PC' : 'Switch';
+    switch (kind) {
+      case VirtualLabDeviceKind.pc:
+        return 'PC';
+      case VirtualLabDeviceKind.switch_:
+        return 'Switch';
+      case VirtualLabDeviceKind.router:
+        return 'Router';
+    }
   }
 
   VirtualLabDevice move(Offset delta) {
@@ -41,6 +54,9 @@ class VirtualLabDevice {
       name: name,
       ipAddress: ipAddress,
       subnetMask: subnetMask,
+      defaultGateway: defaultGateway,
+      ipAddress2: ipAddress2,
+      subnetMask2: subnetMask2,
     );
   }
 
@@ -56,6 +72,9 @@ class VirtualLabDevice {
       if (name != null) 'name': name,
       if (ipAddress != null) 'ip': ipAddress,
       if (subnetMask != null) 'mask': subnetMask,
+      if (defaultGateway != null) 'gw': defaultGateway,
+      if (ipAddress2 != null) 'ip2': ipAddress2,
+      if (subnetMask2 != null) 'mask2': subnetMask2,
     };
   }
 
@@ -75,15 +94,22 @@ class VirtualLabDevice {
       name: json['name'] as String?,
       ipAddress: json['ip'] as String?,
       subnetMask: json['mask'] as String?,
+      defaultGateway: json['gw'] as String?,
+      ipAddress2: json['ip2'] as String?,
+      subnetMask2: json['mask2'] as String?,
     );
   }
 
-  VirtualLabDevice copyWith(
-      {Offset? position,
-      String? name,
-      String? ipAddress,
-      String? subnetMask,
-      bool clearNetwork = false}) {
+  VirtualLabDevice copyWith({
+    Offset? position,
+    String? name,
+    String? ipAddress,
+    String? subnetMask,
+    String? defaultGateway,
+    String? ipAddress2,
+    String? subnetMask2,
+    bool clearNetwork = false,
+  }) {
     return VirtualLabDevice(
       id: id,
       kind: kind,
@@ -91,6 +117,10 @@ class VirtualLabDevice {
       name: name ?? this.name,
       ipAddress: clearNetwork ? null : (ipAddress ?? this.ipAddress),
       subnetMask: clearNetwork ? null : (subnetMask ?? this.subnetMask),
+      defaultGateway:
+          clearNetwork ? null : (defaultGateway ?? this.defaultGateway),
+      ipAddress2: clearNetwork ? null : (ipAddress2 ?? this.ipAddress2),
+      subnetMask2: clearNetwork ? null : (subnetMask2 ?? this.subnetMask2),
     );
   }
 }
@@ -253,7 +283,11 @@ class VirtualLabSession {
         );
     // Nama default mengikuti pola desain (PC1, PC2, Switch1, ...) supaya
     // label di kanvas langsung terbaca sebelum mahasiswa menggantinya.
-    final baseLabel = kind == VirtualLabDeviceKind.pc ? 'PC' : 'Switch';
+    final baseLabel = switch (kind) {
+      VirtualLabDeviceKind.pc => 'PC',
+      VirtualLabDeviceKind.switch_ => 'Switch',
+      VirtualLabDeviceKind.router => 'Router',
+    };
     final ordinal =
         session.devices.where((d) => d.kind == kind).length + 1;
     final device = VirtualLabDevice(
@@ -354,13 +388,15 @@ class VirtualLabSession {
   static const String cableIssueDuplicate = 'duplicate';
   static const String cableIssueMissingDevice = 'missing_device';
   static const String cableIssuePcPortFull = 'pc_port_full';
+  static const String cableIssueRouterPortFull = 'router_port_full';
 
   static int cableCount(VirtualLabSession session, VirtualLabDeviceId id) =>
       session.cables.where((c) => c.involves(id)).length;
 
-  /// Validasi *sebelum* kabel dibuat. Aturan port: PC hanya punya satu port
-  /// NIC, jadi kabel kedua ke PC ditolak (keputusan desain v1.2); switch
-  /// multi-port sehingga tidak dibatasi.
+  /// Validasi *sebelum* kabel dibuat. Aturan port:
+  /// - PC: 1 port NIC (maks 1 kabel).
+  /// - Router: 2 port Ethernet (eth0 & eth1, maks 2 kabel).
+  /// - Switch: multi-port (tidak dibatasi).
   static String? cableIssue(
     VirtualLabSession session,
     VirtualLabDeviceId a,
@@ -382,6 +418,14 @@ class VirtualLabSession {
     if (deviceB.kind == VirtualLabDeviceKind.pc &&
         cableCount(session, b) >= 1) {
       return cableIssuePcPortFull;
+    }
+    if (deviceA.kind == VirtualLabDeviceKind.router &&
+        cableCount(session, a) >= 2) {
+      return cableIssueRouterPortFull;
+    }
+    if (deviceB.kind == VirtualLabDeviceKind.router &&
+        cableCount(session, b) >= 2) {
+      return cableIssueRouterPortFull;
     }
     return null;
   }

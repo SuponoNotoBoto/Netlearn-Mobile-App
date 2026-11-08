@@ -50,4 +50,5 @@ app.*.map.json
 
 # Local memory & AI guidelines (not pushed to GitHub)
 CONTEXT_MEMORY.md
+lib/features/virtual_lab_backup/
 

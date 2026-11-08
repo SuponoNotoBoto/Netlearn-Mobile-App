@@ -61,6 +61,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _ipController = TextEditingController();
   final TextEditingController _maskController = TextEditingController();
+  final TextEditingController _gatewayController = TextEditingController();
+  final TextEditingController _ip2Controller = TextEditingController();
+  final TextEditingController _mask2Controller = TextEditingController();
   String? _formDeviceId;
 
   @override
@@ -84,6 +87,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _nameController.dispose();
     _ipController.dispose();
     _maskController.dispose();
+    _gatewayController.dispose();
+    _ip2Controller.dispose();
+    _mask2Controller.dispose();
     super.dispose();
   }
 
@@ -205,14 +211,23 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   ) {
     final id = session.selectedDeviceId;
     if (id == null) return;
+    final device = session.deviceById(id);
+    if (device == null) return;
     final name = _nameController.text.trim();
     final ip = _ipController.text.trim();
     final mask = _maskController.text.trim();
+    final gw = _gatewayController.text.trim();
+    final ip2 = _ip2Controller.text.trim();
+    final mask2 = _mask2Controller.text.trim();
+
     controller.configureDevice(
       id,
       name: name.isEmpty ? null : name,
       ip: ip.isEmpty ? null : ip,
       mask: mask.isEmpty ? null : mask,
+      gateway: gw.isEmpty ? null : gw,
+      ip2: ip2.isEmpty ? null : ip2,
+      mask2: mask2.isEmpty ? null : mask2,
     );
     // Konfigurasi berubah → hasil ping lama tidak lagi relevan.
     _invalidateTest();
@@ -260,6 +275,8 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     switch (code) {
       case VirtualLabSession.cableIssuePcPortFull:
         return l10n.virtualLabCableIssuePcPortFull;
+      case VirtualLabSession.cableIssueRouterPortFull:
+        return 'Router ini sudah memakai kedua port-nya (eth0 & eth1). Hapus kabel yang ada terlebih dahulu.';
       case VirtualLabSession.cableIssueDuplicate:
         return l10n.virtualLabCableIssueDuplicate;
       case VirtualLabSession.cableIssueSameDevice:
@@ -275,6 +292,8 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         return l10n.virtualLabTestNeedDevices;
       case 'connected':
         return l10n.virtualLabTestSuccess;
+      case 'routed_success':
+        return 'Ping berhasil dirutekan melalui Router!';
       case 'invalid_ip':
         return l10n.virtualLabReasonInvalidIp;
       case 'invalid_mask':
@@ -289,6 +308,22 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         return l10n.virtualLabReasonDifferentSubnet;
       case 'not_configured':
         return l10n.virtualLabReasonNotConfigured;
+      case 'source_missing_gateway':
+        return 'PC sumber belum memiliki Default Gateway untuk menjangkau subnet lain.';
+      case 'target_missing_gateway':
+        return 'PC tujuan belum memiliki Default Gateway untuk membalas ping.';
+      case 'source_invalid_gateway':
+        return 'Format IP Default Gateway PC sumber tidak valid.';
+      case 'target_invalid_gateway':
+        return 'Format IP Default Gateway PC tujuan tidak valid.';
+      case 'gateway_subnet_mismatch':
+        return 'Default Gateway PC sumber harus satu subnet dengan IP-nya.';
+      case 'target_gateway_subnet_mismatch':
+        return 'Default Gateway PC tujuan harus satu subnet dengan IP-nya.';
+      case 'different_subnet_no_router':
+        return 'Kedua PC beda subnet dan tidak ada Router di kanvas untuk menghubungkannya.';
+      case 'gateway_unreachable':
+        return 'Gateway tidak cocok dengan IP interface Router mana pun yang terhubung.';
       default:
         return reason;
     }
@@ -447,6 +482,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _nameController.text = device.displayName;
     _ipController.text = device.ipAddress ?? '';
     _maskController.text = device.subnetMask ?? '';
+    _gatewayController.text = device.defaultGateway ?? '';
+    _ip2Controller.text = device.ipAddress2 ?? '';
+    _mask2Controller.text = device.subnetMask2 ?? '';
   }
 
   // ---------------------------------------------------------------------------
@@ -515,6 +553,17 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   plus: true,
                   onTap: () {
                     controller.addDevice(VirtualLabDeviceKind.switch_);
+                    _invalidateTest();
+                  },
+                ),
+                _buildToolButton(
+                  label: '+Router',
+                  icon: Icons.router_rounded,
+                  active: false,
+                  accent: accent,
+                  plus: true,
+                  onTap: () {
+                    controller.addDevice(VirtualLabDeviceKind.router);
                     _invalidateTest();
                   },
                 ),
@@ -720,6 +769,22 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       VirtualLabDeviceStatus.notCabled => _labStatusGray,
     };
     final ip = device.ipAddress?.trim() ?? '';
+    final String labelIp;
+    if (device.kind == VirtualLabDeviceKind.router) {
+      final ip1 = device.ipAddress?.trim() ?? '';
+      final ip2 = device.ipAddress2?.trim() ?? '';
+      if (ip1.isNotEmpty && ip2.isNotEmpty) {
+        labelIp = '$ip1\n$ip2';
+      } else if (ip1.isNotEmpty) {
+        labelIp = ip1;
+      } else if (ip2.isNotEmpty) {
+        labelIp = ip2;
+      } else {
+        labelIp = l10n.virtualLabNoIp;
+      }
+    } else {
+      labelIp = ip.isNotEmpty ? ip : l10n.virtualLabNoIp;
+    }
     return Positioned(
       left: device.position.dx - 48,
       top: device.position.dy - 30,
@@ -795,11 +860,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               ),
             ),
             Text(
-              ip.isNotEmpty ? ip : l10n.virtualLabNoIp,
-              maxLines: 1,
+              labelIp,
+              maxLines: 2,
               overflow: TextOverflow.ellipsis,
               textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 10, color: _labMuted),
+              style: const TextStyle(fontSize: 9.5, height: 1.15, color: _labMuted),
             ),
           ],
         ),
@@ -808,9 +873,14 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   }
 
   IconData _deviceIcon(VirtualLabDeviceKind kind) {
-    return kind == VirtualLabDeviceKind.pc
-        ? Icons.desktop_windows_rounded
-        : Icons.hub_rounded;
+    switch (kind) {
+      case VirtualLabDeviceKind.pc:
+        return Icons.desktop_windows_rounded;
+      case VirtualLabDeviceKind.switch_:
+        return Icons.hub_rounded;
+      case VirtualLabDeviceKind.router:
+        return Icons.router_rounded;
+    }
   }
 
   // ---------------------------------------------------------------------------
@@ -939,7 +1009,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   Text(
                     device.kind == VirtualLabDeviceKind.pc
                         ? l10n.virtualLabDevicePcPorts
-                        : l10n.virtualLabDeviceSwitchPorts,
+                        : (device.kind == VirtualLabDeviceKind.router
+                            ? 'Router · 2 port (eth0 & eth1)'
+                            : l10n.virtualLabDeviceSwitchPorts),
                     style: const TextStyle(fontSize: 11, color: _labMuted),
                   ),
                 ],
@@ -956,40 +1028,175 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           decoration: _fieldDecoration(hint: device.displayName),
         ),
         const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildFieldLabel(l10n.virtualLabIpLabel),
-                  TextField(
-                    controller: _ipController,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.next,
-                    decoration: _fieldDecoration(hint: '192.168.1.10'),
-                  ),
-                ],
+        if (device.kind == VirtualLabDeviceKind.pc) ...[
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildFieldLabel(l10n.virtualLabIpLabel),
+                    TextField(
+                      controller: _ipController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: _fieldDecoration(hint: '192.168.1.10'),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _buildFieldLabel(l10n.virtualLabMaskLabel),
-                  TextField(
-                    controller: _maskController,
-                    keyboardType: TextInputType.number,
-                    textInputAction: TextInputAction.done,
-                    decoration: _fieldDecoration(hint: '255.255.255.0'),
-                  ),
-                ],
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _buildFieldLabel(l10n.virtualLabMaskLabel),
+                    TextField(
+                      controller: _maskController,
+                      keyboardType: TextInputType.number,
+                      textInputAction: TextInputAction.next,
+                      decoration: _fieldDecoration(hint: '255.255.255.0'),
+                    ),
+                  ],
+                ),
               ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          _buildFieldLabel('Default Gateway (IP Router)'),
+          TextField(
+            controller: _gatewayController,
+            keyboardType: TextInputType.number,
+            textInputAction: TextInputAction.done,
+            decoration: _fieldDecoration(hint: '192.168.1.1 (opsional jika 1 subnet)'),
+          ),
+        ] else if (device.kind == VirtualLabDeviceKind.router) ...[
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _labPageBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _labInputBorder),
             ),
-          ],
-        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Interface 1 (eth0) · Subnet A',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: _labText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildFieldLabel('IP Address'),
+                          TextField(
+                            controller: _ipController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(hint: '192.168.1.1'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildFieldLabel('Subnet Mask'),
+                          TextField(
+                            controller: _maskController,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(hint: '255.255.255.0'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: _labPageBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _labInputBorder),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Interface 2 (eth1) · Subnet B',
+                  style: TextStyle(
+                    fontSize: 11.5,
+                    fontWeight: FontWeight.w700,
+                    color: _labText,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildFieldLabel('IP Address'),
+                          TextField(
+                            controller: _ip2Controller,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.next,
+                            decoration: _fieldDecoration(hint: '192.168.2.1'),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          _buildFieldLabel('Subnet Mask'),
+                          TextField(
+                            controller: _mask2Controller,
+                            keyboardType: TextInputType.number,
+                            textInputAction: TextInputAction.done,
+                            decoration: _fieldDecoration(hint: '255.255.255.0'),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ] else ...[
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: _labPageBg,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: _labInputBorder),
+            ),
+            child: const Text(
+              'Switch beroperasi pada Layer 2 (Data Link) dan meneruskan frame berdasarkan MAC address. Tidak memerlukan konfigurasi alamat IP.',
+              style: TextStyle(fontSize: 11.5, height: 1.4, color: _labMuted),
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         Row(
           children: [
@@ -997,9 +1204,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             const SizedBox(width: 6),
             Expanded(
               child: Text(
-                cabled
-                    ? l10n.virtualLabCableConnected
-                    : l10n.virtualLabCableNotConnected,
+                device.kind == VirtualLabDeviceKind.router
+                    ? '${session.cables.where((c) => c.involves(device.id)).length}/2 port kabel terhubung'
+                    : (cabled
+                        ? l10n.virtualLabCableConnected
+                        : l10n.virtualLabCableNotConnected),
                 style: const TextStyle(fontSize: 11.5, color: _labMuted),
               ),
             ),
@@ -1030,9 +1239,15 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     AppLocalizations l10n,
     Color accent,
   ) {
-    final devices = session.devices;
+    final devices = session.devices
+        .where((d) => d.kind == VirtualLabDeviceKind.pc)
+        .toList();
     if (devices.length < 2) {
-      return _buildPanelHint(l10n.virtualLabPingNoDevices);
+      return _buildPanelHint(
+        Localizations.localeOf(context).languageCode == 'id'
+            ? 'Tambahkan minimal dua PC untuk melakukan uji ping.'
+            : 'Add at least two PCs to test ping connectivity.',
+      );
     }
     final ids = devices.map((d) => d.id).toSet();
     final sourceId = (_pingSourceId != null && ids.contains(_pingSourceId))
@@ -1116,8 +1331,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         .whereType<String>()
         .toList();
     final detailText = success
-        ? pathNames.join(' → ')
+        ? (pathNames.isNotEmpty ? 'Jalur paket: ${pathNames.join(' → ')}' : '')
         : _localizeReason(l10n, result.reason);
+    final title = success
+        ? (result.reason == 'routed_success'
+            ? 'Ping Berhasil (Dirutekan via Router)'
+            : l10n.virtualLabPingSuccess)
+        : l10n.virtualLabPingFailed;
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
@@ -1145,9 +1365,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  success
-                      ? l10n.virtualLabPingSuccess
-                      : l10n.virtualLabPingFailed,
+                  title,
                   style: TextStyle(
                     fontSize: 12.5,
                     fontWeight: FontWeight.w600,
@@ -1324,7 +1542,25 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   }
 
   bool _isInvalidConfig(VirtualLabDevice device) {
-    if (device.kind != VirtualLabDeviceKind.pc) return false;
+    if (device.kind == VirtualLabDeviceKind.switch_) return false;
+    if (device.kind == VirtualLabDeviceKind.router) {
+      final ip1 = (device.ipAddress ?? '').trim();
+      final mask1 = (device.subnetMask ?? '').trim();
+      if (ip1.isNotEmpty || mask1.isNotEmpty) {
+        if (VirtualLabIpv4.parse(ip1) == null) return true;
+        if (VirtualLabSubnetMask.parse(mask1) == null) return true;
+        if (!VirtualLabEngine.isHostAddress(ip1, mask1)) return true;
+      }
+      final ip2 = (device.ipAddress2 ?? '').trim();
+      final mask2 = (device.subnetMask2 ?? '').trim();
+      if (ip2.isNotEmpty || mask2.isNotEmpty) {
+        if (VirtualLabIpv4.parse(ip2) == null) return true;
+        if (VirtualLabSubnetMask.parse(mask2) == null) return true;
+        if (!VirtualLabEngine.isHostAddress(ip2, mask2)) return true;
+      }
+      return false;
+    }
+    // PC
     final ip = (device.ipAddress ?? '').trim();
     final mask = (device.subnetMask ?? '').trim();
     if (ip.isEmpty && mask.isEmpty) return false;

@@ -214,6 +214,9 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     String? name,
     String? ip,
     String? mask,
+    String? gateway,
+    String? ip2,
+    String? mask2,
   }) {
     final idx = state.devices.indexWhere((d) => d.id == id);
     if (idx < 0) return;
@@ -222,6 +225,9 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
       name: name,
       ipAddress: ip,
       subnetMask: mask,
+      defaultGateway: gateway,
+      ipAddress2: ip2,
+      subnetMask2: mask2,
     );
     _commit(state.copyWith(devices: updated));
   }
