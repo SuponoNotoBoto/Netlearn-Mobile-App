@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/audio/sfx_service.dart';
+import '../../core/localization/language_controller.dart';
 import '../../core/router/safe_back.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
@@ -16,6 +17,8 @@ import 'virtual_lab_terminal.dart';
 import 'virtual_lab_export.dart';
 import 'virtual_lab_saved_topology.dart';
 import 'virtual_lab_storage_service.dart';
+import 'virtual_lab_mission_service.dart';
+import 'widgets/virtual_lab_mission_sheet.dart';
 import '../materials/material_lab_binding.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -118,6 +121,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     if (!mounted || widget.labBinding == null || _hasCheckedInitialLabLoad) return;
     _hasCheckedInitialLabLoad = true;
 
+    final isEn = ref.read(languageProvider).languageCode == 'en';
+    final locBinding = widget.labBinding!.localized(isEn ? 'en' : 'id');
+
     final session = ref.read(virtualLabControllerProvider);
     // Jika materi memiliki preset eksplisit bukan blank dan kanvas kosong, baru muat
     if (widget.labBinding!.preset != 'blank' && session.devices.isEmpty) {
@@ -126,7 +132,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           );
       NlSnackBar.show(
         context,
-        'Skenario praktikum "${widget.labBinding!.title}" berhasil disiapkan.',
+        isEn
+            ? 'Practical scenario "${locBinding.title}" prepared successfully.'
+            : 'Skenario praktikum "${locBinding.title}" berhasil disiapkan.',
         tone: NlSnackTone.success,
       );
     }
@@ -136,10 +144,14 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     VirtualLabController controller,
     VirtualLabSession session,
   ) {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
+
     if (session.devices.isEmpty) {
       NlSnackBar.show(
         context,
-        'Kanvas sudah bersih dan siap untuk dirancang.',
+        isEn
+            ? 'Canvas is already clean and ready.'
+            : 'Kanvas sudah bersih dan siap untuk dirancang.',
         tone: NlSnackTone.info,
       );
       return;
@@ -149,16 +161,18 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Mulai Kanvas Bersih?',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        title: Text(isEn ? 'Start Clean Canvas?' : 'Mulai Kanvas Bersih?',
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
         content: Text(
-          'Kosongkan kanvas saat ini (${session.devices.length} perangkat) untuk memulai rancangan praktikum ini dari nol?',
+          isEn
+              ? 'Clear current canvas (${session.devices.length} devices) to design this practical from scratch?'
+              : 'Kosongkan kanvas saat ini (${session.devices.length} perangkat) untuk memulai rancangan praktikum ini dari nol?',
           style: const TextStyle(fontSize: 13, color: _labText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal', style: TextStyle(color: _labMuted)),
+            child: Text(isEn ? 'Cancel' : 'Batal', style: const TextStyle(color: _labMuted)),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -171,11 +185,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               _invalidateTest();
               NlSnackBar.show(
                 context,
-                'Kanvas berhasil dikosongkan. Silakan mulai merancang sesuai panduan.',
+                isEn
+                    ? 'Canvas cleared. Start designing according to the guide.'
+                    : 'Kanvas berhasil dikosongkan. Silakan mulai merancang sesuai panduan.',
                 tone: NlSnackTone.success,
               );
             },
-            child: const Text('Kosongkan'),
+            child: Text(isEn ? 'Clear' : 'Kosongkan'),
           ),
         ],
       ),
@@ -188,22 +204,29 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   ) {
     final refSession = widget.labBinding?.resolveReferenceSession();
     if (refSession == null) return;
+    final isEn = ref.read(languageProvider).languageCode == 'en';
 
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Lihat Contoh Solusi?',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        content: const Text(
-          'PERINGATAN: Memuat contoh referensi akan menggantikan kanvas Anda dengan diagram yang sudah jadi. Sebaiknya Anda mencoba merancang sendiri terlebih dahulu. Lanjutkan?',
-          style: TextStyle(fontSize: 13, color: _labText),
+        title: Text(
+          isEn ? 'View Example Solution?' : 'Lihat Contoh Solusi?',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        content: Text(
+          isEn
+              ? 'WARNING: Loading the reference example will replace your canvas with a completed diagram. We recommend trying to build it yourself first. Continue?'
+              : 'PERINGATAN: Memuat contoh referensi akan menggantikan kanvas Anda dengan diagram yang sudah jadi. Sebaiknya Anda mencoba merancang sendiri terlebih dahulu. Lanjutkan?',
+          style: const TextStyle(fontSize: 13, color: _labText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Tetap Kerjakan Sendiri',
-                style: TextStyle(color: _labMuted)),
+            child: Text(
+              isEn ? 'Work on My Own' : 'Tetap Kerjakan Sendiri',
+              style: const TextStyle(color: _labMuted),
+            ),
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -216,11 +239,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               _invalidateTest();
               NlSnackBar.show(
                 context,
-                'Contoh topologi referensi dimuat ke kanvas.',
+                isEn
+                    ? 'Reference topology example loaded onto canvas.'
+                    : 'Contoh topologi referensi dimuat ke kanvas.',
                 tone: NlSnackTone.success,
               );
             },
-            child: const Text('Muat Contoh'),
+            child: Text(isEn ? 'Load Example' : 'Muat Contoh'),
           ),
         ],
       ),
@@ -604,7 +629,22 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1)),
             onPressed: () => _askNetBotAboutTopology(session),
           ),
-          if (widget.labBinding != null)
+          if (widget.labBinding != null) ...[
+            IconButton(
+              tooltip: 'Target Misi & Evaluasi',
+              icon: const Icon(
+                Icons.emoji_events_rounded,
+                color: Color(0xFFD97706),
+              ),
+              onPressed: () {
+                VirtualLabMissionSheet.show(
+                  context: context,
+                  binding: widget.labBinding!,
+                  session: session,
+                  lastTest: _lastTest,
+                );
+              },
+            ),
             IconButton(
               tooltip: 'Panduan Praktikum Modul',
               icon: Icon(
@@ -620,6 +660,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                 });
               },
             ),
+          ],
           const SizedBox(width: 8),
         ],
       ),
@@ -720,6 +761,16 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     final binding = widget.labBinding;
     if (binding == null) return const SizedBox.shrink();
 
+    final isEn = ref.watch(languageProvider).languageCode == 'en';
+    final locBinding = binding.localized(isEn ? 'en' : 'id');
+
+    // Cek apakah praktikum modul ini sudah dikumpulkan
+    final submissionsMap = ref.watch(labSubmissionsProvider).value;
+    final key1 = binding.materialId;
+    final key2 = binding.referencePreset ?? binding.preset;
+    final existingSubmission = submissionsMap?[key1] ?? submissionsMap?[key2];
+    final hasSubmitted = existingSubmission != null;
+
     if (_labGuideCollapsed) {
       return Container(
         margin: const EdgeInsets.fromLTRB(20, 0, 20, 6),
@@ -738,7 +789,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  'Panduan Praktikum: ${binding.title}',
+                  isEn
+                      ? 'Lab Guide: ${locBinding.title}'
+                      : 'Panduan Praktikum: ${locBinding.title}',
                   style: const TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w600,
@@ -747,9 +800,54 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              const Text(
-                'Lihat Panduan',
-                style: TextStyle(
+              InkWell(
+                onTap: () => VirtualLabMissionSheet.show(
+                  context: context,
+                  binding: binding,
+                  session: session,
+                  lastTest: _lastTest,
+                ),
+                borderRadius: BorderRadius.circular(6),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: hasSubmitted
+                        ? const Color(0xFF059669)
+                        : const Color(0xFF10B981),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        hasSubmitted
+                            ? Icons.emoji_events_rounded
+                            : Icons.flag_circle_rounded,
+                        size: 11,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 3),
+                      Text(
+                        hasSubmitted
+                            ? (isEn
+                                ? 'Score: ${existingSubmission.score}'
+                                : 'Nilai: ${existingSubmission.score}')
+                            : (isEn ? 'Mission' : 'Misi'),
+                        style: const TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.white,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                isEn ? 'Show Guide' : 'Lihat Panduan',
+                style: const TextStyle(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: Color(0xFF4F46E5),
@@ -795,7 +893,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
-                    binding.title,
+                    locBinding.title,
                     style: const TextStyle(
                       fontSize: 12.5,
                       fontWeight: FontWeight.w700,
@@ -804,75 +902,35 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
-                if (binding.resolveReferenceSession() != null) ...[
-                  InkWell(
-                    onTap: () =>
-                        _promptLoadReferenceExample(controller, session),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 7, vertical: 3.5),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        border: Border.all(color: const Color(0xFFC7D2FE)),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.lightbulb_outline_rounded,
-                              size: 11, color: Color(0xFF4F46E5)),
-                          SizedBox(width: 3),
-                          Text(
-                            'Contoh Solusi',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF4F46E5),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 5),
-                ],
-                InkWell(
-                  onTap: () => _promptResetForPractice(controller, session),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                if (hasSubmitted) ...[
+                  Container(
+                    margin: const EdgeInsets.only(right: 6),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 6, vertical: 2.5),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF4F46E5),
+                      color: const Color(0xFFD1FAE5),
                       borderRadius: BorderRadius.circular(6),
+                      border: Border.all(color: const Color(0xFFA7F3D0)),
                     ),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.layers_clear_outlined,
-                            size: 11, color: Colors.white),
-                        SizedBox(width: 3),
-                        Text(
-                          'Mulai Bersih',
-                          style: TextStyle(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.white,
-                          ),
-                        ),
-                      ],
+                    child: Text(
+                      isEn
+                          ? 'Score: ${existingSubmission.score}/100'
+                          : 'Nilai: ${existingSubmission.score}/100',
+                      style: const TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF065F46),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 4),
+                ],
                 IconButton(
                   icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
                   color: const Color(0xFF64748B),
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 26, minHeight: 26),
-                  tooltip: 'Kecilkan Panduan',
+                  tooltip: isEn ? 'Collapse Guide' : 'Kecilkan Panduan',
                   onPressed: () => setState(() => _labGuideCollapsed = true),
                 ),
                 IconButton(
@@ -881,7 +939,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   padding: EdgeInsets.zero,
                   constraints:
                       const BoxConstraints(minWidth: 26, minHeight: 26),
-                  tooltip: 'Tutup Panduan',
+                  tooltip: isEn ? 'Close Guide' : 'Tutup Panduan',
                   onPressed: () => setState(() => _showLabGuideBanner = false),
                 ),
               ],
@@ -890,39 +948,150 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
 
           // Body Instruksi
           Padding(
-            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (binding.description != null &&
-                    binding.description!.trim().isNotEmpty) ...[
+                // Quick Action Buttons (Wrap prevents horizontal overflow)
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  children: [
+                    InkWell(
+                      onTap: () => VirtualLabMissionSheet.show(
+                        context: context,
+                        binding: binding,
+                        session: session,
+                        lastTest: _lastTest,
+                      ),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: hasSubmitted
+                              ? const Color(0xFF059669)
+                              : const Color(0xFF10B981),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              hasSubmitted
+                                  ? Icons.emoji_events_rounded
+                                  : Icons.flag_circle_rounded,
+                              size: 12,
+                              color: Colors.white,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              hasSubmitted
+                                  ? (isEn
+                                      ? 'Score (${existingSubmission.score}/100)'
+                                      : 'Nilai (${existingSubmission.score}/100)')
+                                  : (isEn ? 'Mission Checklist' : 'Target Misi'),
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    InkWell(
+                      onTap: () => _promptResetForPractice(controller, session),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4F46E5),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.layers_clear_outlined,
+                                size: 12, color: Colors.white),
+                            const SizedBox(width: 4),
+                            Text(
+                              isEn ? 'Start Clean' : 'Mulai Bersih',
+                              style: const TextStyle(
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    if (binding.resolveReferenceSession() != null)
+                      InkWell(
+                        onTap: () =>
+                            _promptLoadReferenceExample(controller, session),
+                        borderRadius: BorderRadius.circular(6),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.lightbulb_outline_rounded,
+                                  size: 12, color: Color(0xFF4F46E5)),
+                              const SizedBox(width: 4),
+                              Text(
+                                isEn ? 'Example Solution' : 'Contoh Solusi',
+                                style: const TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF4F46E5),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                if (locBinding.description != null &&
+                    locBinding.description!.trim().isNotEmpty) ...[
                   Text(
-                    binding.description!,
+                    locBinding.description!,
                     style: const TextStyle(
                         fontSize: 11, color: Color(0xFF475569)),
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                 ],
-                if (binding.instructions.isNotEmpty) ...[
-                  ...binding.instructions.asMap().entries.map((entry) {
+                if (locBinding.instructions.isNotEmpty) ...[
+                  ...locBinding.instructions.asMap().entries.map((entry) {
                     return Padding(
-                      padding: const EdgeInsets.only(bottom: 2.5),
+                      padding: const EdgeInsets.only(bottom: 3.5),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Container(
-                            width: 15,
-                            height: 15,
+                            width: 16,
+                            height: 16,
                             alignment: Alignment.center,
                             margin: const EdgeInsets.only(top: 1, right: 6),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE0E7FF),
-                              borderRadius: BorderRadius.circular(7.5),
+                              borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               '${entry.key + 1}',
                               style: const TextStyle(
-                                fontSize: 9,
+                                fontSize: 9.5,
                                 fontWeight: FontWeight.bold,
                                 color: Color(0xFF4338CA),
                               ),
@@ -934,7 +1103,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                               style: const TextStyle(
                                   fontSize: 11,
                                   color: Color(0xFF334155),
-                                  height: 1.2),
+                                  height: 1.25),
                             ),
                           ),
                         ],
@@ -942,6 +1111,70 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     );
                   }),
                 ],
+                const SizedBox(height: 6),
+                InkWell(
+                  onTap: () => VirtualLabMissionSheet.show(
+                    context: context,
+                    binding: binding,
+                    session: session,
+                    lastTest: _lastTest,
+                  ),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 7),
+                    decoration: BoxDecoration(
+                      color: hasSubmitted
+                          ? const Color(0xFFECFDF5)
+                          : const Color(0xFFF0FDF4),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: hasSubmitted
+                            ? const Color(0xFFA7F3D0)
+                            : const Color(0xFFBBF7D0),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          hasSubmitted
+                              ? Icons.emoji_events_rounded
+                              : Icons.assignment_turned_in_rounded,
+                          size: 15,
+                          color: hasSubmitted
+                              ? const Color(0xFF059669)
+                              : const Color(0xFF16A34A),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          hasSubmitted
+                              ? (isEn
+                                  ? 'View Lab Score & Details (${existingSubmission.score}/100)'
+                                  : 'Lihat Nilai & Detail Praktikum (${existingSubmission.score}/100)')
+                              : (isEn
+                                  ? 'Open Checklist & Target Evaluation'
+                                  : 'Buka Checklist & Evaluasi Target Misi'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: hasSubmitted
+                                ? const Color(0xFF047857)
+                                : const Color(0xFF15803D),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_forward_ios_rounded,
+                          size: 10,
+                          color: hasSubmitted
+                              ? const Color(0xFF059669)
+                              : const Color(0xFF16A34A),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1565,17 +1798,26 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   child: InkWell(
                     onTap: () {
                       setState(() => _pcIpMode = VirtualLabIpMode.dhcp);
+                      final isEn = ref.read(languageProvider).languageCode == 'en';
                       final lease = controller.requestDhcpLease(device.id);
                       if (lease.success && lease.ipAddress != null) {
                         _ipController.text = lease.ipAddress!;
                         _maskController.text =
                             lease.subnetMask ?? '255.255.255.0';
                         _gatewayController.text = lease.defaultGateway ?? '';
-                        NlSnackBar.show(context,
-                            'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}');
+                        NlSnackBar.show(
+                          context,
+                          isEn
+                              ? 'DHCP Success: ${lease.ipAddress} allocated from ${lease.serverName ?? "DHCP Server"}'
+                              : 'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}',
+                        );
                       } else {
-                        NlSnackBar.show(context,
-                            'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.');
+                        NlSnackBar.show(
+                          context,
+                          isEn
+                              ? 'DHCP Failed: No active DHCP Server found connected to this network.'
+                              : 'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.',
+                        );
                       }
                     },
                     borderRadius: BorderRadius.circular(8),
@@ -1696,21 +1938,34 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             const SizedBox(height: 10),
             OutlinedButton.icon(
               onPressed: () {
+                final isEn = ref.read(languageProvider).languageCode == 'en';
                 final lease = controller.requestDhcpLease(device.id);
                 if (lease.success && lease.ipAddress != null) {
                   _ipController.text = lease.ipAddress!;
                   _maskController.text =
                       lease.subnetMask ?? '255.255.255.0';
                   _gatewayController.text = lease.defaultGateway ?? '';
-                  NlSnackBar.show(context,
-                      'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}');
+                  NlSnackBar.show(
+                    context,
+                    isEn
+                        ? 'DHCP Success: ${lease.ipAddress} allocated from ${lease.serverName ?? "DHCP Server"}'
+                        : 'DHCP Sukses: ${lease.ipAddress} dialokasikan dari ${lease.serverName ?? "DHCP Server"}',
+                  );
                 } else {
-                  NlSnackBar.show(context,
-                      'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.');
+                  NlSnackBar.show(
+                    context,
+                    isEn
+                        ? 'DHCP Failed: No active DHCP Server found connected to this network.'
+                        : 'DHCP Gagal: Tidak ada Server DHCP aktif yang terhubung pada jaringan ini.',
+                  );
                 }
               },
               icon: const Icon(Icons.refresh_rounded, size: 16),
-              label: const Text('Minta Ulang Alamat IP (DHCP Request)'),
+              label: Text(
+                ref.read(languageProvider).languageCode == 'en'
+                    ? 'Request IP Address (DHCP Request)'
+                    : 'Minta Ulang Alamat IP (DHCP Request)',
+              ),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF4F46E5),
                 side: const BorderSide(color: Color(0xFFC7D2FE)),
@@ -2397,6 +2652,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     BuildContext context,
     VirtualLabController controller,
   ) {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.lightImpact();
     showModalBottomSheet(
       context: context,
@@ -2425,13 +2681,15 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                   ),
                   const SizedBox(height: 16),
                   Row(
-                    children: const [
-                      Icon(Icons.account_tree_outlined,
+                    children: [
+                      const Icon(Icons.account_tree_outlined,
                           color: Color(0xFF4F46E5), size: 22),
-                      SizedBox(width: 8),
+                      const SizedBox(width: 8),
                       Text(
-                        'Pilih Template Topologi',
-                        style: TextStyle(
+                        isEn
+                            ? 'Select Topology Template'
+                            : 'Pilih Template Topologi',
+                        style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: _labText,
@@ -2440,46 +2698,66 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     ],
                   ),
                   const SizedBox(height: 6),
-                  const Text(
-                    'Pilih desain topologi siap pakai untuk langsung memulai pengujian jaringan.',
-                    style: TextStyle(fontSize: 12, color: _labMuted),
+                  Text(
+                    isEn
+                        ? 'Select a ready-to-use topology design to start testing right away.'
+                        : 'Pilih desain topologi siap pakai untuk langsung memulai pengujian jaringan.',
+                    style: const TextStyle(fontSize: 12, color: _labMuted),
                   ),
                   const SizedBox(height: 16),
                   _buildTemplateTile(
                     icon: Icons.hub_outlined,
-                    title: 'Topologi Star (LAN 1 Subnet)',
-                    subtitle: '1 Switch menghubungkan 3 PC (192.168.1.0/24)',
+                    title: isEn
+                        ? 'Star Topology (Single LAN Subnet)'
+                        : 'Topologi Star (LAN 1 Subnet)',
+                    subtitle: isEn
+                        ? '1 Switch connects 3 PCs (192.168.1.0/24)'
+                        : '1 Switch menghubungkan 3 PC (192.168.1.0/24)',
                     accent: const Color(0xFF6366F1),
                     onTap: () {
                       Navigator.pop(modalContext);
                       controller.loadPreset(VirtualLabController.presetStar());
                       _invalidateTest();
                       NlSnackBar.show(
-                          context, 'Template Topologi Star berhasil dimuat.');
+                        context,
+                        isEn
+                            ? 'Star Topology template loaded.'
+                            : 'Template Topologi Star berhasil dimuat.',
+                      );
                     },
                   ),
                   const SizedBox(height: 10),
                   _buildTemplateTile(
                     icon: Icons.router_outlined,
-                    title: 'Dual-Subnet Routing (Layer 3)',
-                    subtitle:
-                        'Router menghubungkan 2 subnet (192.168.1.0/24 & 192.168.2.0/24)',
+                    title: isEn
+                        ? 'Dual-Subnet Routing (Layer 3)'
+                        : 'Dual-Subnet Routing (Layer 3)',
+                    subtitle: isEn
+                        ? 'Router connects 2 subnets (192.168.1.0/24 & 192.168.2.0/24)'
+                        : 'Router menghubungkan 2 subnet (192.168.1.0/24 & 192.168.2.0/24)',
                     accent: const Color(0xFF0EA5E9),
                     onTap: () {
                       Navigator.pop(modalContext);
                       controller
                           .loadPreset(VirtualLabController.presetDualSubnet());
                       _invalidateTest();
-                      NlSnackBar.show(context,
-                          'Template Dual-Subnet Routing berhasil dimuat.');
+                      NlSnackBar.show(
+                        context,
+                        isEn
+                            ? 'Dual-Subnet Routing template loaded.'
+                            : 'Template Dual-Subnet Routing berhasil dimuat.',
+                      );
                     },
                   ),
                   const SizedBox(height: 10),
                   _buildTemplateTile(
                     icon: Icons.compare_arrows_rounded,
-                    title: 'Peer-to-Peer (Koneksi Langsung)',
-                    subtitle:
-                        '2 PC terhubung langsung dengan kabel (10.0.0.0/24)',
+                    title: isEn
+                        ? 'Peer-to-Peer (Direct Connection)'
+                        : 'Peer-to-Peer (Koneksi Langsung)',
+                    subtitle: isEn
+                        ? '2 PCs directly connected via cable (10.0.0.0/24)'
+                        : '2 PC terhubung langsung dengan kabel (10.0.0.0/24)',
                     accent: const Color(0xFF10B981),
                     onTap: () {
                       Navigator.pop(modalContext);
@@ -2487,36 +2765,56 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                           .loadPreset(VirtualLabController.presetPeerToPeer());
                       _invalidateTest();
                       NlSnackBar.show(
-                          context, 'Template Peer-to-Peer berhasil dimuat.');
+                        context,
+                        isEn
+                            ? 'Peer-to-Peer template loaded.'
+                            : 'Template Peer-to-Peer berhasil dimuat.',
+                      );
                     },
                   ),
                   const SizedBox(height: 10),
                   _buildTemplateTile(
                     icon: Icons.dns_outlined,
-                    title: 'Client-Server DHCP & Web (LAN)',
-                    subtitle:
-                        '1 Server DHCP/Web + 1 Switch + 2 PC (IP Dinamis Otomatis)',
+                    title: isEn
+                        ? 'Client-Server DHCP & Web (LAN)'
+                        : 'Client-Server DHCP & Web (LAN)',
+                    subtitle: isEn
+                        ? '1 DHCP/Web Server + 1 Switch + 2 PCs (Dynamic IP)'
+                        : '1 Server DHCP/Web + 1 Switch + 2 PC (IP Dinamis Otomatis)',
                     accent: const Color(0xFF8B5CF6),
                     onTap: () {
                       Navigator.pop(modalContext);
                       controller
                           .loadPreset(VirtualLabController.presetDhcpServer());
                       _invalidateTest();
-                      NlSnackBar.show(context,
-                          'Template Client-Server DHCP berhasil dimuat.');
+                      NlSnackBar.show(
+                        context,
+                        isEn
+                            ? 'Client-Server DHCP template loaded.'
+                            : 'Template Client-Server DHCP berhasil dimuat.',
+                      );
                     },
                   ),
                   const SizedBox(height: 10),
                   _buildTemplateTile(
                     icon: Icons.layers_clear_outlined,
-                    title: 'Kanvas Kosong (Reset)',
-                    subtitle: 'Mulai dari kanvas kosong untuk eksperimen bebas',
+                    title: isEn
+                        ? 'Blank Canvas (Reset)'
+                        : 'Kanvas Kosong (Reset)',
+                    subtitle: isEn
+                        ? 'Start with an empty canvas for freeform experiments'
+                        : 'Mulai dari kanvas kosong untuk eksperimen bebas',
                     accent: const Color(0xFF64748B),
                     onTap: () {
                       Navigator.pop(modalContext);
                       controller.loadPreset(VirtualLabController.presetBlank());
                       _invalidateTest();
-                      NlSnackBar.show(context, 'Kanvas berhasil dikosongkan.');
+                      NlSnackBar.show(
+                        context,
+                        isEn
+                            ? 'Canvas cleared successfully.'
+                            : 'Kanvas berhasil dikosongkan.',
+                      );
                     },
                   ),
                 ],
@@ -2585,12 +2883,16 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   }
 
   Future<void> _exportCanvasToImage(VirtualLabSession session) async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.lightImpact();
     try {
       final boundary = _canvasKey.currentContext?.findRenderObject()
           as RenderRepaintBoundary?;
       if (boundary == null) {
-        NlSnackBar.show(context, 'Gagal menemukan kanvas diagram.');
+        NlSnackBar.show(
+          context,
+          isEn ? 'Failed to locate canvas diagram.' : 'Gagal menemukan kanvas diagram.',
+        );
         return;
       }
 
@@ -2598,7 +2900,10 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       final byteData = await image.toByteData(format: ui.ImageByteFormat.png);
       if (!mounted) return;
       if (byteData == null) {
-        NlSnackBar.show(context, 'Gagal mengonversi kanvas ke format PNG.');
+        NlSnackBar.show(
+          context,
+          isEn ? 'Failed to convert canvas to PNG format.' : 'Gagal mengonversi kanvas ke format PNG.',
+        );
         return;
       }
 
@@ -2635,13 +2940,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             contentPadding: const EdgeInsets.symmetric(horizontal: 20),
             actionsPadding: const EdgeInsets.fromLTRB(20, 10, 20, 16),
             title: Row(
-              children: const [
-                Icon(Icons.photo_library_outlined,
+              children: [
+                const Icon(Icons.photo_library_outlined,
                     color: Color(0xFF4F46E5), size: 22),
-                SizedBox(width: 8),
+                const SizedBox(width: 8),
                 Text(
-                  'Pratinjau Diagram Topologi',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                  isEn ? 'Topology Diagram Preview' : 'Pratinjau Diagram Topologi',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
                 ),
               ],
             ),
@@ -2650,9 +2955,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Text(
-                    'Diagram berhasil dirender dalam format PNG resolusi tinggi.',
-                    style: TextStyle(fontSize: 12, color: _labMuted),
+                  Text(
+                    isEn
+                        ? 'Diagram rendered successfully in high-resolution PNG format.'
+                        : 'Diagram berhasil dirender dalam format PNG resolusi tinggi.',
+                    style: const TextStyle(fontSize: 12, color: _labMuted),
                   ),
                   const SizedBox(height: 12),
                   Container(
@@ -2672,7 +2979,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                       borderRadius: BorderRadius.circular(10),
                     ),
                     child: Text(
-                      'Rincian: $pcCount PC · $routerCount Router · $serverCount Server · $switchCount Switch · $cableCount Kabel',
+                      isEn
+                          ? 'Details: $pcCount PC · $routerCount Router · $serverCount Server · $switchCount Switch · $cableCount Cables'
+                          : 'Rincian: $pcCount PC · $routerCount Router · $serverCount Server · $switchCount Switch · $cableCount Kabel',
                       textAlign: TextAlign.center,
                       style: const TextStyle(
                           fontSize: 11,
@@ -2714,7 +3023,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('Tutup'),
+                child: Text(isEn ? 'Close' : 'Tutup'),
               ),
               OutlinedButton.icon(
                 onPressed: () async {
@@ -2725,15 +3034,20 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     if (!mounted) return;
                     NlSnackBar.show(
                       context,
-                      'Gambar tersimpan di Dokumen: ${result.fileName}',
+                      isEn
+                          ? 'Image saved in Documents: ${result.fileName}'
+                          : 'Gambar tersimpan di Dokumen: ${result.fileName}',
                     );
                   } catch (e) {
                     if (!mounted) return;
-                    NlSnackBar.show(context, 'Gagal menyimpan gambar: $e');
+                    NlSnackBar.show(
+                      context,
+                      isEn ? 'Failed to save image: $e' : 'Gagal menyimpan gambar: $e',
+                    );
                   }
                 },
                 icon: const Icon(Icons.save_alt_rounded, size: 16),
-                label: const Text('Simpan File'),
+                label: Text(isEn ? 'Save File' : 'Simpan File'),
                 style: OutlinedButton.styleFrom(
                   foregroundColor: const Color(0xFF4F46E5),
                   side: const BorderSide(color: Color(0xFF4F46E5)),
@@ -2750,22 +3064,29 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                     if (!mounted) return;
                     NlSnackBar.show(
                       context,
-                      'Gambar tersimpan. Membuka di galeri foto...',
+                      isEn
+                          ? 'Image saved. Opening in gallery...'
+                          : 'Gambar tersimpan. Membuka di galeri foto...',
                     );
                     final opened = await openTopologyImage(result.filePath);
                     if (!opened && mounted) {
                       NlSnackBar.show(
                         context,
-                        'Gambar tersimpan di Dokumen: ${result.fileName}',
+                        isEn
+                            ? 'Image saved in Documents: ${result.fileName}'
+                            : 'Gambar tersimpan di Dokumen: ${result.fileName}',
                       );
                     }
                   } catch (e) {
                     if (!mounted) return;
-                    NlSnackBar.show(context, 'Gagal memproses gambar: $e');
+                    NlSnackBar.show(
+                      context,
+                      isEn ? 'Failed to process image: $e' : 'Gagal memproses gambar: $e',
+                    );
                   }
                 },
                 icon: const Icon(Icons.open_in_new_rounded, size: 16),
-                label: const Text('Simpan & Buka'),
+                label: Text(isEn ? 'Save & Open' : 'Simpan & Buka'),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                   shape: RoundedRectangleBorder(
@@ -2778,16 +3099,24 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       );
     } catch (e) {
       if (mounted) {
-        NlSnackBar.show(context, 'Terjadi kendala saat merender gambar diagram.');
+        NlSnackBar.show(
+          context,
+          isEn
+              ? 'Problem rendering topology diagram image.'
+              : 'Terjadi kendala saat merender gambar diagram.',
+        );
       }
     }
   }
 
   void _askNetBotAboutTopology(VirtualLabSession session) {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.lightImpact();
     NlSnackBar.show(
       context,
-      'Fitur NetBot AI masih dalam tahap pengembangan.',
+      isEn
+          ? 'NetBot AI feature is currently under development.'
+          : 'Fitur NetBot AI masih dalam tahap pengembangan.',
     );
   }
 
@@ -2795,10 +3124,13 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     VirtualLabSession session,
     VirtualLabConnectivityResult result,
   ) {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.mediumImpact();
     NlSnackBar.show(
       context,
-      'Fitur NetBot AI masih dalam tahap pengembangan.',
+      isEn
+          ? 'NetBot AI feature is currently under development.'
+          : 'Fitur NetBot AI masih dalam tahap pengembangan.',
     );
   }
 
@@ -3215,9 +3547,15 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
   }
 
   Future<void> _handleSave() async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     final name = _nameController.text.trim();
     if (name.isEmpty) {
-      NlSnackBar.show(context, 'Nama skenario topologi tidak boleh kosong');
+      NlSnackBar.show(
+        context,
+        isEn
+            ? 'Topology scenario name cannot be empty'
+            : 'Nama skenario topologi tidak boleh kosong',
+      );
       return;
     }
 
@@ -3232,11 +3570,17 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
     await _loadTopologies();
     if (mounted) {
       setState(() => _activeTab = 0);
-      NlSnackBar.show(context, 'Topologi "$name" berhasil disimpan!');
+      NlSnackBar.show(
+        context,
+        isEn
+            ? 'Topology "$name" saved successfully!'
+            : 'Topologi "$name" berhasil disimpan!',
+      );
     }
   }
 
   Future<void> _handleImportJson() async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.lightImpact();
     try {
       final files = await FilePicker.pickFiles(
@@ -3251,7 +3595,12 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
 
       if (rawContent == null || rawContent.trim().isEmpty) {
         if (mounted) {
-          NlSnackBar.show(context, 'Gagal membaca berkas JSON yang dipilih.');
+          NlSnackBar.show(
+            context,
+            isEn
+                ? 'Failed to read the selected JSON file.'
+                : 'Gagal membaca berkas JSON yang dipilih.',
+          );
         }
         return;
       }
@@ -3260,7 +3609,11 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
       if (session == null) {
         if (mounted) {
           NlSnackBar.show(
-              context, 'Format berkas JSON tidak sesuai atau rusak.');
+            context,
+            isEn
+                ? 'Invalid or corrupted JSON file format.'
+                : 'Format berkas JSON tidak sesuai atau rusak.',
+          );
         }
         return;
       }
@@ -3270,17 +3623,25 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
         Navigator.pop(context);
         NlSnackBar.show(
           context,
-          'Topologi berhasil diimpor: ${session.devices.length} perangkat & ${session.cables.length} kabel dimuat!',
+          isEn
+              ? 'Topology imported: ${session.devices.length} devices & ${session.cables.length} cables loaded!'
+              : 'Topologi berhasil diimpor: ${session.devices.length} perangkat & ${session.cables.length} kabel dimuat!',
         );
       }
     } catch (e) {
       if (mounted) {
-        NlSnackBar.show(context, 'Terjadi kesalahan saat mengimpor berkas: $e');
+        NlSnackBar.show(
+          context,
+          isEn
+              ? 'Error importing file: $e'
+              : 'Terjadi kesalahan saat mengimpor berkas: $e',
+        );
       }
     }
   }
 
   Future<void> _handleExportJson(VirtualLabSavedTopology topology) async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     HapticFeedback.lightImpact();
     try {
       final storage = ref.read(virtualLabStorageServiceProvider);
@@ -3296,20 +3657,25 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
             shape:
                 RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
             title: Row(
-              children: const [
-                Icon(Icons.check_circle_rounded,
+              children: [
+                const Icon(Icons.check_circle_rounded,
                     color: Color(0xFF10B981), size: 22),
-                SizedBox(width: 8),
-                Text('Ekspor JSON Sukses', style: TextStyle(fontSize: 16)),
+                const SizedBox(width: 8),
+                Text(
+                  isEn ? 'JSON Export Successful' : 'Ekspor JSON Sukses',
+                  style: const TextStyle(fontSize: 16),
+                ),
               ],
             ),
             content: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Berkas topologi berhasil diekspor ke penyimpanan perangkat:',
-                  style: TextStyle(fontSize: 12.5, color: _labText),
+                Text(
+                  isEn
+                      ? 'Topology file exported to device storage successfully:'
+                      : 'Berkas topologi berhasil diekspor ke penyimpanan perangkat:',
+                  style: const TextStyle(fontSize: 12.5, color: _labText),
                 ),
                 const SizedBox(height: 10),
                 Container(
@@ -3333,7 +3699,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(dialogCtx),
-                child: const Text('Tutup'),
+                child: Text(isEn ? 'Close' : 'Tutup'),
               ),
             ],
           ),
@@ -3341,25 +3707,36 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
       }
     } catch (e) {
       if (mounted) {
-        NlSnackBar.show(context, 'Gagal mengekspor berkas JSON: $e');
+        NlSnackBar.show(
+          context,
+          isEn
+              ? 'Failed to export JSON file: $e'
+              : 'Gagal mengekspor berkas JSON: $e',
+        );
       }
     }
   }
 
   Future<void> _handleDelete(VirtualLabSavedTopology topology) async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Hapus Topologi?', style: TextStyle(fontSize: 16)),
+        title: Text(
+          isEn ? 'Delete Topology?' : 'Hapus Topologi?',
+          style: const TextStyle(fontSize: 16),
+        ),
         content: Text(
-          'Topologi "${topology.name}" akan dihapus permanen dari perangkat.',
+          isEn
+              ? 'Topology "${topology.name}" will be deleted permanently from your device.'
+              : 'Topologi "${topology.name}" akan dihapus permanen dari perangkat.',
           style: const TextStyle(fontSize: 13, color: _labText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal'),
+            child: Text(isEn ? 'Cancel' : 'Batal'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -3371,10 +3748,14 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               await _loadTopologies();
               if (mounted) {
                 NlSnackBar.show(
-                    context, 'Topologi "${topology.name}" berhasil dihapus');
+                  context,
+                  isEn
+                      ? 'Topology "${topology.name}" deleted successfully'
+                      : 'Topologi "${topology.name}" berhasil dihapus',
+                );
               }
             },
-            child: const Text('Hapus'),
+            child: Text(isEn ? 'Delete' : 'Hapus'),
           ),
         ],
       ),
@@ -3382,19 +3763,25 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
   }
 
   Future<void> _handleLoadToCanvas(VirtualLabSavedTopology topology) async {
+    final isEn = ref.read(languageProvider).languageCode == 'en';
     showDialog(
       context: context,
       builder: (dialogCtx) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text('Muat ke Kanvas?', style: TextStyle(fontSize: 16)),
+        title: Text(
+          isEn ? 'Load to Canvas?' : 'Muat ke Kanvas?',
+          style: const TextStyle(fontSize: 16),
+        ),
         content: Text(
-          'Topologi "${topology.name}" akan menggantikan rancangan kanvas saat ini (${widget.currentSession.devices.length} perangkat). Lanjutkan?',
+          isEn
+              ? 'Topology "${topology.name}" will replace current canvas design (${widget.currentSession.devices.length} devices). Continue?'
+              : 'Topologi "${topology.name}" akan menggantikan rancangan kanvas saat ini (${widget.currentSession.devices.length} perangkat). Lanjutkan?',
           style: const TextStyle(fontSize: 13, color: _labText),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogCtx),
-            child: const Text('Batal'),
+            child: Text(isEn ? 'Cancel' : 'Batal'),
           ),
           FilledButton(
             style: FilledButton.styleFrom(
@@ -3405,10 +3792,12 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               Navigator.pop(context);
               NlSnackBar.show(
                 context,
-                'Topologi "${topology.name}" berhasil dimuat ke kanvas!',
+                isEn
+                    ? 'Topology "${topology.name}" loaded onto canvas successfully!'
+                    : 'Topologi "${topology.name}" berhasil dimuat ke kanvas!',
               );
             },
-            child: const Text('Muat'),
+            child: Text(isEn ? 'Load' : 'Muat'),
           ),
         ],
       ),
@@ -3417,6 +3806,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final isEn = ref.watch(languageProvider).languageCode == 'en';
     final bottomInset = MediaQuery.of(context).viewInsets.bottom;
 
     return Padding(
@@ -3462,21 +3852,23 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Expanded(
+                  Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Kelola Topologi',
-                          style: TextStyle(
+                          isEn ? 'Manage Topologies' : 'Kelola Topologi',
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w700,
                             color: _labText,
                           ),
                         ),
                         Text(
-                          'Simpan, muat, ekspor & impor skenario',
-                          style: TextStyle(fontSize: 11.5, color: _labMuted),
+                          isEn
+                              ? 'Save, load, export & import scenarios'
+                              : 'Simpan, muat, ekspor & impor skenario',
+                          style: const TextStyle(fontSize: 11.5, color: _labMuted),
                         ),
                       ],
                     ),
@@ -3484,8 +3876,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                   OutlinedButton.icon(
                     onPressed: _handleImportJson,
                     icon: const Icon(Icons.file_upload_outlined, size: 16),
-                    label: const Text('Impor JSON',
-                        style: TextStyle(fontSize: 11.5)),
+                    label: Text(
+                      isEn ? 'Import JSON' : 'Impor JSON',
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF4F46E5),
                       side: const BorderSide(color: Color(0xFFC7D2FE)),
@@ -3535,7 +3929,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                                 : null,
                           ),
                           child: Text(
-                            'Tersimpan (${_savedList?.length ?? 0})',
+                            isEn
+                                ? 'Saved (${_savedList?.length ?? 0})'
+                                : 'Tersimpan (${_savedList?.length ?? 0})',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
@@ -3571,7 +3967,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                                 : null,
                           ),
                           child: Text(
-                            '+ Simpan Baru',
+                            isEn ? '+ Save New' : '+ Simpan Baru',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
@@ -3595,8 +3991,8 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               child: _loading
                   ? const Center(child: CircularProgressIndicator())
                   : _activeTab == 0
-                      ? _buildSavedListTab()
-                      : _buildSaveFormTab(),
+                      ? _buildSavedListTab(isEn)
+                      : _buildSaveFormTab(isEn),
             ),
           ],
         ),
@@ -3604,7 +4000,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
     );
   }
 
-  Widget _buildSavedListTab() {
+  Widget _buildSavedListTab(bool isEn) {
     final list = _savedList ?? [];
     if (list.isEmpty) {
       return Center(
@@ -3616,25 +4012,31 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               Icon(Icons.folder_open_rounded,
                   size: 52, color: Colors.grey.shade400),
               const SizedBox(height: 12),
-              const Text(
-                'Belum Ada Topologi Tersimpan',
-                style: TextStyle(
+              Text(
+                isEn
+                    ? 'No Saved Topologies Yet'
+                    : 'Belum Ada Topologi Tersimpan',
+                style: const TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w700,
                   color: _labText,
                 ),
               ),
               const SizedBox(height: 6),
-              const Text(
-                'Rancangan jaringan yang Anda simpan akan muncul di sini agar dapat dibuka kapan saja.',
+              Text(
+                isEn
+                    ? 'Your saved network designs will appear here so you can reopen them anytime.'
+                    : 'Rancangan jaringan yang Anda simpan akan muncul di sini agar dapat dibuka kapan saja.',
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11.5, color: _labMuted),
+                style: const TextStyle(fontSize: 11.5, color: _labMuted),
               ),
               const SizedBox(height: 16),
               FilledButton.icon(
                 onPressed: () => setState(() => _activeTab = 1),
                 icon: const Icon(Icons.add_rounded, size: 16),
-                label: const Text('Simpan Topologi Saat Ini'),
+                label: Text(
+                  isEn ? 'Save Current Topology' : 'Simpan Topologi Saat Ini',
+                ),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
                 ),
@@ -3705,7 +4107,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                   IconButton(
                     icon: const Icon(Icons.delete_outline_rounded,
                         size: 20, color: Color(0xFFEF4444)),
-                    tooltip: 'Hapus',
+                    tooltip: isEn ? 'Delete' : 'Hapus',
                     padding: EdgeInsets.zero,
                     constraints: const BoxConstraints(),
                     onPressed: () => _handleDelete(item),
@@ -3723,7 +4125,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${item.deviceCount} Perangkat',
+                      isEn
+                          ? '${item.deviceCount} Devices'
+                          : '${item.deviceCount} Perangkat',
                       style: const TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
@@ -3740,7 +4144,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      '${item.cableCount} Kabel',
+                      isEn
+                          ? '${item.cableCount} Cables'
+                          : '${item.cableCount} Kabel',
                       style: const TextStyle(
                         fontSize: 10.5,
                         fontWeight: FontWeight.w600,
@@ -3762,8 +4168,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                     child: FilledButton.icon(
                       onPressed: () => _handleLoadToCanvas(item),
                       icon: const Icon(Icons.play_arrow_rounded, size: 16),
-                      label: const Text('Muat ke Kanvas',
-                          style: TextStyle(fontSize: 11.5)),
+                      label: Text(
+                        isEn ? 'Load to Canvas' : 'Muat ke Kanvas',
+                        style: const TextStyle(fontSize: 11.5),
+                      ),
                       style: FilledButton.styleFrom(
                         backgroundColor: const Color(0xFF4F46E5),
                         foregroundColor: Colors.white,
@@ -3778,8 +4186,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                   OutlinedButton.icon(
                     onPressed: () => _handleExportJson(item),
                     icon: const Icon(Icons.download_rounded, size: 15),
-                    label: const Text('Ekspor JSON',
-                        style: TextStyle(fontSize: 11.5)),
+                    label: Text(
+                      isEn ? 'Export JSON' : 'Ekspor JSON',
+                      style: const TextStyle(fontSize: 11.5),
+                    ),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: const Color(0xFF334155),
                       side: const BorderSide(color: Color(0xFFCBD5E1)),
@@ -3799,7 +4209,7 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
     );
   }
 
-  Widget _buildSaveFormTab() {
+  Widget _buildSaveFormTab(bool isEn) {
     final devCount = widget.currentSession.devices.length;
     final cableCount = widget.currentSession.cables.length;
 
@@ -3825,9 +4235,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
-                        'Rancangan Kanvas Aktif',
-                        style: TextStyle(
+                      Text(
+                        isEn ? 'Active Canvas Design' : 'Rancangan Kanvas Aktif',
+                        style: const TextStyle(
                           fontSize: 12.5,
                           fontWeight: FontWeight.w700,
                           color: _labText,
@@ -3835,7 +4245,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        '$devCount perangkat · $cableCount sambungan kabel terpasang',
+                        isEn
+                            ? '$devCount devices · $cableCount cables attached'
+                            : '$devCount perangkat · $cableCount sambungan kabel terpasang',
                         style:
                             const TextStyle(fontSize: 11, color: _labMuted),
                       ),
@@ -3848,9 +4260,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
           const SizedBox(height: 14),
 
           // Nama Topologi
-          const Text(
-            'Nama Skenario Topologi *',
-            style: TextStyle(
+          Text(
+            isEn ? 'Topology Scenario Name *' : 'Nama Skenario Topologi *',
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: _labText,
@@ -3860,7 +4272,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
           TextField(
             controller: _nameController,
             decoration: InputDecoration(
-              hintText: 'Misal: Praktikum Subnetting Star LAN',
+              hintText: isEn
+                  ? 'e.g.: Star LAN Subnetting Lab'
+                  : 'Misal: Praktikum Subnetting Star LAN',
               hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
               filled: true,
               fillColor: const Color(0xFFF9FAFC),
@@ -3879,9 +4293,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
           const SizedBox(height: 12),
 
           // Deskripsi / Catatan
-          const Text(
-            'Catatan / Deskripsi (opsional)',
-            style: TextStyle(
+          Text(
+            isEn ? 'Notes / Description (optional)' : 'Catatan / Deskripsi (opsional)',
+            style: const TextStyle(
               fontSize: 12,
               fontWeight: FontWeight.w700,
               color: _labText,
@@ -3892,8 +4306,9 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
             controller: _descController,
             maxLines: 3,
             decoration: InputDecoration(
-              hintText:
-                  'Tambahkan catatan praktikum, subnet IP yang dipakai, atau tugas dosen...',
+              hintText: isEn
+                  ? 'Add lab notes, IP subnets used, or assignment notes...'
+                  : 'Tambahkan catatan praktikum, subnet IP yang dipakai, atau tugas dosen...',
               hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
               filled: true,
               fillColor: const Color(0xFFF9FAFC),
@@ -3915,8 +4330,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
           FilledButton.icon(
             onPressed: _handleSave,
             icon: const Icon(Icons.save_rounded, size: 18),
-            label: const Text('Simpan ke Daftar Topologi',
-                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            label: Text(
+              isEn ? 'Save to Topology List' : 'Simpan ke Daftar Topologi',
+              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
             style: FilledButton.styleFrom(
               backgroundColor: const Color(0xFF4F46E5),
               foregroundColor: Colors.white,

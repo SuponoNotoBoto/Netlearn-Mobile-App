@@ -43,12 +43,17 @@ class VirtualLabRepository {
     // Canvas akun yang sudah keluar tidak boleh menimpa baris akun berikutnya.
     if (supabase.auth.currentUser?.id != forUserId) return;
 
-    // Pertahankan key saved_topologies jika sudah ada di state cloud
+    // Pertahankan key saved_topologies dan lab_submissions jika sudah ada di state cloud
     Map<String, dynamic> merged = {...state};
     try {
       final existing = await load();
-      if (existing != null && existing['saved_topologies'] != null) {
-        merged['saved_topologies'] = existing['saved_topologies'];
+      if (existing != null) {
+        if (existing['saved_topologies'] != null) {
+          merged['saved_topologies'] = existing['saved_topologies'];
+        }
+        if (existing['lab_submissions'] != null) {
+          merged['lab_submissions'] = existing['lab_submissions'];
+        }
       }
     } catch (_) {}
 
@@ -85,6 +90,38 @@ class VirtualLabRepository {
     final merged = {
       ...existing,
       'saved_topologies': topologies,
+    };
+
+    await supabase.from('virtual_lab_canvases').upsert({
+      'user_id': forUserId,
+      'state': merged,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  /// Membaca riwayat pengumpulan misi praktikum dari cloud Supabase.
+  Future<Map<String, dynamic>> loadLabSubmissions() async {
+    try {
+      final state = await load();
+      final subs = state?['lab_submissions'];
+      if (subs is Map) {
+        return Map<String, dynamic>.from(subs);
+      }
+    } catch (_) {}
+    return const {};
+  }
+
+  /// Menyimpan riwayat pengumpulan misi praktikum ke cloud Supabase.
+  Future<void> saveLabSubmissions(
+    Map<String, dynamic> submissions, {
+    required String forUserId,
+  }) async {
+    if (supabase.auth.currentUser?.id != forUserId) return;
+
+    final existing = await load() ?? {};
+    final merged = {
+      ...existing,
+      'lab_submissions': submissions,
     };
 
     await supabase.from('virtual_lab_canvases').upsert({

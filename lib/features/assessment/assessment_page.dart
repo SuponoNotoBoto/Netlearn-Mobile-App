@@ -494,8 +494,8 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
 
     if (raw.contains('42501') || raw.contains('row-level security') || raw.contains('permission denied')) {
       return isId
-          ? 'Izin database ditolak (RLS). Pastikan migrasi SQL telah dijalankan di Supabase SQL Editor.'
-          : 'Database permission denied (RLS). Please ensure the SQL migration was executed in Supabase SQL Editor.';
+          ? 'Izin database ditolak (RLS). Silakan hubungi administrator.'
+          : 'Database permission denied (RLS). Please contact the administrator.';
     }
 
     return l10n.assessmentErrorGeneric;
