@@ -13,6 +13,7 @@ import 'virtual_lab_controller.dart';
 import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
 import 'virtual_lab_terminal.dart';
+import 'virtual_lab_export.dart';
 import 'package:flutter/services.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 
@@ -1704,6 +1705,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
 
       if (!mounted) return;
 
+      final now = DateTime.now();
+      final dateStr =
+          '${now.year}${now.month.toString().padLeft(2, '0')}${now.day.toString().padLeft(2, '0')}_${now.hour.toString().padLeft(2, '0')}${now.minute.toString().padLeft(2, '0')}${now.second.toString().padLeft(2, '0')}';
+      final fileName = 'NetLearn_Topology_$dateStr.png';
+
       showDialog(
         context: context,
         builder: (dialogCtx) {
@@ -1770,6 +1776,34 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                           color: _labText),
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0xFFC7D2FE)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.insert_drive_file_outlined,
+                            size: 15, color: Color(0xFF4F46E5)),
+                        const SizedBox(width: 6),
+                        Expanded(
+                          child: Text(
+                            fileName,
+                            style: const TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF3730A3),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -1778,16 +1812,60 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                 onPressed: () => Navigator.pop(dialogCtx),
                 child: const Text('Tutup'),
               ),
-              FilledButton.icon(
-                onPressed: () {
+              OutlinedButton.icon(
+                onPressed: () async {
                   Navigator.pop(dialogCtx);
-                  NlSnackBar.show(context,
-                      'Gambar topologi siap dilampirkan ke laporan tugas praktikum.');
+                  try {
+                    final result =
+                        await saveTopologyImage(pngBytes, fileName);
+                    if (!mounted) return;
+                    NlSnackBar.show(
+                      context,
+                      'Gambar tersimpan di Dokumen: ${result.fileName}',
+                    );
+                  } catch (e) {
+                    if (!mounted) return;
+                    NlSnackBar.show(context, 'Gagal menyimpan gambar: $e');
+                  }
                 },
-                icon: const Icon(Icons.check_rounded, size: 16),
-                label: const Text('Simpan / Selesai'),
+                icon: const Icon(Icons.save_alt_rounded, size: 16),
+                label: const Text('Simpan File'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF4F46E5),
+                  side: const BorderSide(color: Color(0xFF4F46E5)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              FilledButton.icon(
+                onPressed: () async {
+                  Navigator.pop(dialogCtx);
+                  try {
+                    final result =
+                        await saveTopologyImage(pngBytes, fileName);
+                    if (!mounted) return;
+                    NlSnackBar.show(
+                      context,
+                      'Gambar tersimpan. Membuka di galeri foto...',
+                    );
+                    final opened = await openTopologyImage(result.filePath);
+                    if (!opened && mounted) {
+                      NlSnackBar.show(
+                        context,
+                        'Gambar tersimpan di Dokumen: ${result.fileName}',
+                      );
+                    }
+                  } catch (e) {
+                    if (!mounted) return;
+                    NlSnackBar.show(context, 'Gagal memproses gambar: $e');
+                  }
+                },
+                icon: const Icon(Icons.open_in_new_rounded, size: 16),
+                label: const Text('Simpan & Buka'),
                 style: FilledButton.styleFrom(
                   backgroundColor: const Color(0xFF4F46E5),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10)),
                 ),
               ),
             ],
