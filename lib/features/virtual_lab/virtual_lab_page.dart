@@ -10,6 +10,7 @@ import '../../l10n/app_localizations.dart';
 import 'virtual_lab_controller.dart';
 import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
+import 'virtual_lab_terminal.dart';
 import 'package:flutter/services.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 
@@ -455,8 +456,10 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
                       const SizedBox(height: 14),
                       if (_panelTab == 0)
                         _buildConfigurationTab(session, controller, l10n, accent)
+                      else if (_panelTab == 1)
+                        _buildPingTab(session, l10n, accent)
                       else
-                        _buildPingTab(session, l10n, accent),
+                        _buildTerminalTab(session, l10n, accent),
                       const SizedBox(height: 18),
                       _buildFooter(l10n, accent),
                     ],
@@ -908,6 +911,12 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             l10n.virtualLabPanelPingTest,
             accent,
           ),
+          _buildPanelTabButton(
+            2,
+            Icons.terminal_rounded,
+            'Terminal',
+            accent,
+          ),
         ],
       ),
     );
@@ -1070,6 +1079,20 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             keyboardType: TextInputType.number,
             textInputAction: TextInputAction.done,
             decoration: _fieldDecoration(hint: '192.168.1.1 (opsional jika 1 subnet)'),
+          ),
+          const SizedBox(height: 10),
+          OutlinedButton.icon(
+            onPressed: () => setState(() => _panelTab = 2),
+            icon: const Icon(Icons.terminal_rounded, size: 16),
+            label: const Text('Buka Command Prompt (Terminal CLI)'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: const Color(0xFF0F172A),
+              side: const BorderSide(color: Color(0xFFCBD5E1)),
+              padding: const EdgeInsets.symmetric(vertical: 10),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
           ),
         ] else if (device.kind == VirtualLabDeviceKind.router) ...[
           Container(
@@ -1415,6 +1438,56 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTerminalTab(
+    VirtualLabSession session,
+    AppLocalizations l10n,
+    Color accent,
+  ) {
+    final id = session.selectedDeviceId;
+    final device = id == null ? null : session.deviceById(id);
+
+    if (device == null) {
+      final firstPc = session.devices.cast<VirtualLabDevice?>().firstWhere(
+            (d) => d != null && d.kind == VirtualLabDeviceKind.pc,
+            orElse: () => null,
+          );
+      if (firstPc != null) {
+        return VirtualLabTerminalWidget(
+          device: firstPc,
+          session: session,
+          accent: accent,
+          onPingResult: (result) {
+            setState(() => _lastTest = result);
+            if (result.success) _startPacketAnimation();
+          },
+        );
+      }
+      return _buildPanelHint(
+        Localizations.localeOf(context).languageCode == 'id'
+            ? 'Tambahkan dan pilih PC di kanvas untuk menggunakan Command Prompt terminal.'
+            : 'Add and select a PC on the canvas to use the Command Prompt terminal.',
+      );
+    }
+
+    if (device.kind != VirtualLabDeviceKind.pc) {
+      return _buildPanelHint(
+        Localizations.localeOf(context).languageCode == 'id'
+            ? 'Terminal Command Prompt hanya tersedia untuk perangkat PC (Host). Pilih salah satu PC di kanvas.'
+            : 'Command Prompt terminal is only available on PC (Host) devices. Select a PC on the canvas.',
+      );
+    }
+
+    return VirtualLabTerminalWidget(
+      device: device,
+      session: session,
+      accent: accent,
+      onPingResult: (result) {
+        setState(() => _lastTest = result);
+        if (result.success) _startPacketAnimation();
+      },
     );
   }
 
