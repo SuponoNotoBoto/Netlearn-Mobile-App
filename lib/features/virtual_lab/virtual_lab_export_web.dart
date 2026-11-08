@@ -27,3 +27,26 @@ Future<bool> openTopologyImage(String filePath) async {
   return true;
 }
 
+Future<VirtualLabExportResult> saveTopologyJson(
+  String jsonContent,
+  String fileName,
+) async {
+  final blob = html.Blob(<Object>[jsonContent], 'application/json');
+  final url = html.Url.createObjectUrlFromBlob(blob);
+
+  html.AnchorElement(href: url)
+    ..download = fileName
+    ..click();
+
+  html.Url.revokeObjectUrl(url);
+
+  return VirtualLabExportResult(
+    filePath: fileName,
+    fileName: fileName,
+  );
+}
+
+Future<String?> readFileAsString(String filePath) async {
+  return null;
+}
+

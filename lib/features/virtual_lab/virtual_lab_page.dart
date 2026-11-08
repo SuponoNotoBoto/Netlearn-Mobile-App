@@ -14,6 +14,9 @@ import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
 import 'virtual_lab_terminal.dart';
 import 'virtual_lab_export.dart';
+import 'virtual_lab_saved_topology.dart';
+import 'virtual_lab_storage_service.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 
@@ -450,6 +453,12 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           ),
         ),
         actions: [
+          IconButton(
+            tooltip: 'Kelola Topologi (Simpan & Buka)',
+            icon: const Icon(Icons.folder_open_rounded, color: _labText),
+            onPressed: () =>
+                _showSavedTopologiesSheet(context, controller, session),
+          ),
           IconButton(
             tooltip: 'Template Topologi',
             icon: const Icon(Icons.account_tree_outlined, color: _labText),
@@ -1976,6 +1985,28 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     );
   }
 
+  void _showSavedTopologiesSheet(
+    BuildContext context,
+    VirtualLabController controller,
+    VirtualLabSession session,
+  ) {
+    HapticFeedback.lightImpact();
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) {
+        return _SavedTopologiesSheet(
+          controller: controller,
+          currentSession: session,
+        );
+      },
+    );
+  }
+
   void _showTopologyTemplatesSheet(
     BuildContext context,
     VirtualLabController controller,
@@ -2736,3 +2767,782 @@ class _DashedRoundedBorderPainter extends CustomPainter {
     return oldDelegate.color != color;
   }
 }
+
+// ---------------------------------------------------------------------------
+// Bottom Sheet Manajemen Penyimpanan Topologi Kustom (Fase 5)
+// ---------------------------------------------------------------------------
+
+class _SavedTopologiesSheet extends ConsumerStatefulWidget {
+  final VirtualLabController controller;
+  final VirtualLabSession currentSession;
+
+  const _SavedTopologiesSheet({
+    required this.controller,
+    required this.currentSession,
+  });
+
+  @override
+  ConsumerState<_SavedTopologiesSheet> createState() =>
+      _SavedTopologiesSheetState();
+}
+
+class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
+  int _activeTab = 0; // 0 = Topologi Tersimpan, 1 = Simpan Saat Ini
+  late final TextEditingController _nameController;
+  late final TextEditingController _descController;
+  List<VirtualLabSavedTopology>? _savedList;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final now = DateTime.now();
+    final dateStr =
+        '${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')} ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+    _nameController = TextEditingController(
+      text: 'Topologi Lab ($dateStr)',
+    );
+    _descController = TextEditingController();
+    _loadTopologies();
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _descController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadTopologies() async {
+    setState(() => _loading = true);
+    final storage = ref.read(virtualLabStorageServiceProvider);
+    final list = await storage.getSavedTopologies();
+    if (mounted) {
+      setState(() {
+        _savedList = list;
+        _loading = false;
+        if (list.isEmpty) {
+          _activeTab = 1; // Beralih ke simpan jika belum ada data
+        }
+      });
+    }
+  }
+
+  Future<void> _handleSave() async {
+    final name = _nameController.text.trim();
+    if (name.isEmpty) {
+      NlSnackBar.show(context, 'Nama skenario topologi tidak boleh kosong');
+      return;
+    }
+
+    final desc = _descController.text.trim();
+    final storage = ref.read(virtualLabStorageServiceProvider);
+    await storage.saveTopology(
+      name: name,
+      description: desc.isNotEmpty ? desc : null,
+      session: widget.currentSession,
+    );
+
+    await _loadTopologies();
+    if (mounted) {
+      setState(() => _activeTab = 0);
+      NlSnackBar.show(context, 'Topologi "$name" berhasil disimpan!');
+    }
+  }
+
+  Future<void> _handleImportJson() async {
+    HapticFeedback.lightImpact();
+    try {
+      final files = await FilePicker.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['json'],
+      );
+      if (files.isEmpty) return;
+
+      final file = files.first;
+      final storage = ref.read(virtualLabStorageServiceProvider);
+      final rawContent = await storage.readPickedFile(file);
+
+      if (rawContent == null || rawContent.trim().isEmpty) {
+        if (mounted) {
+          NlSnackBar.show(context, 'Gagal membaca berkas JSON yang dipilih.');
+        }
+        return;
+      }
+
+      final session = storage.parseTopologyJson(rawContent);
+      if (session == null) {
+        if (mounted) {
+          NlSnackBar.show(
+              context, 'Format berkas JSON tidak sesuai atau rusak.');
+        }
+        return;
+      }
+
+      widget.controller.loadSession(session);
+      if (mounted) {
+        Navigator.pop(context);
+        NlSnackBar.show(
+          context,
+          'Topologi berhasil diimpor: ${session.devices.length} perangkat & ${session.cables.length} kabel dimuat!',
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NlSnackBar.show(context, 'Terjadi kesalahan saat mengimpor berkas: $e');
+      }
+    }
+  }
+
+  Future<void> _handleExportJson(VirtualLabSavedTopology topology) async {
+    HapticFeedback.lightImpact();
+    try {
+      final storage = ref.read(virtualLabStorageServiceProvider);
+      final result = await storage.exportTopologyToJsonFile(
+        session: topology.toSession(),
+        name: topology.name,
+        description: topology.description,
+      );
+      if (mounted) {
+        showDialog(
+          context: context,
+          builder: (dialogCtx) => AlertDialog(
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: const [
+                Icon(Icons.check_circle_rounded,
+                    color: Color(0xFF10B981), size: 22),
+                SizedBox(width: 8),
+                Text('Ekspor JSON Sukses', style: TextStyle(fontSize: 16)),
+              ],
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Berkas topologi berhasil diekspor ke penyimpanan perangkat:',
+                  style: TextStyle(fontSize: 12.5, color: _labText),
+                ),
+                const SizedBox(height: 10),
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: const Color(0xFFCBD5E1)),
+                  ),
+                  child: SelectableText(
+                    result.filePath,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontFamily: 'monospace',
+                      color: Color(0xFF0F172A),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Tutup'),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        NlSnackBar.show(context, 'Gagal mengekspor berkas JSON: $e');
+      }
+    }
+  }
+
+  Future<void> _handleDelete(VirtualLabSavedTopology topology) async {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Hapus Topologi?', style: TextStyle(fontSize: 16)),
+        content: Text(
+          'Topologi "${topology.name}" akan dihapus permanen dari perangkat.',
+          style: const TextStyle(fontSize: 13, color: _labText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFFEF4444)),
+            onPressed: () async {
+              Navigator.pop(dialogCtx);
+              final storage = ref.read(virtualLabStorageServiceProvider);
+              await storage.deleteTopology(topology.id);
+              await _loadTopologies();
+              if (mounted) {
+                NlSnackBar.show(
+                    context, 'Topologi "${topology.name}" berhasil dihapus');
+              }
+            },
+            child: const Text('Hapus'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _handleLoadToCanvas(VirtualLabSavedTopology topology) async {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Muat ke Kanvas?', style: TextStyle(fontSize: 16)),
+        content: Text(
+          'Topologi "${topology.name}" akan menggantikan rancangan kanvas saat ini (${widget.currentSession.devices.length} perangkat). Lanjutkan?',
+          style: const TextStyle(fontSize: 13, color: _labText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal'),
+          ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+                backgroundColor: const Color(0xFF4F46E5)),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              widget.controller.loadSession(topology.toSession());
+              Navigator.pop(context);
+              NlSnackBar.show(
+                context,
+                'Topologi "${topology.name}" berhasil dimuat ke kanvas!',
+              );
+            },
+            child: const Text('Muat'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: bottomInset),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag Handle
+            const SizedBox(height: 12),
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFCBD5E1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Header & Tombol Impor
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Row(
+                children: [
+                  Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(
+                      Icons.folder_special_rounded,
+                      color: Color(0xFF4F46E5),
+                      size: 20,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kelola Topologi',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: _labText,
+                          ),
+                        ),
+                        Text(
+                          'Simpan, muat, ekspor & impor skenario',
+                          style: TextStyle(fontSize: 11.5, color: _labMuted),
+                        ),
+                      ],
+                    ),
+                  ),
+                  OutlinedButton.icon(
+                    onPressed: _handleImportJson,
+                    icon: const Icon(Icons.file_upload_outlined, size: 16),
+                    label: const Text('Impor JSON',
+                        style: TextStyle(fontSize: 11.5)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF4F46E5),
+                      side: const BorderSide(color: Color(0xFFC7D2FE)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // Tab Selector (Pill Style)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF1F5F9),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _activeTab = 0),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _activeTab == 0
+                                ? Colors.white
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: _activeTab == 0
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            'Tersimpan (${_savedList?.length ?? 0})',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _activeTab == 0
+                                  ? const Color(0xFF4F46E5)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                    Expanded(
+                      child: InkWell(
+                        onTap: () => setState(() => _activeTab = 1),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          decoration: BoxDecoration(
+                            color: _activeTab == 1
+                                ? Colors.white
+                                : Colors.transparent,
+                            borderRadius: BorderRadius.circular(8),
+                            boxShadow: _activeTab == 1
+                                ? [
+                                    BoxShadow(
+                                      color: Colors.black
+                                          .withValues(alpha: 0.05),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 1),
+                                    ),
+                                  ]
+                                : null,
+                          ),
+                          child: Text(
+                            '+ Simpan Baru',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: _activeTab == 1
+                                  ? const Color(0xFF4F46E5)
+                                  : const Color(0xFF64748B),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Tab Content
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : _activeTab == 0
+                      ? _buildSavedListTab()
+                      : _buildSaveFormTab(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSavedListTab() {
+    final list = _savedList ?? [];
+    if (list.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.folder_open_rounded,
+                  size: 52, color: Colors.grey.shade400),
+              const SizedBox(height: 12),
+              const Text(
+                'Belum Ada Topologi Tersimpan',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: _labText,
+                ),
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                'Rancangan jaringan yang Anda simpan akan muncul di sini agar dapat dibuka kapan saja.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11.5, color: _labMuted),
+              ),
+              const SizedBox(height: 16),
+              FilledButton.icon(
+                onPressed: () => setState(() => _activeTab = 1),
+                icon: const Icon(Icons.add_rounded, size: 16),
+                label: const Text('Simpan Topologi Saat Ini'),
+                style: FilledButton.styleFrom(
+                  backgroundColor: const Color(0xFF4F46E5),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+      itemCount: list.length,
+      separatorBuilder: (_, _) => const SizedBox(height: 10),
+      itemBuilder: (context, index) {
+        final item = list[index];
+        final timeStr =
+            '${item.updatedAt.day.toString().padLeft(2, '0')}/${item.updatedAt.month.toString().padLeft(2, '0')}/${item.updatedAt.year} ${item.updatedAt.hour.toString().padLeft(2, '0')}:${item.updatedAt.minute.toString().padLeft(2, '0')}';
+
+        return Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE2E8F0)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.02),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.name,
+                          style: const TextStyle(
+                            fontSize: 13.5,
+                            fontWeight: FontWeight.w700,
+                            color: _labText,
+                          ),
+                        ),
+                        if (item.description != null &&
+                            item.description!.isNotEmpty) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            item.description!,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: _labMuted,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline_rounded,
+                        size: 20, color: Color(0xFFEF4444)),
+                    tooltip: 'Hapus',
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: () => _handleDelete(item),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF2FF),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${item.deviceCount} Perangkat',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF4F46E5),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF1F5F9),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: Text(
+                      '${item.cableCount} Kabel',
+                      style: const TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF475569),
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    timeStr,
+                    style: const TextStyle(fontSize: 10.5, color: _labMuted),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: () => _handleLoadToCanvas(item),
+                      icon: const Icon(Icons.play_arrow_rounded, size: 16),
+                      label: const Text('Muat ke Kanvas',
+                          style: TextStyle(fontSize: 11.5)),
+                      style: FilledButton.styleFrom(
+                        backgroundColor: const Color(0xFF4F46E5),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _handleExportJson(item),
+                    icon: const Icon(Icons.download_rounded, size: 15),
+                    label: const Text('Ekspor JSON',
+                        style: TextStyle(fontSize: 11.5)),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF334155),
+                      side: const BorderSide(color: Color(0xFFCBD5E1)),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 8),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSaveFormTab() {
+    final devCount = widget.currentSession.devices.length;
+    final cableCount = widget.currentSession.cables.length;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(20, 6, 20, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Current Canvas Summary Card
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF8FAFC),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.lan_rounded,
+                    color: Color(0xFF4F46E5), size: 24),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Rancangan Kanvas Aktif',
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          fontWeight: FontWeight.w700,
+                          color: _labText,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$devCount perangkat · $cableCount sambungan kabel terpasang',
+                        style:
+                            const TextStyle(fontSize: 11, color: _labMuted),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+
+          // Nama Topologi
+          const Text(
+            'Nama Skenario Topologi *',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: _labText,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _nameController,
+            decoration: InputDecoration(
+              hintText: 'Misal: Praktikum Subnetting Star LAN',
+              hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
+              filled: true,
+              fillColor: const Color(0xFFF9FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Deskripsi / Catatan
+          const Text(
+            'Catatan / Deskripsi (opsional)',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+              color: _labText,
+            ),
+          ),
+          const SizedBox(height: 6),
+          TextField(
+            controller: _descController,
+            maxLines: 3,
+            decoration: InputDecoration(
+              hintText:
+                  'Tambahkan catatan praktikum, subnet IP yang dipakai, atau tugas dosen...',
+              hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
+              filled: true,
+              fillColor: const Color(0xFFF9FAFC),
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+
+          // Tombol Simpan
+          FilledButton.icon(
+            onPressed: _handleSave,
+            icon: const Icon(Icons.save_rounded, size: 18),
+            label: const Text('Simpan ke Daftar Topologi',
+                style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            style: FilledButton.styleFrom(
+              backgroundColor: const Color(0xFF4F46E5),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+

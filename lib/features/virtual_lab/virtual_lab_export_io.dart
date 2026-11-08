@@ -35,3 +35,23 @@ Future<bool> openTopologyImage(String filePath) async {
   }
 }
 
+Future<VirtualLabExportResult> saveTopologyJson(
+  String jsonContent,
+  String fileName,
+) async {
+  Directory directory;
+  try {
+    directory = await getApplicationDocumentsDirectory();
+  } catch (_) {
+    directory = await getTemporaryDirectory();
+  }
+
+  final file = File('${directory.path}${Platform.pathSeparator}$fileName');
+  await file.writeAsString(jsonContent, flush: true);
+
+  return VirtualLabExportResult(
+    filePath: file.path,
+    fileName: fileName,
+  );
+}
+

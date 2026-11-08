@@ -551,6 +551,11 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     _commit(preset);
   }
 
+  /// Memuat sesi topologi kustom dari berkas atau slot penyimpanan lokal.
+  void loadSession(VirtualLabSession session) {
+    _commit(session);
+  }
+
   /// v1.2: "Reset" di toolbar mengembalikan kanvas ke kondisi awal Skenario 1
   /// (bukan kanvas kosong) supaya mahasiswa dapat mengulang latihan yang
   /// sama dari awal. Kanvas kosong tetap bisa dicapai dengan menghapus

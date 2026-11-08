@@ -26,3 +26,11 @@ Future<bool> openTopologyImage(String filePath) {
   return platform.openTopologyImage(filePath);
 }
 
+/// Menyimpan data konfigurasi topologi berformat JSON ke berkas fisik perangkat.
+Future<VirtualLabExportResult> saveTopologyJson(
+  String jsonContent,
+  String fileName,
+) {
+  return platform.saveTopologyJson(jsonContent, fileName);
+}
+
