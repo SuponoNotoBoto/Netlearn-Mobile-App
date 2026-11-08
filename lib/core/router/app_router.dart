@@ -57,6 +57,7 @@ import '../../features/profile/change_password_page.dart';
 import '../../features/profile/student_assessment_history_page.dart';
 import '../../features/video/video_list_page.dart';
 import '../../features/video/video_page.dart';
+import '../../features/virtual_lab/virtual_lab_page.dart';
 import '../supabase/supabase_client.dart';
 import '../session/session_reset.dart';
 import '../../l10n/app_localizations.dart';
@@ -781,7 +782,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'virtual-lab',
              builder: (context, state) {
-               return const UnderDevelopmentPage(title: 'Virtual Lab');
+               return const VirtualLabPage();
              },
            ),
 
@@ -1268,7 +1269,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'virtual-lab',
             builder: (context, state) {
-              return const UnderDevelopmentPage(title: 'Virtual Lab');
+              return const VirtualLabPage();
             },
           ),
 

@@ -889,12 +889,11 @@ class _StudentDashboardPageState
   /// `.shortcut-grid.learning-space-grid` — pintu masuk ruang belajar.
   ///
   /// Sembilan pintu sesuai desain, tersusun tiga kolom seperti frame
-/// "Dashboard Mahasiswa 1". Hanya yang benar-benar punya route yang
-/// diaktifkan: assessment (tempat pretest/posttest dan tugas berada), modul,
-/// AR scanner, riwayat assessment, learning video, dan virtual lab.
-/// Virtual Lab masih menampilkan pemberitahuan "coming soon" sampai dirilis.
-/// Shortcut Profile tidak ikut di sini: sesuai referensi Dashboard Mahasiswa,
-/// Profile hanya dijangkau lewat bottom navigation.
+  /// "Dashboard Mahasiswa 1". Hanya yang benar-benar punya route yang
+  /// diaktifkan: assessment (tempat pretest/posttest dan tugas berada), modul,
+  /// riwayat assessment, learning video, dan virtual lab.
+  /// Shortcut Profile tidak ikut di sini: sesuai referensi Dashboard Mahasiswa,
+  /// Profile hanya dijangkau lewat bottom navigation.
   Widget _buildShortcutGrid(
     BuildContext context,
     AppLocalizations l10n,
@@ -1017,12 +1016,7 @@ class _StudentDashboardPageState
           title: l10n.virtualLab,
           subtitle: l10n.networkPractice,
           onTap: () {
-            NlSnackBar.show(
-              context,
-              isId
-                  ? 'Fitur Virtual Lab masih dalam tahap pengembangan.'
-                  : 'Virtual Lab feature is currently under development.',
-            );
+            context.push('/student/virtual-lab');
           },
         ),
 
