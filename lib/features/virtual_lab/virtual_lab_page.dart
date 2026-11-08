@@ -383,18 +383,18 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
         top: false,
         child: Column(
           children: [
-            _buildHeader(l10n, accent),
+            const SizedBox(height: 8),
             _buildToolbar(l10n, accent, session, controller),
             const SizedBox(height: 10),
             Expanded(
-              flex: 5,
+              flex: 6,
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _buildCanvas(session, controller, accent, l10n),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
+              padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
               child: Text(
                 l10n.virtualLabCanvasHint,
                 textAlign: TextAlign.center,
@@ -402,7 +402,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               ),
             ),
             Expanded(
-              flex: 6,
+              flex: 5,
               child: Container(
                 width: double.infinity,
                 decoration: const BoxDecoration(
@@ -447,69 +447,6 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _nameController.text = device.displayName;
     _ipController.text = device.ipAddress ?? '';
     _maskController.text = device.subnetMask ?? '';
-  }
-
-  // ---------------------------------------------------------------------------
-  // Header + skenario
-  // ---------------------------------------------------------------------------
-
-  Widget _buildHeader(AppLocalizations l10n, Color accent) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            l10n.virtualLabSubtitle,
-            style: const TextStyle(
-              fontSize: 12.5,
-              height: 1.4,
-              color: _labMuted,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: accent.withValues(alpha: 0.18)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Icon(Icons.flag_outlined, size: 14, color: accent),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: Text(
-                        l10n.virtualLabScenarioLabel,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.4,
-                          color: accent,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  l10n.virtualLabScenarioDescription,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    height: 1.45,
-                    color: _labText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   // ---------------------------------------------------------------------------
