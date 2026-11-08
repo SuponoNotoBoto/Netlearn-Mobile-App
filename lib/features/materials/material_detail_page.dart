@@ -17,6 +17,8 @@ import '../../shared/widgets/nl_unavailable_notice.dart';
 import 'pdf_download.dart';
 import 'pdf_service.dart';
 import 'student_materials_controller.dart';
+import 'material_lab_binding.dart';
+import 'widgets/material_lab_card.dart';
 
 class MaterialDetailPage extends ConsumerWidget {
   final String materialId;
@@ -170,6 +172,8 @@ class _MaterialContent extends ConsumerWidget {
       languageCode,
     );
 
+    final labBinding = MaterialLabBinding.fromMaterial(material);
+
     // Batas lebar kolom: di tablet satu paragraf 900px tidak terbaca, dan
     // kartu selebar layar membuat hierarki judul hilang. 360dp dan 430dp tidak
     // tersentuh karena `maxWidth` hanya menahan, tidak memaksa.
@@ -246,6 +250,19 @@ class _MaterialContent extends ConsumerWidget {
                 const SizedBox(
                   height: NetLearnSpace.s20,
                 ),
+                if (labBinding != null) ...[
+                  const NlSectionHeading(
+                    title: 'Praktikum & Simulasi',
+                    leadingIcon: Icons.science_outlined,
+                  ),
+                  MaterialLabCard(
+                    binding: labBinding,
+                    fromLecturer: fromLecturer,
+                  ),
+                  const SizedBox(
+                    height: NetLearnSpace.s20,
+                  ),
+                ],
                 _MaterialResources(
                   material: material,
                   languageCode: languageCode,

@@ -47,6 +47,7 @@ import '../../features/materials/material_reader_page.dart';
 import '../../features/materials/module_materials_page.dart';
 import '../../features/materials/pdf_viewer_page.dart';
 import '../../features/materials/student_materials_page.dart';
+import '../../features/materials/material_lab_binding.dart';
 import '../../features/notifications/student_notifications_page.dart';
 import '../../features/notifications/lecturer_notifications_page.dart';
 import '../../features/profile/student_profile_page.dart';
@@ -782,7 +783,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'virtual-lab',
              builder: (context, state) {
-               return const VirtualLabPage();
+               final labBinding = state.extra is MaterialLabBinding
+                   ? state.extra as MaterialLabBinding
+                   : null;
+               return VirtualLabPage(labBinding: labBinding);
              },
            ),
 
@@ -1269,7 +1273,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'virtual-lab',
             builder: (context, state) {
-              return const VirtualLabPage();
+              final labBinding = state.extra is MaterialLabBinding
+                  ? state.extra as MaterialLabBinding
+                  : null;
+              return VirtualLabPage(labBinding: labBinding);
             },
           ),
 

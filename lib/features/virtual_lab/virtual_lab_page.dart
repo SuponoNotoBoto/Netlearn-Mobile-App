@@ -16,6 +16,7 @@ import 'virtual_lab_terminal.dart';
 import 'virtual_lab_export.dart';
 import 'virtual_lab_saved_topology.dart';
 import 'virtual_lab_storage_service.dart';
+import '../materials/material_lab_binding.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
@@ -44,7 +45,12 @@ const Color _labPanelTrack = Color(0xFFF0F1F6);
 const Color _labFieldFill = Color(0xFFF9FAFC);
 
 class VirtualLabPage extends ConsumerStatefulWidget {
-  const VirtualLabPage({super.key});
+  final MaterialLabBinding? labBinding;
+
+  const VirtualLabPage({
+    super.key,
+    this.labBinding,
+  });
 
   @override
   ConsumerState<VirtualLabPage> createState() => _VirtualLabPageState();
@@ -58,6 +64,11 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   late final AnimationController _packetController;
   int _packetLoopsRemaining = 0;
   void Function(AnimationStatus)? _packetStatusListener;
+
+  /// Status banner panduan praktikum modul
+  bool _showLabGuideBanner = true;
+  bool _labGuideCollapsed = false;
+  bool _hasCheckedInitialLabLoad = false;
 
   /// 0 = Configuration, 1 = Ping Test.
   int _panelTab = 0;
@@ -95,6 +106,125 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     // scenario, so the canvas is usable immediately and is replaced by the
     // stored one as soon as it arrives (or stays as-is when there is none).
     ref.read(virtualLabControllerProvider.notifier).restore();
+
+    if (widget.labBinding != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkAndApplyLabBinding();
+      });
+    }
+  }
+
+  void _checkAndApplyLabBinding() {
+    if (!mounted || widget.labBinding == null || _hasCheckedInitialLabLoad) return;
+    _hasCheckedInitialLabLoad = true;
+
+    final session = ref.read(virtualLabControllerProvider);
+    // Jika materi memiliki preset eksplisit bukan blank dan kanvas kosong, baru muat
+    if (widget.labBinding!.preset != 'blank' && session.devices.isEmpty) {
+      ref.read(virtualLabControllerProvider.notifier).loadPreset(
+            widget.labBinding!.resolveInitialSession(),
+          );
+      NlSnackBar.show(
+        context,
+        'Skenario praktikum "${widget.labBinding!.title}" berhasil disiapkan.',
+        tone: NlSnackTone.success,
+      );
+    }
+  }
+
+  void _promptResetForPractice(
+    VirtualLabController controller,
+    VirtualLabSession session,
+  ) {
+    if (session.devices.isEmpty) {
+      NlSnackBar.show(
+        context,
+        'Kanvas sudah bersih dan siap untuk dirancang.',
+        tone: NlSnackTone.info,
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Mulai Kanvas Bersih?',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: Text(
+          'Kosongkan kanvas saat ini (${session.devices.length} perangkat) untuk memulai rancangan praktikum ini dari nol?',
+          style: const TextStyle(fontSize: 13, color: _labText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Batal', style: TextStyle(color: _labMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF64748B),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              controller.loadPreset(VirtualLabController.presetBlank());
+              _invalidateTest();
+              NlSnackBar.show(
+                context,
+                'Kanvas berhasil dikosongkan. Silakan mulai merancang sesuai panduan.',
+                tone: NlSnackTone.success,
+              );
+            },
+            child: const Text('Kosongkan'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _promptLoadReferenceExample(
+    VirtualLabController controller,
+    VirtualLabSession session,
+  ) {
+    final refSession = widget.labBinding?.resolveReferenceSession();
+    if (refSession == null) return;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Lihat Contoh Solusi?',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+        content: const Text(
+          'PERINGATAN: Memuat contoh referensi akan menggantikan kanvas Anda dengan diagram yang sudah jadi. Sebaiknya Anda mencoba merancang sendiri terlebih dahulu. Lanjutkan?',
+          style: TextStyle(fontSize: 13, color: _labText),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Tetap Kerjakan Sendiri',
+                style: TextStyle(color: _labMuted)),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6366F1),
+              foregroundColor: Colors.white,
+            ),
+            onPressed: () {
+              Navigator.pop(dialogCtx);
+              controller.loadPreset(refSession);
+              _invalidateTest();
+              NlSnackBar.show(
+                context,
+                'Contoh topologi referensi dimuat ke kanvas.',
+                tone: NlSnackTone.success,
+              );
+            },
+            child: const Text('Muat Contoh'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -474,6 +604,22 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1)),
             onPressed: () => _askNetBotAboutTopology(session),
           ),
+          if (widget.labBinding != null)
+            IconButton(
+              tooltip: 'Panduan Praktikum Modul',
+              icon: Icon(
+                _showLabGuideBanner
+                    ? Icons.assignment_rounded
+                    : Icons.assignment_outlined,
+                color: const Color(0xFF6366F1),
+              ),
+              onPressed: () {
+                setState(() {
+                  _showLabGuideBanner = true;
+                  _labGuideCollapsed = false;
+                });
+              },
+            ),
           const SizedBox(width: 8),
         ],
       ),
@@ -483,7 +629,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           children: [
             const SizedBox(height: 8),
             _buildToolbar(l10n, accent, session, controller),
-            const SizedBox(height: 10),
+            if (widget.labBinding != null && _showLabGuideBanner)
+              _buildLabGuideBanner(session, controller, accent),
+            const SizedBox(height: 6),
             Expanded(
               flex: 6,
               child: Padding(
@@ -562,6 +710,244 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     _httpTitleController.text = device.httpWebTitle ?? 'NetLearn Server Portal';
     _httpContentController.text = device.httpWebContent ??
         'Selamat datang di Server Kampus NetLearn! Layanan HTTP Web Server aktif dan berjalan normal.';
+  }
+
+  Widget _buildLabGuideBanner(
+    VirtualLabSession session,
+    VirtualLabController controller,
+    Color accent,
+  ) {
+    final binding = widget.labBinding;
+    if (binding == null) return const SizedBox.shrink();
+
+    if (_labGuideCollapsed) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: const Color(0xFFEEF2FF),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: const Color(0xFFC7D2FE)),
+        ),
+        child: InkWell(
+          onTap: () => setState(() => _labGuideCollapsed = false),
+          child: Row(
+            children: [
+              const Icon(Icons.assignment_outlined,
+                  size: 16, color: Color(0xFF4F46E5)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Panduan Praktikum: ${binding.title}',
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF312E81),
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const Text(
+                'Lihat Panduan',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: Color(0xFF4F46E5),
+                ),
+              ),
+              const Icon(Icons.keyboard_arrow_down_rounded,
+                  size: 18, color: Color(0xFF4F46E5)),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 0, 20, 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 6,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Header Bar
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 7, 8, 7),
+            decoration: const BoxDecoration(
+              color: Color(0xFFEEF2FF),
+              borderRadius: BorderRadius.vertical(top: Radius.circular(13)),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.science_rounded,
+                    size: 16, color: Color(0xFF4F46E5)),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    binding.title,
+                    style: const TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF1E1B4B),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                if (binding.resolveReferenceSession() != null) ...[
+                  InkWell(
+                    onTap: () =>
+                        _promptLoadReferenceExample(controller, session),
+                    borderRadius: BorderRadius.circular(6),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 7, vertical: 3.5),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        border: Border.all(color: const Color(0xFFC7D2FE)),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: const Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.lightbulb_outline_rounded,
+                              size: 11, color: Color(0xFF4F46E5)),
+                          SizedBox(width: 3),
+                          Text(
+                            'Contoh Solusi',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF4F46E5),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 5),
+                ],
+                InkWell(
+                  onTap: () => _promptResetForPractice(controller, session),
+                  borderRadius: BorderRadius.circular(6),
+                  child: Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 7, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4F46E5),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.layers_clear_outlined,
+                            size: 11, color: Colors.white),
+                        SizedBox(width: 3),
+                        Text(
+                          'Mulai Bersih',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                IconButton(
+                  icon: const Icon(Icons.keyboard_arrow_up_rounded, size: 18),
+                  color: const Color(0xFF64748B),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 26, minHeight: 26),
+                  tooltip: 'Kecilkan Panduan',
+                  onPressed: () => setState(() => _labGuideCollapsed = true),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close_rounded, size: 16),
+                  color: const Color(0xFF94A3B8),
+                  padding: EdgeInsets.zero,
+                  constraints:
+                      const BoxConstraints(minWidth: 26, minHeight: 26),
+                  tooltip: 'Tutup Panduan',
+                  onPressed: () => setState(() => _showLabGuideBanner = false),
+                ),
+              ],
+            ),
+          ),
+
+          // Body Instruksi
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 6, 12, 8),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (binding.description != null &&
+                    binding.description!.trim().isNotEmpty) ...[
+                  Text(
+                    binding.description!,
+                    style: const TextStyle(
+                        fontSize: 11, color: Color(0xFF475569)),
+                  ),
+                  const SizedBox(height: 4),
+                ],
+                if (binding.instructions.isNotEmpty) ...[
+                  ...binding.instructions.asMap().entries.map((entry) {
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 2.5),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Container(
+                            width: 15,
+                            height: 15,
+                            alignment: Alignment.center,
+                            margin: const EdgeInsets.only(top: 1, right: 6),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0E7FF),
+                              borderRadius: BorderRadius.circular(7.5),
+                            ),
+                            child: Text(
+                              '${entry.key + 1}',
+                              style: const TextStyle(
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF4338CA),
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: Text(
+                              entry.value,
+                              style: const TextStyle(
+                                  fontSize: 11,
+                                  color: Color(0xFF334155),
+                                  height: 1.2),
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  }),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------

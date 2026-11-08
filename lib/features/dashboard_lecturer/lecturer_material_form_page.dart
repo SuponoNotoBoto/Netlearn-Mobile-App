@@ -12,6 +12,9 @@ import '../../shared/models/material_model.dart';
 import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../classes/class_controller.dart';
+import '../materials/material_lab_binding.dart';
+import '../virtual_lab/virtual_lab_saved_topology.dart';
+import '../virtual_lab/virtual_lab_storage_service.dart';
 import 'lecturer_materials_controller.dart';
 
 /// Create or edit a material.
@@ -62,6 +65,14 @@ class _LecturerMaterialFormPageState
   /// what is actually stored. Building a controller inline to seed the text
   /// would recreate it on every rebuild and throw away whatever was typed.
   final _orderIndex = TextEditingController(text: '1');
+
+  // Konfigurasi Praktikum Virtual Lab
+  bool _labEnabled = false;
+  String _labPreset = 'star';
+  final _labTitle = TextEditingController();
+  final _labInstructions = TextEditingController();
+  List<VirtualLabSavedTopology> _lecturerSavedTopologies = [];
+  String? _selectedSavedTopologyId;
 
   /// The row being edited. Null in create mode, and stays null until the list
   /// has loaded in edit mode.
@@ -114,6 +125,19 @@ class _LecturerMaterialFormPageState
     if (!_isEditing && widget.classId != null) {
       _published = true;
     }
+    _loadLecturerSavedTopologies();
+  }
+
+  Future<void> _loadLecturerSavedTopologies() async {
+    try {
+      final storage = ref.read(virtualLabStorageServiceProvider);
+      final list = await storage.getSavedTopologies();
+      if (mounted) {
+        setState(() {
+          _lecturerSavedTopologies = list;
+        });
+      }
+    } catch (_) {}
   }
 
   @override
@@ -129,6 +153,8 @@ class _LecturerMaterialFormPageState
     _videoUrl.dispose();
     _duration.dispose();
     _orderIndex.dispose();
+    _labTitle.dispose();
+    _labInstructions.dispose();
     super.dispose();
   }
 
@@ -154,8 +180,16 @@ class _LecturerMaterialFormPageState
     _summaryEn.text = material.summaryEn ?? '';
     _summaryId.text = material.summaryId ?? '';
 
-    _contentEn.text = material.contentEn ?? '';
-    _contentId.text = material.contentId ?? '';
+    _contentEn.text = MaterialLabBinding.stripLabTag(material.contentEn ?? '');
+    _contentId.text = MaterialLabBinding.stripLabTag(material.contentId ?? '');
+
+    final labBinding = MaterialLabBinding.fromMaterial(material);
+    if (labBinding != null) {
+      _labEnabled = true;
+      _labPreset = labBinding.preset;
+      _labTitle.text = labBinding.title;
+      _labInstructions.text = labBinding.instructions.join('\n');
+    }
 
     _videoUrl.text = material.videoUrl ?? '';
     _duration.text = material.durationMinutes?.toString() ?? '';
@@ -210,6 +244,47 @@ class _LecturerMaterialFormPageState
 
     final existing = _editing;
 
+    var contentId = _contentId.text.trim();
+    var contentEn = _contentEn.text.trim();
+
+    if (_labEnabled) {
+      final instructions = _labInstructions.text
+          .split('\n')
+          .map((s) => s.trim())
+          .where((s) => s.isNotEmpty)
+          .toList();
+
+      Map<String, dynamic>? customTopologyJson;
+      if (_labPreset == 'custom' && _selectedSavedTopologyId != null) {
+        final found = _lecturerSavedTopologies
+            .where((t) => t.id == _selectedSavedTopologyId)
+            .firstOrNull;
+        if (found != null) {
+          customTopologyJson = found.sessionData;
+        }
+      }
+
+      final binding = MaterialLabBinding(
+        enabled: true,
+        preset: _labPreset,
+        title: _labTitle.text.trim().isNotEmpty
+            ? _labTitle.text.trim()
+            : 'Praktikum Virtual Lab',
+        instructions: instructions,
+        customTopology: customTopologyJson,
+      );
+
+      contentId = MaterialLabBinding.embedLabTag(contentId, binding);
+      if (contentEn.isNotEmpty) {
+        contentEn = MaterialLabBinding.embedLabTag(contentEn, binding);
+      }
+    } else if (_isEditing) {
+      contentId = MaterialLabBinding.stripLabTag(contentId);
+      if (contentEn.isNotEmpty) {
+        contentEn = MaterialLabBinding.stripLabTag(contentEn);
+      }
+    }
+
     return MaterialModel(
       id: existing?.id ?? '',
       isCore: existing?.isCore ?? false,
@@ -222,7 +297,7 @@ class _LecturerMaterialFormPageState
             titleId.isEmpty ? _descriptionEn.text : _descriptionId.text,
           ),
       content: emptyToNull(
-            titleId.isEmpty ? _contentEn.text : _contentId.text,
+            titleId.isEmpty ? contentEn : contentId,
           ),
       summary: emptyToNull(
             titleId.isEmpty ? _summaryEn.text : _summaryId.text,
@@ -234,8 +309,8 @@ class _LecturerMaterialFormPageState
       descriptionEn: emptyToNull(_descriptionEn.text),
       descriptionId: emptyToNull(_descriptionId.text),
 
-      contentEn: emptyToNull(_contentEn.text),
-      contentId: emptyToNull(_contentId.text),
+      contentEn: emptyToNull(contentEn),
+      contentId: emptyToNull(contentId),
 
       summaryEn: emptyToNull(_summaryEn.text),
       summaryId: emptyToNull(_summaryId.text),
@@ -857,6 +932,10 @@ class _LecturerMaterialFormPageState
 
                 const SizedBox(height: NetLearnSpace.s17),
 
+                _buildLabConfigSection(context),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
                 _SaveButton(
                   label: l10n.save,
                   loading: _saving,
@@ -883,6 +962,221 @@ class _LecturerMaterialFormPageState
       default:
         return '';
     }
+  }
+
+  Widget _buildLabConfigSection(BuildContext context) {
+    final theme = Theme.of(context);
+    final isDark = theme.brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(NetLearnSpace.s16),
+      decoration: BoxDecoration(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(NetLearnRadius.card),
+        border: Border.all(
+          color: _labEnabled
+              ? context.accent.withAlpha(isDark ? 90 : 60)
+              : context.border,
+          width: _labEnabled ? 1.4 : 1.0,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.science_rounded,
+                color: _labEnabled ? context.accent : context.mutedText,
+                size: 20,
+              ),
+              const SizedBox(width: NetLearnSpace.s8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Praktikum Virtual Lab (Opsional)',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      'Sertakan simulasi jaringan interaktif untuk materi ini',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: context.mutedText,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Switch(
+                value: _labEnabled,
+                activeThumbColor: context.accent,
+                onChanged: _saving
+                    ? null
+                    : (val) {
+                        setState(() {
+                          _labEnabled = val;
+                          if (val && _labTitle.text.isEmpty) {
+                            final baseTitle = _titleId.text.isNotEmpty
+                                ? _titleId.text
+                                : _titleEn.text;
+                            _labTitle.text = baseTitle.isNotEmpty
+                                ? 'Praktikum $baseTitle'
+                                : 'Praktikum Simulasi Jaringan';
+                          }
+                        });
+                      },
+              ),
+            ],
+          ),
+          if (_labEnabled) ...[
+            const SizedBox(height: NetLearnSpace.s14),
+            const Divider(height: 1),
+            const SizedBox(height: NetLearnSpace.s14),
+
+            // Pilihan Topologi Skenario Awal
+            const _FormLabel(text: 'Topologi Skenario Awal'),
+            const SizedBox(height: 7),
+            DropdownButtonFormField<String>(
+              initialValue: _labPreset,
+              isExpanded: true,
+              decoration: InputDecoration(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: NetLearnSpace.s12,
+                  vertical: 10,
+                ),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(8),
+                  borderSide: BorderSide(color: context.border),
+                ),
+                filled: true,
+                fillColor: context.raisedSurface,
+              ),
+              items: const [
+                DropdownMenuItem(
+                  value: 'star',
+                  child: Text('Topologi Star (1 Switch + 3 PC LAN)'),
+                ),
+                DropdownMenuItem(
+                  value: 'dual_subnet',
+                  child: Text('Dual-Subnet Routing (Router L3 + 2 Switch)'),
+                ),
+                DropdownMenuItem(
+                  value: 'p2p',
+                  child: Text('Peer-to-Peer (2 PC Terhubung Langsung)'),
+                ),
+                DropdownMenuItem(
+                  value: 'dhcp_server',
+                  child: Text('Client-Server LAN (DHCP & Web HTTP)'),
+                ),
+                DropdownMenuItem(
+                  value: 'blank',
+                  child: Text('Kanvas Kosong (Mulai dari Nol)'),
+                ),
+                DropdownMenuItem(
+                  value: 'custom',
+                  child: Text('Topologi Tersimpan Dosen (Cloud)...'),
+                ),
+              ],
+              onChanged: _saving
+                  ? null
+                  : (val) {
+                      if (val != null) {
+                        setState(() => _labPreset = val);
+                      }
+                    },
+            ),
+
+            if (_labPreset == 'custom') ...[
+              const SizedBox(height: 10),
+              const _FormLabel(text: 'Pilih Topologi Tersimpan Milik Anda'),
+              const SizedBox(height: 7),
+              if (_lecturerSavedTopologies.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: context.raisedSurface,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 16, color: Colors.orange),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Belum ada topologi tersimpan di akun Anda. Silakan simpan topologi di Virtual Lab terlebih dahulu.',
+                          style: theme.textTheme.bodySmall?.copyWith(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                DropdownButtonFormField<String>(
+                  initialValue: _selectedSavedTopologyId ??
+                      (_lecturerSavedTopologies.isNotEmpty
+                          ? _lecturerSavedTopologies.first.id
+                          : null),
+                  isExpanded: true,
+                  decoration: InputDecoration(
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: NetLearnSpace.s12,
+                      vertical: 10,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    filled: true,
+                    fillColor: context.raisedSurface,
+                  ),
+                  items: _lecturerSavedTopologies.map((t) {
+                    return DropdownMenuItem(
+                      value: t.id,
+                      child: Text(
+                        '${t.name} (${t.deviceCount} perangkat)',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    );
+                  }).toList(),
+                  onChanged: (val) {
+                    setState(() => _selectedSavedTopologyId = val);
+                  },
+                ),
+            ],
+
+            const SizedBox(height: 12),
+            const _FormLabel(text: 'Judul Praktikum'),
+            const SizedBox(height: 7),
+            TextFormField(
+              controller: _labTitle,
+              decoration: InputDecoration(
+                hintText: 'Misal: Praktikum Subnetting & Routing Statis',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                filled: true,
+                fillColor: context.raisedSurface,
+              ),
+            ),
+
+            const SizedBox(height: 12),
+            const _FormLabel(text: 'Panduan / Instruksi Tugas (1 baris per langkah)'),
+            const SizedBox(height: 7),
+            TextFormField(
+              controller: _labInstructions,
+              maxLines: 4,
+              decoration: InputDecoration(
+                hintText: '1. Hubungkan PC ke Switch\n2. Atur IP address\n3. Lakukan ping dan periksa status',
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                filled: true,
+                fillColor: context.raisedSurface,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }
 

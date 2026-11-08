@@ -20,6 +20,8 @@ import 'material_body_parser.dart';
 import 'pdf_download.dart';
 import 'pdf_service.dart';
 import 'student_materials_controller.dart';
+import 'material_lab_binding.dart';
+import 'widgets/material_lab_card.dart';
 
 /// Full-screen reading view for a material.
 ///
@@ -464,11 +466,17 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
     // di halaman detail; kalau ternyata dipakai lagi di sini, anggap keputusan
     // produk baru — jangan dibangun ulang diam-diam.
 
-    final content = widget.material.localizedContent(
+    final rawContent = widget.material.localizedContent(
       widget.languageCode,
     )?.trim();
 
+    final content = rawContent != null
+        ? MaterialLabBinding.stripLabTag(rawContent)
+        : null;
+
     final hasContent = content != null && content.isNotEmpty;
+
+    final labBinding = MaterialLabBinding.fromMaterial(widget.material);
 
     final hasVideo = _hasVideo(widget.material);
 
@@ -524,6 +532,15 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
                           _InlineMessage(
                             message: l10n.noReadingContent,
                           ),
+                        if (labBinding != null) ...[
+                          const SizedBox(
+                            height: NetLearnSpace.s20,
+                          ),
+                          MaterialLabCard(
+                            binding: labBinding,
+                            fromLecturer: widget.fromLecturer,
+                          ),
+                        ],
                         const SizedBox(
                           height: NetLearnSpace.s20,
                         ),
