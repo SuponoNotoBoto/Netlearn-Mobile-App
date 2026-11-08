@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../core/notifications/announcement_read_store.dart';
 import '../notifications/student_notifications_page.dart';
 
@@ -3244,6 +3246,30 @@ class _StudentDashboardPageState extends State<StudentDashboardPage> {
                 const SizedBox(height: 12),
                 _buildModalInfoRow('Status Akademik', 'Aktif'),
               ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFFEF4444),
+                side: const BorderSide(color: Color(0xFFEF4444)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              onPressed: () async {
+                await Supabase.instance.client.auth.signOut();
+                if (!mounted) return;
+                GoRouter.of(context).go('/login');
+              },
+              icon: const Icon(Icons.logout_rounded, size: 18),
+              label: const Text(
+                'Keluar Akun',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
           ),
         ],

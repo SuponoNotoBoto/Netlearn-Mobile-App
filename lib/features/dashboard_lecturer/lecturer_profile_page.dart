@@ -8,8 +8,8 @@ import '../../core/theme/theme_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
-import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
+import '../auth/auth_controller.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_dashboard_controller.dart';
 
@@ -57,12 +57,10 @@ class LecturerProfilePage extends ConsumerWidget {
     );
 
     if (shouldLogout == true && context.mounted) {
-      NlSnackBar.show(
-        context,
-        isId
-            ? 'Sesi logout akan aktif saat alur login dibuat.'
-            : 'Logout session will be active once login flow is connected.',
-      );
+      await ref.read(authControllerProvider.notifier).logout();
+      if (context.mounted) {
+        context.go('/login');
+      }
     }
   }
 

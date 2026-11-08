@@ -88,7 +88,7 @@ class AnnouncementReadStore {
   static Future<bool> _write(String userId, Set<String> ids) async {
     try {
       final preferences = await SharedPreferences.getInstance();
-      return preferences.setString(keyFor(userId), encode(ids));
+      return await preferences.setString(keyFor(userId), encode(ids));
     } catch (_) {
       return false;
     }
