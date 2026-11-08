@@ -43,9 +43,53 @@ class VirtualLabRepository {
     // Canvas akun yang sudah keluar tidak boleh menimpa baris akun berikutnya.
     if (supabase.auth.currentUser?.id != forUserId) return;
 
+    // Pertahankan key saved_topologies jika sudah ada di state cloud
+    Map<String, dynamic> merged = {...state};
+    try {
+      final existing = await load();
+      if (existing != null && existing['saved_topologies'] != null) {
+        merged['saved_topologies'] = existing['saved_topologies'];
+      }
+    } catch (_) {}
+
     await supabase.from('virtual_lab_canvases').upsert({
       'user_id': forUserId,
-      'state': state,
+      'state': merged,
+      'updated_at': DateTime.now().toUtc().toIso8601String(),
+    });
+  }
+
+  /// Membaca daftar skenario topologi yang tersimpan di cloud Supabase.
+  Future<List<Map<String, dynamic>>> loadSavedTopologies() async {
+    try {
+      final state = await load();
+      final list = state?['saved_topologies'];
+      if (list is List) {
+        return list
+            .whereType<Map>()
+            .map((m) => Map<String, dynamic>.from(m))
+            .toList();
+      }
+    } catch (_) {}
+    return const [];
+  }
+
+  /// Menyimpan daftar skenario topologi kustom ke cloud Supabase.
+  Future<void> saveSavedTopologies(
+    List<Map<String, dynamic>> topologies, {
+    required String forUserId,
+  }) async {
+    if (supabase.auth.currentUser?.id != forUserId) return;
+
+    final existing = await load() ?? {};
+    final merged = {
+      ...existing,
+      'saved_topologies': topologies,
+    };
+
+    await supabase.from('virtual_lab_canvases').upsert({
+      'user_id': forUserId,
+      'state': merged,
       'updated_at': DateTime.now().toUtc().toIso8601String(),
     });
   }

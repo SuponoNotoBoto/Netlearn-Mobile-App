@@ -3,9 +3,34 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netlearn/features/virtual_lab/virtual_lab_controller.dart';
 import 'package:netlearn/features/virtual_lab/virtual_lab_model.dart';
+import 'package:netlearn/features/virtual_lab/virtual_lab_repository.dart';
 import 'package:netlearn/features/virtual_lab/virtual_lab_saved_topology.dart';
 import 'package:netlearn/features/virtual_lab/virtual_lab_storage_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+class _FakeVirtualLabRepository extends VirtualLabRepository {
+  List<Map<String, dynamic>> cloudTopologies = [];
+
+  _FakeVirtualLabRepository([List<Map<String, dynamic>>? initial]) {
+    cloudTopologies = initial ?? [];
+  }
+
+  @override
+  String? get currentUserId => 'user_123';
+
+  @override
+  Future<List<Map<String, dynamic>>> loadSavedTopologies() async {
+    return cloudTopologies;
+  }
+
+  @override
+  Future<void> saveSavedTopologies(
+    List<Map<String, dynamic>> topologies, {
+    required String forUserId,
+  }) async {
+    cloudTopologies = topologies;
+  }
+}
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -177,6 +202,39 @@ void main() {
       expect(updated.devices.length, equals(1));
       expect(updated.devices.first.name, equals('Router_Test'));
       expect(updated.devices.first.kind, equals(VirtualLabDeviceKind.router));
+    });
+
+    test(
+        'VirtualLabStorageService restores saved topologies from cloud when local storage is empty (Chrome restart)',
+        () async {
+      final cloudData = [
+        VirtualLabSavedTopology.fromSession(
+          id: 'cloud_topo_1',
+          name: 'Topologi Cloud dari Sesi Sebelumnya',
+          session: session,
+        ).toJson(),
+      ];
+      final fakeRepo = _FakeVirtualLabRepository(cloudData);
+
+      // Local storage kosong (mensimulasikan restart Chrome dengan profil sementara baru)
+      SharedPreferences.setMockInitialValues({});
+      final storage = VirtualLabStorageService(null, 'user_123', fakeRepo);
+
+      final list = await storage.getSavedTopologies();
+      expect(list.length, equals(1));
+      expect(list.first.id, equals('cloud_topo_1'));
+      expect(list.first.name, equals('Topologi Cloud dari Sesi Sebelumnya'));
+
+      // Simpan topologi baru - verifikasi data tersimpan sampai ke cloud repository
+      await storage.saveTopology(
+        name: 'Topologi Baru di Cloud',
+        session: session,
+      );
+      expect(fakeRepo.cloudTopologies.length, equals(2));
+      expect(
+        fakeRepo.cloudTopologies.any((t) => t['name'] == 'Topologi Baru di Cloud'),
+        isTrue,
+      );
     });
   });
 }

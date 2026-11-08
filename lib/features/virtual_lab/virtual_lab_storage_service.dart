@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,15 +7,26 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/supabase/supabase_client.dart';
 import 'virtual_lab_export.dart';
 import 'virtual_lab_model.dart';
+import 'virtual_lab_repository.dart';
 import 'virtual_lab_saved_topology.dart';
 
 /// Layanan untuk mengelola penyimpanan skenario topologi kustom
 /// (Multi-slot save/load) serta ekspor dan impor berkas JSON.
+///
+/// Menggunakan strategi sinkronisasi ganda (Hybrid Cloud & Local Cache):
+/// 1. Cloud (Supabase): Data tersimpan permanen di akun pengguna sehingga tidak hilang
+///    saat Chrome ditutup atau flutter run dimulai ulang.
+/// 2. Local (SharedPreferences): Cache instan untuk akses cepat dan mode luring (offline).
 class VirtualLabStorageService {
   final SharedPreferences? _prefs;
   final String? _customUserId;
+  final VirtualLabRepository? _repository;
 
-  const VirtualLabStorageService([this._prefs, this._customUserId]);
+  const VirtualLabStorageService([
+    this._prefs,
+    this._customUserId,
+    this._repository,
+  ]);
 
   /// Mendapatkan user ID akun yang sedang aktif untuk mengisolasi data per akun.
   String get _currentUserId {
@@ -35,18 +47,73 @@ class VirtualLabStorageService {
   }
 
   /// Mengambil semua topologi yang tersimpan untuk akun saat ini,
-  /// diurutkan berdasarkan waktu pembaruan terbaru.
+  /// menyinkronkan dengan Cloud Supabase jika tersedia, lalu mengurutkan
+  /// berdasarkan waktu pembaruan terbaru.
   Future<List<VirtualLabSavedTopology>> getSavedTopologies() async {
+    List<VirtualLabSavedTopology> localList = [];
     try {
       final prefs = await _getPrefs();
       final raw = prefs.getString(_storageKey);
-      if (raw == null || raw.trim().isEmpty) return const [];
-      final list = VirtualLabSavedTopology.decodeList(raw);
-      list.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-      return list;
-    } catch (_) {
-      return const [];
+      if (raw != null && raw.trim().isNotEmpty) {
+        localList = VirtualLabSavedTopology.decodeList(raw);
+      }
+    } catch (_) {}
+
+    // Sinkronisasi dengan cloud Supabase jika pengguna sedang masuk (login)
+    final userId = _currentUserId;
+    if (userId != 'guest_default') {
+      try {
+        final repo = _repository ?? const VirtualLabRepository();
+        final cloudRawList = await repo.loadSavedTopologies();
+        if (cloudRawList.isNotEmpty) {
+          final cloudList = cloudRawList
+              .map((m) => VirtualLabSavedTopology.fromJson(m))
+              .toList();
+
+          // Merge local dan cloud berdasarkan ID (prioritaskan updatedAt terbaru)
+          final map = <String, VirtualLabSavedTopology>{};
+          for (final item in cloudList) {
+            map[item.id] = item;
+          }
+          for (final item in localList) {
+            final existing = map[item.id];
+            if (existing == null || item.updatedAt.isAfter(existing.updatedAt)) {
+              map[item.id] = item;
+            }
+          }
+
+          final mergedList = map.values.toList();
+          mergedList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+
+          // Perbarui cache local jika ada data dari cloud
+          final prefs = await _getPrefs();
+          await prefs.setString(
+              _storageKey, VirtualLabSavedTopology.encodeList(mergedList));
+
+          // Jika lokal memiliki data yang belum tersimpan di cloud, sinkronkan balik
+          if (mergedList.length > cloudList.length) {
+            unawaited(repo.saveSavedTopologies(
+              mergedList.map((t) => t.toJson()).toList(),
+              forUserId: userId,
+            ));
+          }
+
+          return mergedList;
+        } else if (localList.isNotEmpty) {
+          // Cloud masih kosong tetapi lokal ada data -> cadangkan lokal ke cloud
+          final repo = _repository ?? const VirtualLabRepository();
+          unawaited(repo.saveSavedTopologies(
+            localList.map((t) => t.toJson()).toList(),
+            forUserId: userId,
+          ));
+        }
+      } catch (_) {
+        // Fallback aman ke data lokal jika koneksi Supabase terputus atau mode tes
+      }
     }
+
+    localList.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    return localList;
   }
 
   /// Menyimpan topologi baru atau memperbarui topologi lama jika [existingId] disertakan.
@@ -83,7 +150,21 @@ class VirtualLabStorageService {
       list.insert(0, entry);
     }
 
+    // 1. Simpan ke cache lokal
     await prefs.setString(_storageKey, VirtualLabSavedTopology.encodeList(list));
+
+    // 2. Simpan juga ke Supabase Cloud jika akun aktif
+    final userId = _currentUserId;
+    if (userId != 'guest_default') {
+      try {
+        final repo = _repository ?? const VirtualLabRepository();
+        await repo.saveSavedTopologies(
+          list.map((t) => t.toJson()).toList(),
+          forUserId: userId,
+        );
+      } catch (_) {}
+    }
+
     return entry;
   }
 
@@ -95,7 +176,21 @@ class VirtualLabStorageService {
     list.removeWhere((t) => t.id == id);
     if (list.length == initialLen) return false;
 
+    // 1. Perbarui cache lokal
     await prefs.setString(_storageKey, VirtualLabSavedTopology.encodeList(list));
+
+    // 2. Sinkronkan penghapusan ke cloud Supabase
+    final userId = _currentUserId;
+    if (userId != 'guest_default') {
+      try {
+        final repo = _repository ?? const VirtualLabRepository();
+        await repo.saveSavedTopologies(
+          list.map((t) => t.toJson()).toList(),
+          forUserId: userId,
+        );
+      } catch (_) {}
+    }
+
     return true;
   }
 
@@ -177,5 +272,8 @@ class VirtualLabStorageService {
 }
 
 final virtualLabStorageServiceProvider = Provider<VirtualLabStorageService>(
-  (ref) => const VirtualLabStorageService(),
+  (ref) {
+    final repo = ref.watch(virtualLabRepositoryProvider);
+    return VirtualLabStorageService(null, null, repo);
+  },
 );
