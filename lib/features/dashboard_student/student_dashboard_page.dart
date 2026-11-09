@@ -1041,12 +1041,7 @@ class _StudentDashboardPageState
           title: isId ? 'Subnet Drill' : 'Subnet Drill',
           subtitle: isId ? 'Tantangan 60s' : '60s Challenge',
           onTap: () {
-            NlSnackBar.show(
-              context,
-              isId
-                  ? 'Fitur Subnet Drill masih dalam tahap pengembangan.'
-                  : 'Subnet Drill feature is currently under development.',
-            );
+            context.push('/student/subnet-drill');
           },
         ),
       ],

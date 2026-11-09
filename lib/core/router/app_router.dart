@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../features/auth/onboarding_status.dart';
 import '../../features/about/student_about_page.dart';
+import '../../features/subnet_drill/subnet_drill_page.dart';
 import '../../features/dashboard_lecturer/lecturer_about_page.dart';
 import '../../features/dashboard_lecturer/lecturer_change_password_page.dart';
 import '../../shared/widgets/under_development_page.dart';
@@ -793,7 +794,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
            GoRoute(
              path: 'subnet-drill',
              builder: (context, state) {
-               return const UnderDevelopmentPage(title: 'Speed Drill');
+               return const SubnetDrillPage();
              },
            ),
 
