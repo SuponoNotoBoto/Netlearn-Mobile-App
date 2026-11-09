@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/localization/language_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/theme/app_theme.dart';
@@ -10,6 +11,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
+import '../profile/avatar_customizer_dialog.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_dashboard_controller.dart';
 import '../classes/class_controller.dart';
@@ -178,7 +180,19 @@ class LecturerProfilePage extends ConsumerWidget {
                           activeClass.id != kLegacyFallbackClassId)
                       ? '${activeClass.name}${activeClass.semester != null ? ' • ${activeClass.semester}' : ''}'
                       : l10n.academicTag,
+                  avatarConfig: data.avatarConfig ??
+                      AvatarConfig.defaultFor(data.id.isEmpty ? data.name : data.id),
                   bio: data.bio,
+                  onEditAvatar: () {
+                    showAvatarCustomizerSheet(
+                      context,
+                      ref,
+                      initialConfig: data.avatarConfig ??
+                          AvatarConfig.defaultFor(data.id.isEmpty ? data.name : data.id),
+                      initialBio: data.bio,
+                      isLecturer: true,
+                    );
+                  },
                 ),
 
                 if (classes != null &&

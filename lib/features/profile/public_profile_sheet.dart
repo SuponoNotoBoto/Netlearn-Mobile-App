@@ -6,6 +6,7 @@ import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../achievements/achievement_service.dart';
 
 class PublicMemberProfile {
   final String userId;
@@ -306,10 +307,14 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
     final avatar = p.avatarConfig ?? AvatarConfig.defaultFor(p.userId.isEmpty ? p.displayName : p.userId);
     final rankTitle = AvatarCatalog.socialRankTitle(
       totalPoints: p.totalPoints,
-      badgeCount: 0,
+      badgeCount: p.unlockedBadges.length,
       isLecturer: p.isLecturer,
       isId: isId,
     );
+
+    final earnedBadges = AchievementService.allBadges
+        .where((b) => p.unlockedBadges.contains(b.id))
+        .toList();
 
     return ConstrainedBox(
       constraints: BoxConstraints(
@@ -582,6 +587,95 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
                   ),
                 ),
               ),
+            ],
+
+            // Badges Showcase (for students or lecturers who earned badges)
+            if (!p.isLecturer || earnedBadges.isNotEmpty) ...[
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      isId ? 'Koleksi Lencana' : 'Earned Badges',
+                      style: const TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${earnedBadges.length}/${AchievementService.allBadges.length}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: Color(0xFF6C2CE2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              if (earnedBadges.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: isDark
+                        ? NetLearnColors.darkApp
+                        : const Color(0xFFFAF9FD),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDark
+                          ? NetLearnColors.darkLine
+                          : const Color(0xFFEDEAF6),
+                    ),
+                  ),
+                  child: Text(
+                    isId
+                        ? 'Belum ada lencana terbuka. Kirim semangat agar temanmu makin rajin belajar! ✨'
+                        : 'No badges unlocked yet. Send a cheer to encourage them! ✨',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: isDark
+                          ? NetLearnColors.darkMuted
+                          : const Color(0xFF7E7B8F),
+                    ),
+                  ),
+                )
+              else
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    for (final b in earnedBadges)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 7,
+                        ),
+                        decoration: BoxDecoration(
+                          color: b.color.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: b.color.withValues(alpha: 0.40),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(b.icon, size: 16, color: b.color),
+                            const SizedBox(width: 6),
+                            Text(
+                              isId ? b.titleId : b.titleEn,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
+                ),
             ],
           ],
         ),

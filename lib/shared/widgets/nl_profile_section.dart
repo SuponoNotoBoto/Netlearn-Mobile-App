@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/avatar/nl_avatar_models.dart';
+import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
@@ -58,6 +59,10 @@ class NlProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isId = Localizations.localeOf(context).languageCode == 'id';
+    final effectiveSeed = (userId != null && userId!.isNotEmpty)
+        ? userId!
+        : name;
+    final effectiveAvatar = avatarConfig ?? AvatarConfig.defaultFor(effectiveSeed);
 
     return Container(
       width: double.infinity,
@@ -71,24 +76,30 @@ class NlProfileHeader extends StatelessWidget {
         children: [
           Row(
             children: [
-              Container(
-                key: const Key('profile_header_initial_avatar'),
-                width: 62,
-                height: 62,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.25),
-                  border: Border.all(color: NetLearnColors.white, width: 3),
-                ),
-                alignment: Alignment.center,
-                child: Text(
-                  initial.isNotEmpty ? initial : 'M',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 26,
-                  ),
-                ),
+              // Avatar kartun konsisten 62px + badge edit saat onEditAvatar aktif
+              NlAvatarWidget(
+                key: const Key('profile_header_cartoon_avatar'),
+                config: effectiveAvatar,
+                size: 62,
+                borderWidth: 3,
+                borderColor: NetLearnColors.white,
+                onTap: onEditAvatar,
+                badgeOverlay: onEditAvatar != null
+                    ? Container(
+                        width: 24,
+                        height: 24,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFFFCA28),
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 2),
+                        ),
+                        child: const Icon(
+                          Icons.auto_fix_high_rounded,
+                          size: 13,
+                          color: Color(0xFF2B253A),
+                        ),
+                      )
+                    : null,
               ),
 
               const SizedBox(width: 12),
