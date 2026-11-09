@@ -6,6 +6,7 @@ import 'package:http/testing.dart';
 import 'package:netlearn/features/netbot/netbot_models.dart';
 import 'package:netlearn/features/netbot/netbot_providers.dart';
 import 'package:netlearn/features/netbot/netbot_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   group('NetBot System Prompt & Localization Tests', () {
@@ -122,5 +123,85 @@ void main() {
       expect(chunks.join(), equals('Respon dari model fallback'));
     });
   });
-}
 
+  group('NetBot Multi-Account Chat Isolation Tests', () {
+    test('NetBotMessage serializes and deserializes accurately', () {
+      final original = NetBotMessage(
+        id: 'msg_1',
+        text: 'Bagaimana cara subnetting /26?',
+        isUser: true,
+        timestamp: DateTime(2026, 11, 9, 20, 0),
+        providerName: 'Groq LPU',
+      );
+
+      final json = original.toJson();
+      final revived = NetBotMessage.fromJson(json);
+
+      expect(revived.id, equals(original.id));
+      expect(revived.text, equals(original.text));
+      expect(revived.isUser, equals(original.isUser));
+      expect(revived.timestamp, equals(original.timestamp));
+      expect(revived.providerName, equals('Groq LPU'));
+      expect(revived.isError, isFalse);
+    });
+
+    test('Chat history in SharedPreferences is strictly isolated per userId', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      const studentId = 'user_student_abc';
+      const lecturerId = 'user_lecturer_xyz';
+
+      final studentChat = [
+        NetBotMessage(
+          id: 's1',
+          text: 'Pertanyaan dari mahasiswa',
+          isUser: true,
+          timestamp: DateTime.now(),
+        ),
+      ];
+
+      final lecturerChat = [
+        NetBotMessage(
+          id: 'l1',
+          text: 'Pertanyaan dari dosen',
+          isUser: true,
+          timestamp: DateTime.now(),
+        ),
+      ];
+
+      // Save student chat
+      await prefs.setString(
+        'netbot_chat_history_$studentId',
+        jsonEncode(studentChat.map((m) => m.toJson()).toList()),
+      );
+
+      // Save lecturer chat
+      await prefs.setString(
+        'netbot_chat_history_$lecturerId',
+        jsonEncode(lecturerChat.map((m) => m.toJson()).toList()),
+      );
+
+      // Verify student storage only has student messages
+      final studentRaw = prefs.getString('netbot_chat_history_$studentId');
+      final studentDecoded = (jsonDecode(studentRaw!) as List)
+          .map((e) => NetBotMessage.fromJson(e as Map<String, dynamic>))
+          .toList();
+      expect(studentDecoded.length, equals(1));
+      expect(studentDecoded.first.text, equals('Pertanyaan dari mahasiswa'));
+
+      // Verify lecturer storage only has lecturer messages
+      final lecturerRaw = prefs.getString('netbot_chat_history_$lecturerId');
+      final lecturerDecoded = (jsonDecode(lecturerRaw!) as List)
+          .map((e) => NetBotMessage.fromJson(e as Map<String, dynamic>))
+          .toList();
+      expect(lecturerDecoded.length, equals(1));
+      expect(lecturerDecoded.first.text, equals('Pertanyaan dari dosen'));
+
+      // Verify clearing student chat does not touch lecturer chat
+      await prefs.remove('netbot_chat_history_$studentId');
+      expect(prefs.containsKey('netbot_chat_history_$studentId'), isFalse);
+      expect(prefs.containsKey('netbot_chat_history_$lecturerId'), isTrue);
+    });
+  });
+}
