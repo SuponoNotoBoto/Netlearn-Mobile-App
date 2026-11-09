@@ -22,6 +22,8 @@ import 'pdf_service.dart';
 import 'student_materials_controller.dart';
 import 'material_lab_binding.dart';
 import 'widgets/material_lab_card.dart';
+import '../netbot/netbot_chat_sheet.dart';
+import '../netbot/netbot_models.dart';
 
 /// Full-screen reading view for a material.
 ///
@@ -1393,11 +1395,17 @@ class _NetBotFloatingPill extends StatelessWidget {
       borderRadius: BorderRadius.circular(100),
       child: InkWell(
         onTap: () {
-          NlSnackBar.show(
+          final rawContent = material.content ?? '';
+          final contentSnippet = rawContent.length > 600
+              ? rawContent.substring(0, 600)
+              : rawContent;
+          showNetBotChatSheet(
             context,
-            isId
-                ? 'Fitur NetBot AI masih dalam tahap pengembangan.'
-                : 'NetBot AI feature is currently under development.',
+            netBotContext: NetBotContext(
+              materialTitle: material.title,
+              materialBodySnippet: contentSnippet,
+              languageCode: languageCode,
+            ),
           );
         },
         borderRadius: BorderRadius.circular(100),

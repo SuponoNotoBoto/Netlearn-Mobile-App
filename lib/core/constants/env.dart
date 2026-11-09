@@ -35,6 +35,19 @@ class Env {
   /// Deprecated alias kept for backwards compatibility.
   static const geminiApiKey = String.fromEnvironment(
     'GEMINI_API_KEY',
-    defaultValue: '',
+    defaultValue: 'AQ.Ab8RN6LQr1R3cyhHrNNZV4cEddm-FjN2KPQGAJseEVpaBTnrZQ',
   );
+
+// Openrouter
+  static const openrouterApiKey = String.fromEnvironment(
+    'OPENROUTER_API_KEY',
+    defaultValue: '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',
+  );
+
+// Sambanova
+  static const sambanovaApiKey = String.fromEnvironment(
+    'SAMBANOVA_API_KEY',
+    defaultValue: 'f5c9dbee-6354-4516-a47b-893254b4c1fe',
+  );
+
 }

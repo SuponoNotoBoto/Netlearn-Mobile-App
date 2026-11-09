@@ -20,6 +20,8 @@ import 'virtual_lab_storage_service.dart';
 import 'virtual_lab_mission_service.dart';
 import 'widgets/virtual_lab_mission_sheet.dart';
 import '../materials/material_lab_binding.dart';
+import '../netbot/netbot_chat_sheet.dart';
+import '../netbot/netbot_models.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
@@ -3110,13 +3112,33 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   }
 
   void _askNetBotAboutTopology(VirtualLabSession session) {
-    final isEn = ref.read(languageProvider).languageCode == 'en';
+    final lang = ref.read(languageProvider).languageCode;
     HapticFeedback.lightImpact();
-    NlSnackBar.show(
+
+    final devLines = session.devices.map((d) {
+      final ip = (d.ipAddress ?? '').trim().isEmpty ? 'no-IP' : d.ipAddress!.trim();
+      final sub = (d.subnetMask ?? '').trim().isEmpty ? '' : '/${d.subnetMask!.trim()}';
+      final gw = (d.defaultGateway ?? '').trim().isEmpty ? '' : ', GW=${d.defaultGateway!.trim()}';
+      return '- ${d.displayName} (${d.kind.name}): $ip$sub$gw';
+    }).join('\n');
+
+    final cableLines = session.cables.map((c) {
+      final d1 = session.deviceById(c.from)?.displayName ?? c.from;
+      final d2 = session.deviceById(c.to)?.displayName ?? c.to;
+      return '- $d1 <---> $d2';
+    }).join('\n');
+
+    final snippet = 'Topologi Virtual Lab Saat Ini:\n'
+        'Daftar Perangkat:\n$devLines\n'
+        'Koneksi Antar Perangkat:\n$cableLines';
+
+    showNetBotChatSheet(
       context,
-      isEn
-          ? 'NetBot AI feature is currently under development.'
-          : 'Fitur NetBot AI masih dalam tahap pengembangan.',
+      netBotContext: NetBotContext(
+        moduleTitle: 'Virtual Lab 2D Networking',
+        topologySnippet: snippet,
+        languageCode: lang,
+      ),
     );
   }
 
@@ -3124,13 +3146,38 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     VirtualLabSession session,
     VirtualLabConnectivityResult result,
   ) {
-    final isEn = ref.read(languageProvider).languageCode == 'en';
+    final lang = ref.read(languageProvider).languageCode;
     HapticFeedback.mediumImpact();
-    NlSnackBar.show(
+
+    final devLines = session.devices.map((d) {
+      final ip = (d.ipAddress ?? '').trim().isEmpty ? 'no-IP' : d.ipAddress!.trim();
+      final sub = (d.subnetMask ?? '').trim().isEmpty ? '' : '/${d.subnetMask!.trim()}';
+      final gw = (d.defaultGateway ?? '').trim().isEmpty ? '' : ', GW=${d.defaultGateway!.trim()}';
+      return '- ${d.displayName} (${d.kind.name}): $ip$sub$gw';
+    }).join('\n');
+
+    final cableLines = session.cables.map((c) {
+      final d1 = session.deviceById(c.from)?.displayName ?? c.from;
+      final d2 = session.deviceById(c.to)?.displayName ?? c.to;
+      return '- $d1 <---> $d2';
+    }).join('\n');
+
+    final detailsText = result.details.isNotEmpty ? '\nDetail: ${result.details.join(", ")}' : '';
+    final pingDetail = 'Hasil Tes Konektivitas: ${result.success ? "SUKSES" : "GAGAL / MASALAH DITEMUKAN"}\n'
+        'Penyebab / Pesan: ${result.reason}$detailsText';
+
+    final snippet = 'Topologi Virtual Lab:\n'
+        'Daftar Perangkat:\n$devLines\n'
+        'Koneksi:\n$cableLines\n\n'
+        'Diagnostik Konektivitas:\n$pingDetail';
+
+    showNetBotChatSheet(
       context,
-      isEn
-          ? 'NetBot AI feature is currently under development.'
-          : 'Fitur NetBot AI masih dalam tahap pengembangan.',
+      netBotContext: NetBotContext(
+        moduleTitle: 'Troubleshooting Virtual Lab',
+        topologySnippet: snippet,
+        languageCode: lang,
+      ),
     );
   }
 

@@ -29,6 +29,8 @@ import '../classes/class_onboarding_page.dart';
 import '../classes/student_my_classes_bar.dart';
 import '../dashboard_lecturer/notification_controller.dart';
 import '../materials/student_materials_controller.dart';
+import '../netbot/netbot_chat_sheet.dart';
+import '../netbot/netbot_models.dart';
 import 'student_dashboard_controller.dart';
 
 class StudentDashboardPage extends ConsumerStatefulWidget {
@@ -1026,11 +1028,11 @@ class _StudentDashboardPageState
           title: 'NetBot AI',
           subtitle: isId ? 'Tutor Cerdas' : 'Smart AI Tutor',
           onTap: () {
-            NlSnackBar.show(
+            showNetBotChatSheet(
               context,
-              isId
-                  ? 'Fitur NetBot AI masih dalam tahap pengembangan.'
-                  : 'NetBot AI feature is currently under development.',
+              netBotContext: NetBotContext(
+                languageCode: Localizations.localeOf(context).languageCode,
+              ),
             );
           },
         ),

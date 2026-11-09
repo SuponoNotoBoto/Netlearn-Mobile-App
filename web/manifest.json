@@ -1,6 +1,6 @@
 {
-    "name": "netlearn",
-    "short_name": "netlearn",
+    "name": "Netlearn",
+    "short_name": "Netlearn",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
