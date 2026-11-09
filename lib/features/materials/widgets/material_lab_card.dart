@@ -6,6 +6,7 @@ import '../../../core/localization/language_controller.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../virtual_lab/virtual_lab_mission.dart';
 import '../../virtual_lab/virtual_lab_mission_service.dart';
+import '../../virtual_lab/widgets/virtual_lab_leaderboard_sheet.dart';
 import '../material_lab_binding.dart';
 
 /// Kartu interaktif yang menampilkan tautan praktikum Virtual Lab 2D
@@ -336,29 +337,46 @@ class MaterialLabCard extends ConsumerWidget {
                 ),
                 const SizedBox(height: NetLearnSpace.s10),
 
-                // Tombol Buka Lab
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: () => _openLab(context),
-                    icon: Icon(
-                      isCompleted ? Icons.open_in_new_rounded : Icons.hub_outlined,
-                      size: 18,
-                    ),
-                    label: Text(isCompleted
-                        ? (isEn ? 'Reopen Lab' : 'Buka Kembali Lab')
-                        : (isEn ? 'Open in Virtual Lab' : 'Buka di Virtual Lab')),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor:
-                          isCompleted ? const Color(0xFF10B981) : context.accent,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
+                // Tombol Buka Lab & Leaderboard
+                Row(
+                  children: [
+                    IconButton(
+                      tooltip: isEn ? 'Leaderboard' : 'Papan Peringkat Praktikum',
+                      icon: const Icon(
+                        Icons.emoji_events_rounded,
+                        color: Color(0xFFD97706),
                       ),
-                      elevation: 0,
+                      onPressed: () {
+                        VirtualLabLeaderboardSheet.show(
+                          context,
+                          initialMissionId: binding.referencePreset ?? binding.preset,
+                        );
+                      },
                     ),
-                  ),
+                    const SizedBox(width: 4),
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () => _openLab(context),
+                        icon: Icon(
+                          isCompleted ? Icons.open_in_new_rounded : Icons.hub_outlined,
+                          size: 18,
+                        ),
+                        label: Text(isCompleted
+                            ? (isEn ? 'Reopen Lab' : 'Buka Kembali Lab')
+                            : (isEn ? 'Open in Virtual Lab' : 'Buka di Virtual Lab')),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              isCompleted ? const Color(0xFF10B981) : context.accent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          elevation: 0,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),

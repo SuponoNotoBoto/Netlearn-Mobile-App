@@ -19,6 +19,8 @@ import 'virtual_lab_saved_topology.dart';
 import 'virtual_lab_storage_service.dart';
 import 'virtual_lab_mission_service.dart';
 import 'widgets/virtual_lab_mission_sheet.dart';
+import 'widgets/virtual_lab_leaderboard_sheet.dart';
+import '../classes/class_controller.dart';
 import '../materials/material_lab_binding.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -581,6 +583,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     final controller = ref.read(virtualLabControllerProvider.notifier);
     final l10n = AppLocalizations.of(context)!;
     final accent = context.accent;
+    final isEn = ref.watch(languageProvider).languageCode == 'en';
 
     _syncConfigForm(session);
 
@@ -629,12 +632,27 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
             icon: const Icon(Icons.auto_awesome_rounded, color: Color(0xFF6366F1)),
             onPressed: () => _askNetBotAboutTopology(session),
           ),
+          IconButton(
+            tooltip: isEn ? 'Virtual Lab Leaderboard' : 'Leaderboard Praktikum',
+            icon: const Icon(
+              Icons.emoji_events_rounded,
+              color: Color(0xFFD97706),
+            ),
+            onPressed: () {
+              final classId = ref.read(activeStudentClassProvider).value?.id;
+              VirtualLabLeaderboardSheet.show(
+                context,
+                classId: classId,
+                initialMissionId: widget.labBinding?.referencePreset ?? widget.labBinding?.preset,
+              );
+            },
+          ),
           if (widget.labBinding != null) ...[
             IconButton(
-              tooltip: 'Target Misi & Evaluasi',
+              tooltip: isEn ? 'Mission & Evaluation' : 'Target Misi & Evaluasi',
               icon: const Icon(
-                Icons.emoji_events_rounded,
-                color: Color(0xFFD97706),
+                Icons.fact_check_rounded,
+                color: Color(0xFF10B981),
               ),
               onPressed: () {
                 VirtualLabMissionSheet.show(

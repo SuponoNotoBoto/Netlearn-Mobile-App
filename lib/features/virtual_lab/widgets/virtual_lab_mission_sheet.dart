@@ -4,13 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/audio/sfx_service.dart';
 import '../../../core/localization/language_controller.dart';
+import '../../../core/supabase/supabase_client.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../shared/widgets/nl_snack_bar.dart';
+import '../../classes/class_controller.dart';
+import '../../dashboard_student/student_dashboard_controller.dart';
 import '../../materials/material_lab_binding.dart';
+import '../virtual_lab_leaderboard_service.dart';
 import '../virtual_lab_mission.dart';
 import '../virtual_lab_mission_service.dart';
 import '../virtual_lab_model.dart';
 import '../virtual_lab_network.dart';
+import 'virtual_lab_leaderboard_sheet.dart';
 
 /// Bottom sheet interaktif untuk melihat daftar target misi praktikum,
 /// mengecek evaluasi otomatis, dan mengumpulkan hasil praktikum ke Cloud.
@@ -144,6 +149,46 @@ class _VirtualLabMissionSheetState
           .read(labSubmissionsProvider.notifier)
           .recordSubmission(submission);
 
+      // Catat juga ke Virtual Lab Leaderboard
+      try {
+        final user = supabase.auth.currentUser;
+        String studentName = 'Mahasiswa';
+        if (user != null) {
+          final cachedDashboard = ref.read(studentDashboardProvider).value;
+          if (cachedDashboard != null && cachedDashboard.userName.trim().isNotEmpty) {
+            studentName = cachedDashboard.userName.trim();
+          } else {
+            try {
+              final profile = await supabase
+                  .from('profiles')
+                  .select('name')
+                  .eq('id', user.id)
+                  .maybeSingle();
+              final dbName = profile?['name']?.toString().trim();
+              if (dbName != null && dbName.isNotEmpty) {
+                studentName = dbName;
+              }
+            } catch (_) {}
+          }
+        }
+
+        final activeClass = ref.read(activeStudentClassProvider).value;
+        final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
+
+        await VirtualLabLeaderboardService.saveScore(
+          classId: classId,
+          studentId: submission.userId,
+          studentName: studentName,
+          materialId: submission.materialId,
+          materialTitle: submission.materialTitle,
+          preset: submission.preset,
+          score: submission.score,
+          completedTasks: submission.completedTaskIds.length,
+          totalTasks: submission.totalTasks,
+          isPassed: submission.isPassed,
+        );
+      } catch (_) {}
+
       if (!mounted) return;
 
       HapticFeedback.heavyImpact();
@@ -254,21 +299,49 @@ class _VirtualLabMissionSheetState
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF4F46E5),
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF64748B),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () => Navigator.pop(ctx),
+                    child: Text(isEn ? 'Close' : 'Tutup',
+                        style: const TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
-                onPressed: () => Navigator.pop(ctx),
-                child: Text(isEn ? 'Close' : 'Tutup',
-                    style: const TextStyle(fontWeight: FontWeight.w600)),
-              ),
+                const SizedBox(width: 10),
+                Expanded(
+                  flex: 2,
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.emoji_events_rounded, size: 18),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(ctx);
+                      VirtualLabLeaderboardSheet.show(
+                        context,
+                        initialMissionId: sub.preset.isNotEmpty ? sub.preset : sub.materialId,
+                      );
+                    },
+                    label: Text(
+                      isEn ? 'Leaderboard' : 'Peringkat',
+                      style: const TextStyle(fontWeight: FontWeight.w700),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -406,6 +479,20 @@ class _VirtualLabMissionSheetState
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: isEn ? 'Leaderboard' : 'Papan Peringkat',
+                  onPressed: () {
+                    VirtualLabLeaderboardSheet.show(
+                      context,
+                      initialMissionId: widget.binding.referencePreset ?? widget.binding.preset,
+                    );
+                  },
+                  icon: const Icon(
+                    Icons.emoji_events_rounded,
+                    color: Color(0xFFD97706),
+                    size: 20,
                   ),
                 ),
                 IconButton(
