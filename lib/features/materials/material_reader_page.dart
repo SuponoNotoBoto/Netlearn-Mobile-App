@@ -16,6 +16,7 @@ import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/nl_unavailable_notice.dart';
 import '../classes/class_controller.dart';
+import '../achievements/achievement_service.dart';
 import 'material_body_parser.dart';
 import 'pdf_download.dart';
 import 'pdf_service.dart';
@@ -195,6 +196,8 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
         tone: NlSnackTone.success,
       );
 
+      AchievementService.unlockBadge(context, 'network_scholar');
+
       // The next module unlocks once this material is marked read, and the
       // dashboard percentage moves with it -- but that refresh is derived
       // state, so its failure is logged, never surfaced as a failed save.
@@ -290,6 +293,8 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
         l10n.readingMarked,
         tone: NlSnackTone.success,
       );
+
+      AchievementService.unlockBadge(context, 'network_scholar');
 
       try {
         await _refreshAndPromptPosttest(flowBefore);

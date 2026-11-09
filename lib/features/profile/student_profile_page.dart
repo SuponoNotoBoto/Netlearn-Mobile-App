@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/localization/language_controller.dart';
 import '../../core/theme/theme_controller.dart';
 import '../../core/theme/app_theme.dart';
@@ -11,6 +12,8 @@ import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
+import '../achievements/achievement_service.dart';
+import 'avatar_customizer_dialog.dart';
 import 'student_profile_controller.dart';
 
 /// Student profile page matching Figma `ProfileScreen.tsx` (Mahasiswa branch).
@@ -124,6 +127,8 @@ class StudentProfilePage extends ConsumerWidget {
           final userId = data['id']?.toString() ?? '';
           final name = data['name']?.toString() ?? l10n.student;
           final identityNumber = data['identity_number']?.toString() ?? '-';
+          final avatarCfg = AvatarConfig.fromDynamic(data['avatar_config']) ??
+              AvatarConfig.defaultFor(userId.isNotEmpty ? userId : name);
           final bio = data['bio']?.toString();
 
           // Calculate student metrics from learning progress
@@ -154,13 +159,27 @@ class StudentProfilePage extends ConsumerWidget {
                   userId: userId,
                   roleLabel: l10n.student,
                   academicTag: l10n.studentAcademicTag,
+                  avatarConfig: avatarCfg,
                   bio: bio,
+                  onEditAvatar: () {
+                    showAvatarCustomizerSheet(
+                      context,
+                      ref,
+                      initialConfig: avatarCfg,
+                      initialBio: bio,
+                      isLecturer: false,
+                    );
+                  },
                 ),
 
                 // 2. Stats strip. Loading and failure both map to the design's
                 // placeholder strip — see [_buildStatsStrip].
                 const SizedBox(height: NetLearnSpace.s16),
                 _buildStatsStrip(context, l10n, stats),
+
+                // Lencana Pencapaian (Badges & Achievements)
+                const SizedBox(height: NetLearnSpace.s20),
+                _buildBadgesSection(context, ref, locale.languageCode == 'id'),
 
                 // 3. Menu heading — memakai key dan gaya yang sama dengan
                 // profil dosen (titleMedium 15/w700). Gaya eyebrow ALL-CAPS
@@ -341,6 +360,113 @@ class StudentProfilePage extends ConsumerWidget {
       bottomNavigationBar: const StudentBottomNavbar(
         currentIndex: 4,
       ),
+    );
+  }
+
+  Widget _buildBadgesSection(BuildContext context, WidgetRef ref, bool isId) {
+    final badgesAsync = ref.watch(studentUnlockedBadgesProvider);
+    final unlocked = badgesAsync.value ?? <String>{};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                isId ? 'Lencana Pencapaian' : 'Badges & Achievements',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
+            Text(
+              '${unlocked.length}/${AchievementService.allBadges.length}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: context.accent,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        SizedBox(
+          height: 124,
+          child: ListView.separated(
+            scrollDirection: Axis.horizontal,
+            itemCount: AchievementService.allBadges.length,
+            separatorBuilder: (_, _) => const SizedBox(width: 10),
+            itemBuilder: (ctx, idx) {
+              final badge = AchievementService.allBadges[idx];
+              final isUnlocked = unlocked.contains(badge.id);
+              return Container(
+                width: 130,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: context.surface,
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(
+                    color: isUnlocked ? badge.color.withValues(alpha: 0.5) : context.border,
+                    width: isUnlocked ? 1.5 : 1,
+                  ),
+                  boxShadow: isUnlocked
+                      ? [
+                          BoxShadow(
+                            color: badge.color.withValues(alpha: 0.12),
+                            blurRadius: 8,
+                            offset: const Offset(0, 3),
+                          )
+                        ]
+                      : null,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: isUnlocked
+                            ? badge.color.withValues(alpha: 0.18)
+                            : Colors.grey.withValues(alpha: 0.15),
+                        shape: BoxShape.circle,
+                      ),
+                      child: Icon(
+                        isUnlocked ? badge.icon : Icons.lock_outline_rounded,
+                        size: 18,
+                        color: isUnlocked ? badge.color : Colors.grey,
+                      ),
+                    ),
+                    const Spacer(),
+                    Text(
+                      isId ? badge.titleId : badge.titleEn,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: isUnlocked ? null : Colors.grey,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isId ? badge.descriptionId : badge.descriptionEn,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 9.5,
+                        color: context.mutedText,
+                        height: 1.25,
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 

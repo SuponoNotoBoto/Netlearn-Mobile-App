@@ -15,6 +15,7 @@ import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
+import '../achievements/achievement_service.dart';
 
 /// Hasil assessment yang sudah dikumpulkan.
 ///
@@ -170,6 +171,12 @@ class _AssessmentResultPageState
 
         _isLoading = false;
       });
+
+      final statusStr = attempt['status']?.toString() ?? '';
+      if (mounted &&
+          (statusStr == 'submitted' || statusStr == 'completed')) {
+        AchievementService.unlockBadge(context, 'fast_learner');
+      }
     } catch (error) {
       if (!mounted) {
         return;

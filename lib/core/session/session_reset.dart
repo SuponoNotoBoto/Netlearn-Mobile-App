@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../features/achievements/achievement_service.dart';
 import '../../features/assessment/assessment_controller.dart';
 import '../../features/classes/class_controller.dart';
 import '../../features/dashboard_lecturer/announcement_controller.dart';
@@ -58,6 +59,11 @@ void resetUserSession(Ref ref) {
   ref.invalidate(lecturerAnnouncementsProvider);
   ref.invalidate(lecturerMissingAssessmentRemindersProvider);
 
+  // The virtual lab canvas belongs to one account. Its provider is not
+  // auto-disposed, so without this the next student to sign in inherited the
+  // previous student's devices and IP configuration on the canvas.
+  ref.invalidate(virtualLabControllerProvider);
+
   // v7 class context, membership, and leaderboard providers must never leak
   // across sign-out / sign-in boundaries.
   ref.invalidate(activeStudentClassIdProvider);
@@ -81,16 +87,16 @@ void resetUserSession(Ref ref) {
   // Avatar/bio profile caches & Q&A discussion forum caches.
   ref.invalidate(studentProfileProvider);
   ref.invalidate(lecturerProfileProvider);
+  ref.invalidate(studentUnlockedBadgesProvider);
   ref.invalidate(classDiscussionThreadsProvider);
   ref.invalidate(discussionThreadDetailProvider);
   ref.invalidate(discussionThreadRepliesProvider);
 
-  // Virtual Lab canvas provider
-  ref.invalidate(virtualLabControllerProvider);
-
   // Clean up legacy device-global keys that could leak across account boundaries
   SharedPreferences.getInstance().then((prefs) {
+    prefs.remove('unlocked_badges');
     prefs.remove('has_completed_reading');
+    prefs.remove('subnet_drill_personal_best');
   }).catchError((_) {});
 }
 

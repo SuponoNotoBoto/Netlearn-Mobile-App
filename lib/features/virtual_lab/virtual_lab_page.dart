@@ -21,6 +21,7 @@ import 'virtual_lab_mission_service.dart';
 import 'widgets/virtual_lab_mission_sheet.dart';
 import 'widgets/virtual_lab_leaderboard_sheet.dart';
 import '../classes/class_controller.dart';
+import '../achievements/achievement_service.dart';
 import '../materials/material_lab_binding.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
@@ -460,6 +461,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       HapticFeedback.heavyImpact();
       SfxService.instance.playSuccess();
       _startPacketAnimation();
+      AchievementService.unlockBadge(context, 'packet_slinger');
     } else {
       HapticFeedback.vibrate();
       SfxService.instance.playError();

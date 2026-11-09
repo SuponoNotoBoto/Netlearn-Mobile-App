@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 
 import '../../core/avatar/nl_avatar_models.dart';
+import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/notifications/announcement_read_store.dart';
 import '../../core/notifications/local_notification_service.dart';
 import '../../core/progress/pretest_lock_prompt.dart';
@@ -1161,35 +1162,22 @@ class _DashboardAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final effectiveSeed = (userId != null && userId!.isNotEmpty)
+        ? userId!
+        : initial;
+    final cfg = avatarConfig ?? AvatarConfig.defaultFor(effectiveSeed);
     return SizedBox(
       width: 49,
       height: 49,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
-          GestureDetector(
+          NlAvatarWidget(
+            config: cfg,
+            size: 49,
+            borderWidth: 2.5,
+            borderColor: Colors.white,
             onTap: onTap,
-            child: Container(
-              width: 49,
-              height: 49,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.25),
-                border: Border.all(
-                  color: Colors.white,
-                  width: 2.5,
-                ),
-              ),
-              alignment: Alignment.center,
-              child: Text(
-                initial.isNotEmpty ? initial : 'M',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
           ),
 
           // `.avatar > span` — titik status hijau dengan cincin ungu. Tetap di
