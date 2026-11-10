@@ -25,14 +25,14 @@ class Env {
 
   /// Groq API Key for NetBot AI Tutor.
   ///
-  /// Built-in system API key. Can be overridden at build time with
+  /// Groq 
   /// `--dart-define=GROQ_API_KEY=...`.
   static const groqApiKey = String.fromEnvironment(
     'GROQ_API_KEY',
     defaultValue: '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',
   );
 
-  /// Deprecated alias kept for backwards compatibility.
+  /// Google AI Studio / Gemini
   static const geminiApiKey = String.fromEnvironment(
     'GEMINI_API_KEY',
     defaultValue: 'AQ.Ab8RN6LQr1R3cyhHrNNZV4cEddm-FjN2KPQGAJseEVpaBTnrZQ',

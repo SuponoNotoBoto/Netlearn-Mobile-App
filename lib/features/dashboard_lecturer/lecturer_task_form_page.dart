@@ -10,6 +10,7 @@ import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_section_heading.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
+import 'lecturer_ai_service.dart';
 import 'lecturer_assessments_controller.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_materials_controller.dart';
@@ -49,6 +50,7 @@ class _LecturerTaskFormPageState extends ConsumerState<LecturerTaskFormPage> {
   double _weight = 1.0;
   String _status = 'draft';
   bool _isIndonesian = true;
+  bool _translatingAi = false;
 
   @override
   void initState() {
@@ -276,6 +278,156 @@ class _LecturerTaskFormPageState extends ConsumerState<LecturerTaskFormPage> {
     }
   }
 
+  Future<void> _translateAssessmentWithAi(String targetLangCode) async {
+    final isTargetEn = targetLangCode == 'en';
+    final srcTitle = isTargetEn ? _titleId.text.trim() : _titleEn.text.trim();
+    final srcDesc =
+        isTargetEn ? _descriptionId.text.trim() : _descriptionEn.text.trim();
+    final srcInst =
+        isTargetEn ? _instructionsId.text.trim() : _instructionsEn.text.trim();
+
+    final isIdUi = Localizations.localeOf(context).languageCode == 'id';
+
+    if (srcTitle.isEmpty && srcDesc.isEmpty && srcInst.isEmpty) {
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Isi judul, deskripsi, atau instruksi sumber terlebih dahulu.'
+            : 'Please fill in the source title, description, or instructions first.',
+        tone: NlSnackTone.warning,
+      );
+      return;
+    }
+
+    setState(() => _translatingAi = true);
+
+    try {
+      final res = await LecturerAiService.translateAssessment(
+        title: srcTitle,
+        description: srcDesc,
+        instructions: srcInst,
+        targetLanguageCode: targetLangCode,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        if (isTargetEn) {
+          if (res.title.isNotEmpty) _titleEn.text = res.title;
+          if (res.description.isNotEmpty) _descriptionEn.text = res.description;
+          if (res.instructions.isNotEmpty) {
+            _instructionsEn.text = res.instructions;
+          }
+        } else {
+          if (res.title.isNotEmpty) _titleId.text = res.title;
+          if (res.description.isNotEmpty) _descriptionId.text = res.description;
+          if (res.instructions.isNotEmpty) {
+            _instructionsId.text = res.instructions;
+          }
+        }
+        _translatingAi = false;
+      });
+
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Asesmen berhasil diterjemahkan oleh ${res.providerName} ✨'
+            : 'Assessment translated by ${res.providerName} ✨',
+        tone: NlSnackTone.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _translatingAi = false);
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Gagal menerjemahkan asesmen dengan AI. Silakan coba lagi.'
+            : 'Failed to translate assessment with AI. Please try again.',
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+
+  Widget _buildAiTranslateBar(BuildContext context, bool isId) {
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.accentTint.withAlpha(110),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.accent.withAlpha(80)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.translate_rounded, size: 18, color: context.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isId
+                      ? 'Penerjemah Asesmen Otomatis (AI) ✨'
+                      : 'AI Bilingual Assessment Translator ✨',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.onSurface,
+                  ),
+                ),
+              ),
+              if (_translatingAi)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isId
+                ? 'Isi Judul & Deskripsi dalam 1 bahasa, lalu klik tombol untuk mengisi bahasa pasangannya secara instan.'
+                : 'Fill in Title & Description in one language, then tap below to auto-fill the other language.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.mutedText,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi
+                      ? null
+                      : () => _translateAssessmentWithAi('en'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'ID → English',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi
+                      ? null
+                      : () => _translateAssessmentWithAi('id'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'English → ID',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -354,6 +506,11 @@ class _LecturerTaskFormPageState extends ConsumerState<LecturerTaskFormPage> {
                 ],
               ),
             ),
+
+            const SizedBox(height: NetLearnSpace.s12),
+
+            // AI Bilingual Translator Banner
+            _buildAiTranslateBar(context, isAppId),
 
             const SizedBox(height: NetLearnSpace.s20),
 

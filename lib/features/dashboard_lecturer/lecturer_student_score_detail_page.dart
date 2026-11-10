@@ -8,6 +8,7 @@ import '../../shared/models/student_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_topbar.dart';
+import 'lecturer_ai_service.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_students_controller.dart';
 import 'lecturer_students_csv.dart';
@@ -247,6 +248,12 @@ class LecturerStudentScoreDetailPage extends ConsumerWidget {
         ),
         const SizedBox(height: NetLearnSpace.s16),
 
+        _StudentAiInsightCard(
+          student: student,
+          isIndonesian: isIndonesian,
+        ),
+        const SizedBox(height: NetLearnSpace.s16),
+
         NlButton(
           label: l10n.backToStudentList,
           variant: NlButtonVariant.secondary,
@@ -454,4 +461,125 @@ class _StatusBadge extends StatelessWidget {
 /// Dipisah supaya halaman detail bisa memakai angka yang sama.
 class _LecturerStudentListNav {
   static const profileNavIndex = 4;
+}
+
+class _StudentAiInsightCard extends StatefulWidget {
+  final StudentModel student;
+  final bool isIndonesian;
+
+  const _StudentAiInsightCard({
+    required this.student,
+    required this.isIndonesian,
+  });
+
+  @override
+  State<_StudentAiInsightCard> createState() => _StudentAiInsightCardState();
+}
+
+class _StudentAiInsightCardState extends State<_StudentAiInsightCard> {
+  bool _loading = false;
+  LecturerScoreAnalyticsResult? _result;
+  String? _error;
+
+  Future<void> _analyze() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
+    try {
+      final res = await LecturerAiService.analyzeIndividualStudent(
+        student: widget.student,
+        languageCode: widget.isIndonesian ? 'id' : 'en',
+      );
+      if (!mounted) return;
+      setState(() {
+        _result = res;
+        _loading = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _error = widget.isIndonesian
+            ? 'Gagal menganalisis nilai mahasiswa. Silakan coba lagi.'
+            : 'Failed to analyze student scores. Please try again.';
+        _loading = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final isId = widget.isIndonesian;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.accentTint.withAlpha(110),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.accent.withAlpha(80)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.auto_awesome_rounded, size: 18, color: context.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isId
+                      ? 'Evaluasi & Rekomendasi AI Personal'
+                      : 'Personal AI Diagnostic & Mentoring',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          if (_result != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: context.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: context.border),
+              ),
+              child: SelectableText(
+                _result!.markdownInsight,
+                style: theme.textTheme.bodySmall?.copyWith(height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          if (_error != null) ...[
+            Text(
+              _error!,
+              style: const TextStyle(
+                fontSize: 12,
+                color: NetLearnColors.danger,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+          ],
+          SizedBox(
+            width: double.infinity,
+            child: NlButton(
+              label: _result == null
+                  ? (isId ? 'Analisis Mahasiswa dengan AI ✨' : 'Analyze Student with AI ✨')
+                  : (isId ? 'Perbarui Analisis AI' : 'Refresh AI Analysis'),
+              icon: Icons.psychology_alt_outlined,
+              loading: _loading,
+              onPressed: _loading ? null : _analyze,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }

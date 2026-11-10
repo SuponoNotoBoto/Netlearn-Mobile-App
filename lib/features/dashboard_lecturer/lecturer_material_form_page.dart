@@ -15,6 +15,7 @@ import '../classes/class_controller.dart';
 import '../materials/material_lab_binding.dart';
 import '../virtual_lab/virtual_lab_saved_topology.dart';
 import '../virtual_lab/virtual_lab_storage_service.dart';
+import 'lecturer_ai_service.dart';
 import 'lecturer_materials_controller.dart';
 
 /// Create or edit a material.
@@ -96,6 +97,7 @@ class _LecturerMaterialFormPageState
   int? _moduleNumber = 1;
   bool _published = false;
   bool _saving = false;
+  bool _translatingAi = false;
   bool _hydrated = false;
 
   /// Akses materi yang dipilih dosen: `default` (ikut progres mahasiswa),
@@ -201,6 +203,75 @@ class _LecturerMaterialFormPageState
 
     _pdfPath = material.pdfUrl;
     _pdfName = material.pdfUrl?.split('/').last;
+  }
+
+  Future<void> _translateMaterialWithAi(String targetLangCode) async {
+    final isTargetEn = targetLangCode == 'en';
+    final srcTitle = isTargetEn ? _titleId.text.trim() : _titleEn.text.trim();
+    final srcSummary =
+        isTargetEn ? _summaryId.text.trim() : _summaryEn.text.trim();
+    final srcDesc =
+        isTargetEn ? _descriptionId.text.trim() : _descriptionEn.text.trim();
+
+    final isIdUi = Localizations.localeOf(context).languageCode == 'id';
+
+    if (srcTitle.isEmpty && srcSummary.isEmpty && srcDesc.isEmpty) {
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Isi terlebih dahulu judul atau ringkasan sumber sebelum menerjemahkan.'
+            : 'Please fill in the source title or summary before translating.',
+        tone: NlSnackTone.warning,
+      );
+      return;
+    }
+
+    setState(() => _translatingAi = true);
+
+    try {
+      final result = await LecturerAiService.translateMaterial(
+        title: srcTitle,
+        summary: srcSummary,
+        description: srcDesc,
+        targetLanguageCode: targetLangCode,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        if (isTargetEn) {
+          if (result.title.isNotEmpty) _titleEn.text = result.title;
+          if (result.summary.isNotEmpty) _summaryEn.text = result.summary;
+          if (result.description.isNotEmpty) {
+            _descriptionEn.text = result.description;
+          }
+        } else {
+          if (result.title.isNotEmpty) _titleId.text = result.title;
+          if (result.summary.isNotEmpty) _summaryId.text = result.summary;
+          if (result.description.isNotEmpty) {
+            _descriptionId.text = result.description;
+          }
+        }
+        _translatingAi = false;
+      });
+
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Berhasil diterjemahkan otomatis oleh ${result.providerName} ✨'
+            : 'Successfully translated by ${result.providerName} ✨',
+        tone: NlSnackTone.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _translatingAi = false);
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Gagal menerjemahkan materi dengan AI. Silakan coba lagi.'
+            : 'Failed to translate material with AI. Please try again.',
+        tone: NlSnackTone.error,
+      );
+    }
   }
 
   String? _writeFailureMessage(Object error) {
@@ -703,6 +774,11 @@ class _LecturerMaterialFormPageState
 
                 const SizedBox(height: NetLearnSpace.s17),
 
+                // AI Bilingual Translator Banner
+                _buildAiTranslateBar(context),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
                 // Title (Indonesian)
                 _FormLabel(text: l10n.titleIndonesian),
                 const SizedBox(height: 7),
@@ -753,13 +829,25 @@ class _LecturerMaterialFormPageState
 
                 const SizedBox(height: NetLearnSpace.s17),
 
-                // Description / Content
-                _FormLabel(text: l10n.description),
+                // Description / Content (ID)
+                _FormLabel(text: '${l10n.description} (ID)'),
                 const SizedBox(height: 7),
                 NlField(
                   label: '',
                   placeholder: l10n.descriptionHint,
                   controller: _descriptionId,
+                  maxLines: 6,
+                ),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
+                // Description / Content (EN)
+                _FormLabel(text: '${l10n.description} (EN)'),
+                const SizedBox(height: 7),
+                NlField(
+                  label: '',
+                  placeholder: l10n.descriptionHint,
+                  controller: _descriptionEn,
                   maxLines: 6,
                 ),
 
@@ -962,6 +1050,88 @@ class _LecturerMaterialFormPageState
       default:
         return '';
     }
+  }
+
+  Widget _buildAiTranslateBar(BuildContext context) {
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.accentTint.withAlpha(110),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.accent.withAlpha(80)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.translate_rounded, size: 18, color: context.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isId
+                      ? 'Asisten AI Penerjemah Materi Otomatis ✨'
+                      : 'AI Bilingual Material Translator ✨',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.onSurface,
+                  ),
+                ),
+              ),
+              if (_translatingAi)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isId
+                ? 'Cukup ketik materi dalam 1 bahasa, lalu klik tombol di bawah untuk mengisi bahasa lainnya secara instan.'
+                : 'Write your material in one language, then tap below to auto-fill the other language instantly.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.mutedText,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi || _saving
+                      ? null
+                      : () => _translateMaterialWithAi('en'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'ID → English',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi || _saving
+                      ? null
+                      : () => _translateMaterialWithAi('id'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'English → ID',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildLabConfigSection(BuildContext context) {

@@ -38,6 +38,10 @@ String _failureMessageFor(Object error) {
     return _serverProblemMessage;
   }
 
+  if (error is AuthException) {
+    return error.message;
+  }
+
   return _unknownErrorMessage;
 }
 
@@ -334,6 +338,7 @@ class AuthController extends Notifier<AuthState> {
     required String email,
     required String password,
     required String confirmPassword,
+    AppUserRole role = AppUserRole.student,
   }) async {
     state = state.copyWith(
       isLoading: true,
@@ -351,7 +356,9 @@ class AuthController extends Notifier<AuthState> {
     if (identityNumber.trim().isEmpty) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: 'NIM wajib diisi.',
+        errorMessage: role == AppUserRole.lecturer
+            ? 'NIP wajib diisi.'
+            : 'NIM wajib diisi.',
       );
       return RegisterOutcome.unknownError;
     }
@@ -402,6 +409,7 @@ class AuthController extends Notifier<AuthState> {
         email: email.trim(),
         password: password,
         identityNumber: identityNumber.trim(),
+        role: role.value,
       );
 
       state = state.copyWith(
@@ -445,16 +453,6 @@ class AuthController extends Notifier<AuthState> {
 
         state = state.copyWith(
           errorMessage: 'Role akun tidak didukung.',
-        );
-        return RegisterOutcome.unknownError;
-      }
-
-      if (profileRole != AppUserRole.student.value) {
-        await ref.read(authApiProvider).signOut();
-        resetUserSession(ref);
-
-        state = state.copyWith(
-          errorMessage: 'Hanya mahasiswa yang dapat mendaftar.',
         );
         return RegisterOutcome.unknownError;
       }
