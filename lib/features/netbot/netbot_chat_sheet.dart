@@ -5,6 +5,7 @@ import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 import 'netbot_controller.dart';
 import 'netbot_models.dart';
+import 'netbot_service.dart';
 
 /// Shows the NetBot AI Tutor chat bottom sheet.
 Future<void> showNetBotChatSheet(
@@ -718,7 +719,10 @@ class _NetBotChatSheetState extends ConsumerState<NetBotChatSheet> {
                 if (message.text.isNotEmpty)
                   InkWell(
                     onTap: () {
-                      Clipboard.setData(ClipboardData(text: message.text));
+                      final textToCopy = message.isError
+                          ? message.text
+                          : NetBotService.cleanResponseText(message.text);
+                      Clipboard.setData(ClipboardData(text: textToCopy));
                       ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(
                           content: Text(
@@ -753,7 +757,9 @@ class _NetBotChatSheetState extends ConsumerState<NetBotChatSheet> {
               )
             else
               SelectableText(
-                message.text,
+                message.isError
+                    ? message.text
+                    : NetBotService.cleanResponseText(message.text),
                 style: TextStyle(
                   fontSize: 13.5,
                   height: 1.45,

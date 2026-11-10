@@ -114,12 +114,6 @@ class LecturerProfilePage extends ConsumerWidget {
           l10n.profile,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () {},
-          ),
-        ],
       ),
 
       body: profile.when(

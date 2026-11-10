@@ -34,14 +34,6 @@ class LecturerSecurityPage extends ConsumerWidget {
           l10n.securityAndPassword,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            // Same destination as the dashboard bell. It used to be an empty
-            // callback, which made the icon look live and do nothing.
-            onPressed: () => context.push('/lecturer/notifications'),
-          ),
-        ],
       ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),

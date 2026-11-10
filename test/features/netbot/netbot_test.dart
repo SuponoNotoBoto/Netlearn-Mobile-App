@@ -204,4 +204,33 @@ void main() {
       expect(prefs.containsKey('netbot_chat_history_$lecturerId'), isTrue);
     });
   });
+
+  group('NetBot AI Response Sanitization & Cleanup Tests', () {
+    test('cleanResponseText removes excessive double asterisks from text', () {
+      const raw = '**Router** adalah perangkat yang menghubungkan dua atau lebih **jaringan komputer**.';
+      final cleaned = NetBotService.cleanResponseText(raw);
+
+      expect(cleaned, equals('Router adalah perangkat yang menghubungkan dua atau lebih jaringan komputer.'));
+      expect(cleaned, isNot(contains('**')));
+    });
+
+    test('cleanResponseText converts markdown bullets to clean bullets and removes hashes', () {
+      const raw = '### Fungsi Utama:\n* Menghubungkan jaringan\n- Mengatur rute paket';
+      final cleaned = NetBotService.cleanResponseText(raw);
+
+      expect(cleaned, contains('Fungsi Utama:'));
+      expect(cleaned, contains('• Menghubungkan jaringan'));
+      expect(cleaned, contains('• Mengatur rute paket'));
+      expect(cleaned, isNot(contains('###')));
+    });
+
+    test('cleanResponseText preserves asterisks inside markdown code blocks', () {
+      const raw = 'Gunakan perintah berikut:\n```bash\nRouter(config)# interface gigabitEthernet 0/0\n**important_command**\n```\nSelesai.';
+      final cleaned = NetBotService.cleanResponseText(raw);
+
+      expect(cleaned, contains('```bash\nRouter(config)# interface gigabitEthernet 0/0\n**important_command**\n```'));
+      expect(cleaned, contains('Gunakan perintah berikut:'));
+      expect(cleaned, contains('Selesai.'));
+    });
+  });
 }

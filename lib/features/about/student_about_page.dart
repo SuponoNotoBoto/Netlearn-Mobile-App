@@ -30,13 +30,6 @@ class StudentAboutPage extends StatelessWidget {
       appBar: NlTopBar(
         title: l10n.aboutNetLearn,
         onBack: () => goBack(context, fallback: '/student'),
-        actions: IconButton(
-          onPressed: () => context.push('/student/notifications'),
-          tooltip: l10n.notificationsTitle,
-          padding: const EdgeInsets.all(NetLearnSpace.s7),
-          constraints: const BoxConstraints(),
-          icon: const Icon(Icons.notifications_none_rounded, size: 19),
-        ),
       ),
       // Frame About menandai tab Dashboard sebagai tab aktif: halaman ini
       // bercabang dari dashboard, bukan salah satu dari lima tab.

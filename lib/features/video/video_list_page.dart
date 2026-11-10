@@ -185,17 +185,6 @@ class VideoListPage extends ConsumerWidget {
       appBar: NlTopBar(
         title: l10n.learningVideo,
         onBack: () => context.pop(),
-        actions: IconButton(
-          onPressed: () {
-            // Notification navigation follows the role branch this page was
-            // opened from, so a lecturer stays inside /lecturer/**.
-            final base = _areaBase(context);
-            if (base != null) {
-              context.push('$base/notifications');
-            }
-          },
-          icon: const Icon(Icons.notifications_none_rounded),
-        ),
       ),
       body: RefreshIndicator(
         color: context.accent,

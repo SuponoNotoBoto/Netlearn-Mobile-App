@@ -1,53 +1,53 @@
+import 'dart:io';
+import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 class Env {
   Env._();
 
-  static const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://dsqxjnanoallwujlymmp.supabase.co',
-  );
+  // Public Supabase configuration fallback
+  // In Supabase architecture, the project URL and publishable (anon) key are client-facing
+  // and public by design (secured via Row Level Security in Supabase).
+  static const String _defaultSupabaseUrl =
+      'https://dsqxjnanoallwujlymmp.supabase.co';
+  static const String _defaultSupabasePublishableKey =
+      'sb_publishable_Rhf4KG8xiXjdkkytIEBm8w_sPn4FVQq';
 
-  /// Publishable (anon) key. Never ship the secret key here.
-  ///
-  /// The project's legacy `anon` JWT is rejected with
-  /// `UNAUTHORIZED_INVALID_API_KEY`; use the publishable key instead. Override
-  /// at build time with
-  /// `--dart-define=SUPABASE_PUBLISHABLE_KEY=...`.
-  static const supabasePublishableKey = String.fromEnvironment(
-    'SUPABASE_PUBLISHABLE_KEY',
-    defaultValue: 'sb_publishable_Rhf4KG8xiXjdkkytIEBm8w_sPn4FVQq',
-  );
+  static void _ensureInitialized() {
+    if (dotenv.isInitialized) return;
+    if (!kIsWeb) {
+      try {
+        final file = File('.env');
+        if (file.existsSync()) {
+          final content = file.readAsStringSync();
+          dotenv.loadFromString(envString: content);
+        }
+      } catch (_) {}
+    }
+  }
 
-  /// Kept so existing `--dart-define=SUPABASE_ANON_KEY=...` setups keep working.
-  static const supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: '',
-  );
+  static String _get(String key, {String fallback = ''}) {
+    _ensureInitialized();
+    if (dotenv.isInitialized) {
+      final value = dotenv.env[key];
+      if (value != null && value.isNotEmpty) return value;
+    }
+    final fromEnv = String.fromEnvironment(key);
+    if (fromEnv.isNotEmpty) return fromEnv;
+    return fallback;
+  }
 
-  /// Groq API Key for NetBot AI Tutor.
-  ///
-  /// Groq 
-  /// `--dart-define=GROQ_API_KEY=...`.
-  static const groqApiKey = String.fromEnvironment(
-    'GROQ_API_KEY',
-    defaultValue: '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',
-  );
+  static String get supabaseUrl =>
+      _get('SUPABASE_URL', fallback: _defaultSupabaseUrl);
 
-  /// Google AI Studio / Gemini
-  static const geminiApiKey = String.fromEnvironment(
-    'GEMINI_API_KEY',
-    defaultValue: 'AQ.Ab8RN6LQr1R3cyhHrNNZV4cEddm-FjN2KPQGAJseEVpaBTnrZQ',
-  );
+  static String get supabasePublishableKey =>
+      _get('SUPABASE_PUBLISHABLE_KEY', fallback: _defaultSupabasePublishableKey);
 
-// Openrouter
-  static const openrouterApiKey = String.fromEnvironment(
-    'OPENROUTER_API_KEY',
-    defaultValue: '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',
-  );
+  static String get supabaseAnonKey =>
+      _get('SUPABASE_ANON_KEY', fallback: _defaultSupabasePublishableKey);
 
-// Sambanova
-  static const sambanovaApiKey = String.fromEnvironment(
-    'SAMBANOVA_API_KEY',
-    defaultValue: 'f5c9dbee-6354-4516-a47b-893254b4c1fe',
-  );
-
+  static String get groqApiKey => _get('GROQ_API_KEY');
+  static String get geminiApiKey => _get('GEMINI_API_KEY');
+  static String get openrouterApiKey => _get('OPENROUTER_API_KEY');
 }
+

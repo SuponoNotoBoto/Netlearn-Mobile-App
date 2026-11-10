@@ -35,16 +35,6 @@ class NetBotProviders {
         priority: 2,
       ),
       AiProviderConfig(
-        id: 'sambanova',
-        name: 'SambaNova Cloud',
-        endpoint: 'https://api.sambanova.ai/v1/chat/completions',
-        apiKey: Env.sambanovaApiKey,
-        candidateModels: const [
-          'Meta-Llama-3.3-70B-Instruct',
-        ],
-        priority: 3,
-      ),
-      AiProviderConfig(
         id: 'gemini',
         name: 'Google Gemini',
         endpoint: 'https://generativelanguage.googleapis.com/v1beta/openai/chat/completions',
@@ -54,7 +44,7 @@ class NetBotProviders {
           'gemini-3.8-flash',
           'gemini-2.5-flash',
         ],
-        priority: 4,
+        priority: 3,
       ),
     ];
 

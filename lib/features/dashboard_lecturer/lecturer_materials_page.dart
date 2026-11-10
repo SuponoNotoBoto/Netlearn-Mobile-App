@@ -190,17 +190,10 @@ class _LecturerMaterialsPageState
 
       // Header `.compact` yang sama dengan halaman Materials student
       // (`NlTopBar`): bar putih 53px dengan garis rambut, tombol kembali ke
-      // dashboard dosen, dan bel notifikasi di kanan — struktur visual halaman
-      // mengikuti halaman student di Figma.
+      // dashboard dosen — struktur visual halaman mengikuti halaman student di Figma.
       appBar: NlTopBar(
         title: l10n.materials,
         onBack: () => context.go('/lecturer'),
-        actions: IconButton(
-          icon: const Icon(Icons.notifications_none_rounded),
-          onPressed: () {
-            // TODO: buka panel notifikasi dosen
-          },
-        ),
       ),
 
       body: materialsAsync.when(

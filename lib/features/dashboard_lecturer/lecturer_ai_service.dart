@@ -67,7 +67,7 @@ class LecturerAiService {
   LecturerAiService._();
 
   /// Executes a single-turn AI completion across the resilient multi-provider
-  /// gateway (Groq -> OpenRouter -> SambaNova -> Google Gemini).
+  /// gateway (Groq -> OpenRouter -> Google Gemini).
   static Future<({String content, String providerName})> complete({
     required String systemPrompt,
     required String userPrompt,

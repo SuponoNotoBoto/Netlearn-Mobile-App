@@ -652,12 +652,6 @@ class _LecturerMaterialFormPageState
           _isEditing ? l10n.editMaterial : l10n.addMaterial,
           style: Theme.of(context).textTheme.titleLarge,
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.notifications_none_rounded),
-            onPressed: () {},
-          ),
-        ],
       ),
 
       body: materialsAsync.when(

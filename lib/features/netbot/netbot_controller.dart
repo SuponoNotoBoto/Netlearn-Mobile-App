@@ -158,6 +158,19 @@ class NetBotNotifier extends Notifier<NetBotState> {
         state = state.copyWith(messages: msgs);
       }
 
+      // Clean final response text before persisting to remove any stray **
+      final cleanText = NetBotService.cleanResponseText(responseBuffer.toString());
+      final finalizedMsgs = state.messages.map((m) {
+        if (m.id == botMsgId) {
+          return m.copyWith(
+            text: cleanText,
+            providerName: usedProvider,
+          );
+        }
+        return m;
+      }).toList();
+      state = state.copyWith(messages: finalizedMsgs);
+
       // Persist completed chat to the active user's storage
       await _saveUserHistory();
     } catch (e) {
