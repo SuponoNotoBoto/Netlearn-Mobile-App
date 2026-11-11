@@ -7,7 +7,8 @@ import '../../features/about/student_about_page.dart';
 import '../../features/subnet_drill/subnet_drill_page.dart';
 import '../../features/dashboard_lecturer/lecturer_about_page.dart';
 import '../../features/dashboard_lecturer/lecturer_change_password_page.dart';
-import '../../shared/widgets/under_development_page.dart';
+import '../../features/ar/lecturer_ar_scanner_page.dart';
+import '../../features/ar/student_ar_scanner_page.dart';
 import '../../features/classes/class_leaderboard_page.dart';
 import '../../features/classes/class_onboarding_page.dart';
 import '../../features/classes/lecturer_archived_classes_page.dart';
@@ -837,7 +838,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'ar',
             builder: (context, state) {
-              return const UnderDevelopmentPage(title: 'AR Scanner');
+              return const StudentArScannerPage();
             },
           ),
 
@@ -1330,7 +1331,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'ar',
             builder: (context, state) {
-              return const UnderDevelopmentPage(title: 'AR Scanner');
+              return const LecturerArScannerPage();
             },
           ),
 

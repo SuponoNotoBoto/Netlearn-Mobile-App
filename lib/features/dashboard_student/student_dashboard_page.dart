@@ -983,12 +983,7 @@ class _StudentDashboardPageState
           title: l10n.shortcutScanner,
           subtitle: l10n.shortcutScannerHint,
           onTap: () {
-            NlSnackBar.show(
-              context,
-              isId
-                  ? 'Fitur AR Scanner masih dalam tahap pengembangan.'
-                  : 'AR Scanner feature is currently under development.',
-            );
+            context.push('/student/ar');
           },
         ),
 

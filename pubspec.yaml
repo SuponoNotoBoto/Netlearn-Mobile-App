@@ -44,6 +44,10 @@ flutter:
   assets:
     - .env
     - assets/logo/
+    - assets/ar/markers/
+    - assets/3D/
+    - assets/3D/modul_4/optimized/
+    - assets/audio/ar/
     - assets/audio/sfx/
     - assets/downloads/
 
