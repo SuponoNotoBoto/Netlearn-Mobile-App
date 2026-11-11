@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/localization/language_controller.dart';
 import '../../core/supabase/supabase_client.dart';
@@ -10,44 +11,112 @@ import '../../shared/utils/youtube_link.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
+import '../materials/student_materials_controller.dart';
 
-/// Fetch published core-module materials, one card per module (1–4).
+SupabaseClient? _videoSupabaseOrNull() {
+  try {
+    return supabase;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Fetch published learning videos scoped to the active class and role.
 ///
-/// Desain Figma Make (`LearningVideos.tsx`) memetakan daftar video ke empat
-/// kartu modul — termasuk modul yang belum punya tautan video, yang lalu
-/// ditampilkan dengan badge "Video belum tersedia" dan tanpa navigasi. Query
-/// lama membuang material tanpa video sehingga modul tersebut menghilang dari
-/// daftar; dari semua baris yang dipublikasikan, [buildVideoListItems] memilih
-/// satu material per modul.
+/// - Pada kelas nyata (`!isLegacyFallback`): selalu hanya membaca materi milik
+///   kelas tersebut dan TIDAK PERNAH jatuh kembali ke materi template global
+///   NetLearn (`class_id IS NULL`), termasuk ketika kelas belum memiliki video.
+/// - Pada kelas kustom (modul tanpa `template_module_number`): hanya menampilkan
+///   materi yang benar-benar memiliki tautan video valid, sesuai jumlah video
+///   yang dimasukkan dosen di materi (tanpa kartu modul kosong).
+/// - Pada kelas template / fallback legacy: satu kartu representatif per modul
+///   inti (Modul 1–4), sesuai desain template NetLearn.
 final videoListProvider = FutureProvider.autoDispose<List<VideoListItem>>((ref) async {
-  final activeClass = await resolveActiveStudentClass(ref);
-  if (activeClass != null && !activeClass.isLegacyFallback) {
+  // Watch active class selectors upfront so switching class updates this list.
+  ref.watch(activeStudentClassIdProvider);
+  ref.watch(activeLecturerClassIdProvider);
+
+  final client = _videoSupabaseOrNull();
+  String? role;
+  final currentUser = client?.auth.currentUser;
+  if (client != null && currentUser != null) {
+    try {
+      final profile = await client
+          .from('profiles')
+          .select('role')
+          .eq('id', currentUser.id)
+          .maybeSingle();
+      role = profile?['role']?.toString();
+    } catch (_) {}
+  }
+
+  final isLecturer = role == 'lecturer';
+  final String? activeClassId;
+  final bool isLegacyFallback;
+
+  if (isLecturer) {
+    final activeClass = await resolveActiveLecturerClass(ref);
+    activeClassId = activeClass?.id;
+    isLegacyFallback = activeClass == null || activeClass.isLegacyFallback;
+  } else {
+    final activeClass = await resolveActiveStudentClass(ref);
+    activeClassId = activeClass?.id;
+    isLegacyFallback = activeClass == null || activeClass.isLegacyFallback;
+  }
+
+  if (activeClassId != null && !isLegacyFallback) {
+    final modRows = await supabase
+        .from('class_modules')
+        .select(
+          'id, class_id, position, title, title_en, title_id, '
+          'description, description_en, description_id, status, '
+          'template_module_number',
+        )
+        .eq('class_id', activeClassId)
+        .order('position');
+
+    final classModules = (modRows as List)
+        .map((r) => ClassModule.fromMap(Map<String, dynamic>.from(r as Map)))
+        .toList();
+
+    final hasTemplateModules = classModules.any(
+      (m) => m.templateModuleNumber != null && m.templateModuleNumber! > 0,
+    );
+    final isCustomClass = !hasTemplateModules;
+
     final response = await supabase
         .from('materials')
         .select(
-          'id, module_number, title, title_en, title_id, '
+          'id, module_id, module_number, title, title_en, title_id, '
           'order_index, video_url, video_id',
         )
-        .eq('class_id', activeClass.id)
+        .eq('class_id', activeClassId)
         .eq('published', true)
         .order('module_number')
-        .order('order_index');
+        .order('order_index')
+        .order('id');
 
-    final items = buildVideoListItems(response as List);
-    if (items.isNotEmpty) {
-      return items;
-    }
+    return buildVideoListItems(
+      response as List,
+      classModules: classModules,
+      onlyWithVideo: isCustomClass,
+      includeMultiplePerModule: isCustomClass,
+      filterDraftModules: !isLecturer,
+    );
   }
 
   final response = await supabase
       .from('materials')
       .select(
-        'id, module_number, title, title_en, title_id, '
+        'id, module_id, module_number, title, title_en, title_id, '
         'order_index, video_url, video_id',
       )
       .eq('published', true)
+      .isFilter('class_id', null)
       .order('module_number')
-      .order('order_index');
+      .order('order_index')
+      .order('id');
 
   // Baris sudah terurut `module_number, order_index` dari database —
   // penyusunan kartu modul bergantung pada urutan ini (material pertama
@@ -55,39 +124,89 @@ final videoListProvider = FutureProvider.autoDispose<List<VideoListItem>>((ref) 
   return buildVideoListItems(response as List);
 });
 
-/// Memetakan baris `materials` menjadi satu [VideoListItem] per modul inti.
+class _SortableVideoEntry {
+  final int sortModulePosition;
+  final int orderIndex;
+  final VideoListItem item;
+
+  const _SortableVideoEntry({
+    required this.sortModulePosition,
+    required this.orderIndex,
+    required this.item,
+  });
+}
+
+/// Memetakan baris `materials` menjadi daftar [VideoListItem].
 ///
-/// Fungsi murni — tanpa Supabase, tanpa Flutter — supaya pemilihan representatif
-/// modul dapat diuji offline dengan pola yang sama seperti
-/// `buildStudentModules` di `student_materials_controller.dart`.
+/// Fungsi murni — tanpa Supabase, tanpa Flutter — supaya pemilihan video pada
+/// kelas kustom maupun template dapat diuji secara offline.
 ///
-/// Untuk tiap modul 1–4:
-/// - representatif wajib **material ber-video pertama** (urutan `order_index`),
-///   supaya kartu selalu menautkan video yang benar-benar bisa diputar;
-/// - bila seluruh material modul itu tanpa video, representatif jatuh ke
-///   **material pertama** modul, dan kartu kehilangan `youtubeVideoId`.
-///
-/// Material tanpa nomor modul (materi pendukung) tidak masuk daftar —
-/// desainnya satu kartu per modul inti; akses videonya tetap lewat alur
-/// Materials → detail.
-List<VideoListItem> buildVideoListItems(List<dynamic> rows) {
-  // Modul -> material ber-video pertama.
-  final withVideo = <int, VideoListItem>{};
-  // Modul -> material pertama apa pun adanya (fallback kartu "belum tersedia").
-  final anyMaterial = <int, VideoListItem>{};
+/// - Mode kelas kustom ([onlyWithVideo] = true, [includeMultiplePerModule] = true):
+///   hanya menampilkan materi yang benar-benar memiliki tautan video YouTube
+///   valid, sesuai seluruh video yang dimasukkan dosen pada materi. Modul atau
+///   materi yang hanya berisi bacaan/PDF tidak memunculkan kartu "Video belum tersedia".
+/// - Mode template / fallback legacy ([onlyWithVideo] = false, [includeMultiplePerModule] = false):
+///   satu kartu per modul inti (`withVideo ?? anyMaterial`), mempertahankan tata
+///   letak empat kartu template NetLearn.
+List<VideoListItem> buildVideoListItems(
+  List<dynamic> rows, {
+  List<ClassModule> classModules = const <ClassModule>[],
+  bool onlyWithVideo = false,
+  bool includeMultiplePerModule = false,
+  bool filterDraftModules = false,
+}) {
+  final moduleById = <String, ClassModule>{
+    for (final cm in classModules) cm.id: cm,
+  };
+
+  ClassModule? findModuleByNumber(int number) {
+    if (number < 1) return null;
+    for (final cm in classModules) {
+      if (resolveClassModuleNumber(cm) == number || cm.position == number) {
+        return cm;
+      }
+    }
+    return null;
+  }
+
+  final entries = <_SortableVideoEntry>[];
 
   for (final dynamic raw in rows) {
     final map = Map<String, dynamic>.from(raw as Map);
-    final moduleNumber = (map['module_number'] as num?)?.toInt() ?? 0;
-
-    // Hanya empat modul inti yang muncul di daftar video.
-    if (moduleNumber < 1) {
+    final id = map['id']?.toString() ?? '';
+    if (id.isEmpty) {
       continue;
     }
 
-    final id = map['id']?.toString() ?? '';
+    final rawModuleId = map['module_id']?.toString().trim();
+    final hasExplicitModuleId = rawModuleId != null && rawModuleId.isNotEmpty;
+    final rawModuleNumber = (map['module_number'] as num?)?.toInt() ?? 0;
 
-    if (id.isEmpty) {
+    final ClassModule? linkedModule = hasExplicitModuleId
+        ? moduleById[rawModuleId]
+        : findModuleByNumber(rawModuleNumber);
+
+    if (filterDraftModules) {
+      if (hasExplicitModuleId) {
+        if (linkedModule == null || !linkedModule.isPublished) {
+          continue;
+        }
+      } else if (linkedModule != null && !linkedModule.isPublished) {
+        continue;
+      }
+    }
+
+    final resolvedModuleNumber = linkedModule != null
+        ? resolveClassModuleNumber(linkedModule)
+        : rawModuleNumber;
+
+    final effectiveModuleNumber = resolvedModuleNumber >= 1
+        ? resolvedModuleNumber
+        : (onlyWithVideo ? 1 : 0);
+
+    // Di mode template/legacy hanya modul inti bernomor >= 1 yang muncul;
+    // di kelas kustom video yang valid tetap tampil meski module_number 0/null.
+    if (effectiveModuleNumber < 1) {
       continue;
     }
 
@@ -96,16 +215,52 @@ List<VideoListItem> buildVideoListItems(List<dynamic> rows) {
     final youtubeId =
         resolveYoutubeVideoId(videoId: videoId, videoUrl: videoUrl);
 
-    final item = VideoListItem(
-      id: id,
-      title: map['title']?.toString() ?? '',
-      titleEn: map['title_en']?.toString() ?? '',
-      titleId: map['title_id']?.toString() ?? '',
-      moduleNumber: moduleNumber,
-      youtubeVideoId: youtubeId,
-    );
+    if (onlyWithVideo && (youtubeId == null || youtubeId.isEmpty)) {
+      continue;
+    }
 
-    if (youtubeId != null && !withVideo.containsKey(moduleNumber)) {
+    final orderIndex = (map['order_index'] as num?)?.toInt() ?? 0;
+    final sortPosition = linkedModule?.position ?? effectiveModuleNumber;
+
+    entries.add(
+      _SortableVideoEntry(
+        sortModulePosition: sortPosition,
+        orderIndex: orderIndex,
+        item: VideoListItem(
+          id: id,
+          title: map['title']?.toString() ?? '',
+          titleEn: map['title_en']?.toString() ?? '',
+          titleId: map['title_id']?.toString() ?? '',
+          moduleNumber: effectiveModuleNumber,
+          youtubeVideoId: youtubeId,
+        ),
+      ),
+    );
+  }
+
+  entries.sort((a, b) {
+    final posCmp = a.sortModulePosition.compareTo(b.sortModulePosition);
+    if (posCmp != 0) return posCmp;
+    final modCmp = a.item.moduleNumber.compareTo(b.item.moduleNumber);
+    if (modCmp != 0) return modCmp;
+    final ordCmp = a.orderIndex.compareTo(b.orderIndex);
+    if (ordCmp != 0) return ordCmp;
+    return a.item.id.compareTo(b.item.id);
+  });
+
+  if (includeMultiplePerModule) {
+    return [for (final entry in entries) entry.item];
+  }
+
+  // Modul -> material ber-video pertama.
+  final withVideo = <int, VideoListItem>{};
+  // Modul -> material pertama apa pun adanya (fallback kartu "belum tersedia").
+  final anyMaterial = <int, VideoListItem>{};
+
+  for (final entry in entries) {
+    final item = entry.item;
+    final moduleNumber = item.moduleNumber;
+    if (item.youtubeVideoId != null && !withVideo.containsKey(moduleNumber)) {
       withVideo[moduleNumber] = item;
     }
     anyMaterial.putIfAbsent(moduleNumber, () => item);
@@ -222,7 +377,9 @@ class VideoListPage extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
               children: [
                 // Header section — circle icon + title + subtitle.
-                _HeaderSection(moduleCount: videos.length),
+                _HeaderSection(
+                  moduleCount: {for (final v in videos) v.moduleNumber}.length,
+                ),
                 const SizedBox(height: 20),
 
                 // Video list grouped by module.
