@@ -6,6 +6,7 @@ import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../achievements/achievement_service.dart';
 
 class PublicMemberProfile {
@@ -299,7 +300,7 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
     if (_loading) {
       return const SizedBox(
         height: 300,
-        child: Center(child: CircularProgressIndicator()),
+        child: NlSkeletonProfile(menuRows: 2),
       );
     }
 

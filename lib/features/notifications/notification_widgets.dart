@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/models/announcement_model.dart';
 import '../../shared/models/reminder_model.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
 
 /// Titik penanda "belum dibaca" pada kartu notifikasi.
 ///
@@ -89,93 +90,96 @@ class AnnouncementCard extends StatelessWidget {
             : NetLearnColors.notificationUnreadBorder)
         : context.border;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: cardColor,
-            borderRadius: BorderRadius.circular(NetLearnRadius.card),
-            border: Border.all(color: borderColor),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                // `tintBackgrounds[0]` bukan ekspresi konstan, jadi dekorasi ini
-                // tidak bisa `const`.
-                decoration: BoxDecoration(
-                  color: NetLearnAccents.tintBackgrounds[0],
-                  shape: BoxShape.circle,
+    return NlTapScale(
+      pressedScale: 0.985,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: cardColor,
+              borderRadius: BorderRadius.circular(NetLearnRadius.card),
+              border: Border.all(color: borderColor),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  // `tintBackgrounds[0]` bukan ekspresi konstan, jadi dekorasi ini
+                  // tidak bisa `const`.
+                  decoration: BoxDecoration(
+                    color: NetLearnAccents.tintBackgrounds[0],
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    Icons.campaign_rounded,
+                    size: 18,
+                    color: NetLearnAccents.tintForegrounds[0],
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: Icon(
-                  Icons.campaign_rounded,
-                  size: 18,
-                  color: NetLearnAccents.tintForegrounds[0],
-                ),
-              ),
-              const SizedBox(width: NetLearnSpace.s10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            announcement.title,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.titleSmall,
+                const SizedBox(width: NetLearnSpace.s10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              announcement.title,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.titleSmall,
+                            ),
+                          ),
+                          if (unread) ...[
+                            const SizedBox(width: NetLearnSpace.s4),
+                            const NotificationUnreadDot(),
+                          ],
+                        ],
+                      ),
+                      if (announcement.displayContent.isNotEmpty) ...[
+                        const SizedBox(height: NetLearnSpace.s7),
+                        Text(
+                          announcement.displayContent,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            height: 1.75,
+                            color: context.mutedText,
                           ),
                         ),
-                        if (unread) ...[
-                          const SizedBox(width: NetLearnSpace.s4),
-                          const NotificationUnreadDot(),
-                        ],
                       ],
-                    ),
-                    if (announcement.displayContent.isNotEmpty) ...[
-                      const SizedBox(height: NetLearnSpace.s7),
+                      const SizedBox(height: NetLearnSpace.s10),
                       Text(
-                        announcement.displayContent,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+                        '${notificationTimeLabel(announcement.publishedAt ?? announcement.createdAt, l10n)} · '
+                        '${unread ? l10n.notificationUnread : l10n.notificationRead}',
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          height: 1.75,
+                          fontSize: 9,
                           color: context.mutedText,
                         ),
                       ),
                     ],
-                    const SizedBox(height: NetLearnSpace.s10),
-                    Text(
-                      '${notificationTimeLabel(announcement.publishedAt ?? announcement.createdAt, l10n)} · '
-                      '${unread ? l10n.notificationUnread : l10n.notificationRead}',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 9,
-                        color: context.mutedText,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: NetLearnSpace.s10),
-              Padding(
-                padding: const EdgeInsets.only(top: NetLearnSpace.s9),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: context.mutedText,
+                const SizedBox(width: NetLearnSpace.s10),
+                Padding(
+                  padding: const EdgeInsets.only(top: NetLearnSpace.s9),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: context.mutedText,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -230,90 +234,93 @@ class ReminderCard extends StatelessWidget {
         ? '${_assessmentLabel(l10n)} · ${l10n.reminderNotCompleted}'
         : '${reminder.formatDeadline(isIndonesian)} · ${reminder.timeLeft(isIndonesian)}';
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        child: Container(
-          padding: const EdgeInsets.all(18),
-          decoration: BoxDecoration(
-            color: context.surface,
-            borderRadius: BorderRadius.circular(NetLearnRadius.card),
-            border: Border.all(color: context.border),
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: NetLearnAccents.tintBackgrounds[4],
-                  shape: BoxShape.circle,
+    return NlTapScale(
+      pressedScale: 0.985,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          child: Container(
+            padding: const EdgeInsets.all(18),
+            decoration: BoxDecoration(
+              color: context.surface,
+              borderRadius: BorderRadius.circular(NetLearnRadius.card),
+              border: Border.all(color: context.border),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: NetLearnAccents.tintBackgrounds[4],
+                    shape: BoxShape.circle,
+                  ),
+                  alignment: Alignment.center,
+                  child: Icon(
+                    isNotCompleted
+                        ? Icons.assignment_late_rounded
+                        : Icons.schedule_rounded,
+                    size: 18,
+                    color: NetLearnAccents.tintForegrounds[4],
+                  ),
                 ),
-                alignment: Alignment.center,
-                child: Icon(
-                  isNotCompleted
-                      ? Icons.assignment_late_rounded
-                      : Icons.schedule_rounded,
-                  size: 18,
-                  color: NetLearnAccents.tintForegrounds[4],
-                ),
-              ),
-              const SizedBox(width: NetLearnSpace.s10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      reminder.localizedTitle(isIndonesian),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.titleSmall,
-                    ),
-                    if (reminder.subject != null && reminder.subject!.isNotEmpty) ...[
-                      const SizedBox(height: NetLearnSpace.s7),
+                const SizedBox(width: NetLearnSpace.s10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
                       Text(
-                        reminder.subject!,
-                        maxLines: 2,
+                        reminder.localizedTitle(isIndonesian),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleSmall,
+                      ),
+                      if (reminder.subject != null && reminder.subject!.isNotEmpty) ...[
+                        const SizedBox(height: NetLearnSpace.s7),
+                        Text(
+                          reminder.subject!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            fontSize: 11,
+                            height: 1.75,
+                            color: context.mutedText,
+                          ),
+                        ),
+                      ],
+                      // `.badge` muncul sebagai baris tersendiri setelah isi kartu,
+                      // berjarak 12px dari atasnya.
+                      Padding(
+                        padding: const EdgeInsets.only(top: NetLearnSpace.s12),
+                        child: _UrgencyBadge(label: urgencyLabel),
+                      ),
+                      const SizedBox(height: NetLearnSpace.s10),
+                      Text(
+                        metaText,
+                        maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: theme.textTheme.bodySmall?.copyWith(
-                          fontSize: 11,
-                          height: 1.75,
+                          fontSize: 9,
                           color: context.mutedText,
                         ),
                       ),
                     ],
-                    // `.badge` muncul sebagai baris tersendiri setelah isi kartu,
-                    // berjarak 12px dari atasnya.
-                    Padding(
-                      padding: const EdgeInsets.only(top: NetLearnSpace.s12),
-                      child: _UrgencyBadge(label: urgencyLabel),
-                    ),
-                    const SizedBox(height: NetLearnSpace.s10),
-                    Text(
-                      metaText,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        fontSize: 9,
-                        color: context.mutedText,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
-              const SizedBox(width: NetLearnSpace.s10),
-              Padding(
-                padding: const EdgeInsets.only(top: NetLearnSpace.s9),
-                child: Icon(
-                  Icons.chevron_right_rounded,
-                  size: 16,
-                  color: context.mutedText,
+                const SizedBox(width: NetLearnSpace.s10),
+                Padding(
+                  padding: const EdgeInsets.only(top: NetLearnSpace.s9),
+                  child: Icon(
+                    Icons.chevron_right_rounded,
+                    size: 16,
+                    color: context.mutedText,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

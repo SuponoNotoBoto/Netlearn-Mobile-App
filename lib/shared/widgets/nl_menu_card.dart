@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// A tappable row that leads to one section of a dashboard.
 ///
@@ -27,13 +28,15 @@ class NlMenuCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return Material(
-      color: context.surface,
-      borderRadius: BorderRadius.circular(NetLearnRadius.card),
-      child: InkWell(
-        onTap: onTap,
+    return NlTapScale(
+      scaleDown: 0.975,
+      child: Material(
+        color: context.surface,
         borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        child: Container(
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          child: Container(
           width: double.infinity,
           padding: const EdgeInsets.all(NetLearnSpace.s16),
           decoration: BoxDecoration(
@@ -132,6 +135,7 @@ class NlMenuCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }

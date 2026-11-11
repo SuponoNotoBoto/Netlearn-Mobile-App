@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/models/student_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import 'lecturer_students_controller.dart';
 import 'lecturer_students_csv.dart';
@@ -38,8 +39,9 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
     final studentsAsync = ref.watch(lecturerStudentsProvider(null));
 
     return studentsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
+      loading: () => const NlSkeletonList(
+        itemCount: 5,
+        padding: EdgeInsets.all(NetLearnSpace.s20),
       ),
       error: (error, stackTrace) => Center(
         child: Padding(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// Satu tile pada `.shortcut-grid` Figma.
 ///
@@ -138,7 +139,10 @@ class NlShortcutTile extends StatelessWidget {
     );
 
     if (enabled) {
-      return tile;
+      return NlTapScale(
+        scaleDown: 0.955,
+        child: tile,
+      );
     }
 
     return Opacity(opacity: 0.55, child: tile);

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/widgets/nl_micro_transition.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
+
 /// Token warna dan tipografi diambil langsung dari index.css (desain Figma Make
 /// terbaru), bukan dari palet hijau yang dipakai versi desain sebelumnya.
 ///
@@ -30,34 +33,32 @@ class NetLearnColors {
   static const statusAttendance = Color(0xFFA6B1E1);
   static const statusPending = Color(0xFFFFB6C1);
 
-  /// Ujung gelap gradient hero (`#1e126b`).
-  static const primaryDeep = Color(0xFF1E126B);
+  /// Ujung gelap gradient hero (`#6C2CE2`).
+  static const primaryDeep = Color(0xFF6C2CE2);
 
-  /// Ujung terang gradient hero (`#4e33c8`), juga warna status bar di atas hero.
-  static const primaryMid = Color(0xFF4E33C8);
+  /// Ujung terang gradient hero (`#8C52FF`), selaras dengan warna aksen utama terbaru.
+  static const primaryMid = Color(0xFF8C52FF);
 
-  /// Status bar yang menempel ke hero: `--on-purple` = `#25177d`.
-  static const primaryStatusBar = Color(0xFF25177D);
+  /// Status bar yang menempel ke hero (`#6C2CE2`).
+  static const primaryStatusBar = Color(0xFF6C2CE2);
 
-  /// Ujung terang track progres (`#8a70ea`).
-  static const primarySoft = Color(0xFF8A70EA);
+  /// Ujung terang track progres (`#A77BFF`).
+  static const primarySoft = Color(0xFFA77BFF);
 
-  /// Teks brand sekunder yang masih harus terbaca di atas putih
-  /// (`.eyebrow` = `#8b78b6`, dinaikkan agar lolos WCAG AA).
-  static const primaryMuted = Color(0xFF6B57C4);
+  /// Teks brand sekunder yang masih harus terbaca di atas putih (`#7E3FF2`).
+  static const primaryMuted = Color(0xFF7E3FF2);
 
-  /// Isian tombol sekunder (`.button.secondary` = `#f0ecfb`).
+  /// Isian tombol sekunder (`#ECE6FF`).
   static const primaryTint = Color(0xFFECE6FF);
 
-  /// Latar.tile ungu muda: avatar, nomor modul, chip
-  /// (`.module-number` = `#f3e8ff`, `.unified-avatar` = `#e6ddff`).
+  /// Latar tile ungu muda: avatar, nomor modul, chip (`#E9E3FB`).
   static const primaryTintSoft = Color(0xFFE9E3FB);
 
-  /// Warna huruf di dalam [primaryTintSoft] (`.module-number` = `#885bc8`).
-  static const primaryOnTint = Color(0xFF6243AD);
+  /// Warna huruf di dalam [primaryTintSoft] (`#6C2CE2`).
+  static const primaryOnTint = Color(0xFF6C2CE2);
 
-  /// Aksen terang untuk teks di atas gradient (`.brand-dot` = `#b7abff`).
-  static const primaryBright = Color(0xFFB7ABFF);
+  /// Aksen terang untuk teks di atas gradient (`#DDD2FF`).
+  static const primaryBright = Color(0xFFDDD2FF);
 
   // ---------------------------------------------------------------------
   // Teks dan avatar di atas gradien hero
@@ -208,8 +209,8 @@ class NetLearnColors {
   /// ungu, bukan di atas permukaan.
   static const heroOnlineDot = Color(0xFF54CF99);
 
-  /// Cincin di sekitar titik indikator (`.avatar>span` = `border:2px solid #4230b4`).
-  static const heroOnlineDotRing = Color(0xFF4230B4);
+  /// Cincin di sekitar titik indikator (`.avatar>span` = `border:2px solid #6C2CE2`).
+  static const heroOnlineDotRing = Color(0xFF6C2CE2);
 
   // ---------------------------------------------------------------------
   // Status
@@ -273,7 +274,7 @@ class NetLearnColors {
   ///
   /// not verified: `index.css` tidak punya aturan `.dark-theme .score`, jadi
   /// mode gelap memakai [primaryDark] (`#b9a3ff`).
-  static const scoreRingActive = Color(0xFF7656D3);
+  static const scoreRingActive = Color(0xFF8C52FF);
 
   /// Angka jawaban benar pada strip skor (`.score-stats b` = `#43a084`).
   ///
@@ -361,23 +362,26 @@ class NetLearnColors {
   static const sandText = warningText;
 
   /// Bayangan tidak pernah netral di desain: selalu bernuansa ungu.
-  static const shadowTint = Color(0x1F543CD1);
+  static const shadowTint = Color(0x1F8C52FF);
 }
 
-/// Gradient yang diambil apa adanya dari index.css.
+/// Gradient utama sesuai tema ungu NetLearn terbaru.
 class NetLearnGradients {
   NetLearnGradients._();
 
-  /// `linear-gradient(115deg,#1e126b,#4e33c8)` â€” hero dashboard dan profil.
-  /// Sudut 138° diambil dari Figma `Dashboard Dosen 2` (86:337) — beda 23°
-  /// dari 115° lama, jadi hero miring ke kanan-bawah alih-alih kiri-bawah.
+  /// Hero header ungu (`#9863FF` → `#7E3FF2` → `#6C2CE2`) untuk Login,
+  /// Register, Splash, dan Header Profil (Mahasiswa & Dosen).
   static const hero = LinearGradient(
-    colors: [NetLearnColors.primaryDeep, NetLearnColors.primaryMid],
-    begin: Alignment(-0.747, -0.664),
-    end: Alignment(0.747, 0.664),
+    colors: [
+      Color(0xFF9863FF),
+      Color(0xFF7E3FF2),
+      Color(0xFF6C2CE2),
+    ],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
   );
 
-  /// `linear-gradient(90deg,#8a70ea,#543cd1)` â€” isi track progres.
+  /// Isi track progres keunguan (`#A77BFF` → `#8C52FF`).
   static const progress = LinearGradient(
     colors: [NetLearnColors.primarySoft, NetLearnColors.primary],
   );
@@ -412,15 +416,15 @@ class NetLearnAccents {
   /// "Riwayat Assessment", jadi pasangan orange di-append di ujung agar tidak
   /// ada index yang bergeser.
   static const tintBackgrounds = <Color>[
-    Color(0xFFEBF3FE), // blue-tint
-    Color(0xFFEAE8FC), // indigo-tint
+    Color(0xFFF1ECFF), // primary purple-tint
+    Color(0xFFF3EEFF), // soft-violet-tint
     Color(0xFFE8F8F2), // green-tint
     Color(0xFFF0EEFC), // purple-tint
     Color(0xFFFFF3EB), // orange-tint
   ];
 
   static const tintForegrounds = <Color>[
-    Color(0xFF4F85C4),
+    Color(0xFF6C2CE2),
     NetLearnColors.primary,
     Color(0xFF309778),
     Color(0xFF7E65C4),
@@ -601,10 +605,10 @@ class NetLearnSpace {
 class NetLearnShadows {
   NetLearnShadows._();
 
-  /// Tombol utama (`.button` = `0 4px 10px #543cd114`).
+  /// Tombol utama (`.button` = `0 4px 10px #8c52ff14`).
   static const List<BoxShadow> button = [
     BoxShadow(
-      color: Color(0x14543CD1),
+      color: Color(0x148C52FF),
       blurRadius: 10,
       offset: Offset(0, 4),
     ),
@@ -628,10 +632,10 @@ class NetLearnShadows {
     ),
   ];
 
-  /// Tombol tengah bar navigasi (`.center-nav>span` = `0 3px 8px #4e33c820`).
+  /// Tombol tengah bar navigasi (`.center-nav>span` = `0 3px 8px #8c52ff24`).
   static const List<BoxShadow> navCenter = [
     BoxShadow(
-      color: Color(0x204E33C8),
+      color: Color(0x248C52FF),
       blurRadius: 8,
       offset: Offset(0, 3),
     ),
@@ -801,9 +805,9 @@ class NetLearnFeedbackColors extends ThemeExtension<NetLearnFeedbackColors> {
     warningBg: Color(0xFFFFF6E3),
     warningFg: Color(0xFF7A5B12),
     warningBorder: Color(0xFFEFD9A6),
-    infoBg: Color(0xFFF1EDFD),
-    infoFg: Color(0xFF5138C4),
-    infoBorder: Color(0xFFD6CCF8),
+    infoBg: Color(0xFFF3EEFF),
+    infoFg: Color(0xFF6C2CE2),
+    infoBorder: Color(0xFFD9CEFF),
   );
 
   static const dark = NetLearnFeedbackColors(
@@ -1056,9 +1060,23 @@ class AppTheme {
     );
   }
 
+  static const PageTransitionsTheme _pageTransitionsTheme =
+      PageTransitionsTheme(
+        builders: <TargetPlatform, PageTransitionsBuilder>{
+          TargetPlatform.android: NlPageTransitionsBuilder(),
+          TargetPlatform.iOS: NlPageTransitionsBuilder(),
+          TargetPlatform.macOS: NlPageTransitionsBuilder(),
+          TargetPlatform.windows: NlPageTransitionsBuilder(),
+          TargetPlatform.linux: NlPageTransitionsBuilder(),
+          TargetPlatform.fuchsia: NlPageTransitionsBuilder(),
+        },
+      );
+
   static ThemeData light = ThemeData(
     useMaterial3: true,
     brightness: Brightness.light,
+    splashFactory: const NlTactileRippleFactory(),
+    pageTransitionsTheme: _pageTransitionsTheme,
     scaffoldBackgroundColor: NetLearnColors.appBg,
     fontFamily: fontFamily,
     colorScheme: const ColorScheme.light(
@@ -1115,6 +1133,8 @@ class AppTheme {
   static ThemeData dark = ThemeData(
     useMaterial3: true,
     brightness: Brightness.dark,
+    splashFactory: const NlTactileRippleFactory(),
+    pageTransitionsTheme: _pageTransitionsTheme,
     scaffoldBackgroundColor: NetLearnColors.darkApp,
     fontFamily: fontFamily,
     colorScheme: const ColorScheme.dark(

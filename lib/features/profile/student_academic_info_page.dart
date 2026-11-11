@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
 import 'student_profile_controller.dart';
@@ -35,7 +36,10 @@ class StudentAcademicInfoPage extends ConsumerWidget {
         onBack: () => goBack(context),
       ),
       body: profile.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const NlSkeletonList(
+          itemCount: 4,
+          padding: EdgeInsets.all(NetLearnSpace.s20),
+        ),
         error: (error, stackTrace) => NlErrorView(
           message: l10n.failedToLoad,
           onRetry: () => ref.invalidate(studentProfileProvider),

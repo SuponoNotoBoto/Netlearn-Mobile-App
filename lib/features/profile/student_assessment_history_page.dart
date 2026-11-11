@@ -9,6 +9,7 @@ import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
@@ -193,7 +194,10 @@ class AssessmentHistoryView extends ConsumerWidget {
     final recordsAsync = ref.watch(assessmentHistoryProvider);
 
     return recordsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const NlSkeletonList(
+        itemCount: 3,
+        padding: EdgeInsets.all(NetLearnSpace.s20),
+      ),
       error: (error, stackTrace) => NlErrorView(
         message: AppLocalizations.of(context)!.failedToLoad,
         onRetry: () {

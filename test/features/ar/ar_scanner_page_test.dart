@@ -120,5 +120,27 @@ void main() {
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
     });
+
+    testWidgets(
+      'top AR control buttons (back, sound, refresh, help) use crisp white icons in light mode',
+      (tester) async {
+        tester.view.physicalSize = const Size(narrowWidth * 3, 2400);
+        tester.view.devicePixelRatio = 3;
+        addTearDown(tester.view.reset);
+
+        await tester.pumpWidget(_host(locale: const Locale('en')));
+        await tester.pumpAndSettle();
+
+        final backIcon = tester.widget<Icon>(find.byIcon(Icons.arrow_back_rounded));
+        final soundIcon = tester.widget<Icon>(find.byIcon(Icons.volume_up_rounded));
+        final refreshIcon = tester.widget<Icon>(find.byIcon(Icons.refresh_rounded));
+        final helpIcon = tester.widget<Icon>(find.byIcon(Icons.help_outline_rounded));
+
+        expect(backIcon.color, Colors.white);
+        expect(soundIcon.color, Colors.white);
+        expect(refreshIcon.color, Colors.white);
+        expect(helpIcon.color, Colors.white);
+      },
+    );
   });
 }

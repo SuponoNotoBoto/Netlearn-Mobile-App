@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_surface_card.dart';
 import '../classes/class_controller.dart';
@@ -241,9 +242,11 @@ class _ClassDiscussionPageState extends ConsumerState<ClassDiscussionPage> {
           const SizedBox(height: 14),
 
           threadsAsync.when(
-            loading: () => const Padding(
-              padding: EdgeInsets.all(32),
-              child: Center(child: CircularProgressIndicator()),
+            loading: () => const NlSkeletonList(
+              itemCount: 3,
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(vertical: 8),
             ),
             error: (_, _) => NlSurfaceCard(
               child: Text(

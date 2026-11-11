@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.option` dari index.css: satu baris jawaban pilihan ganda.
 ///
@@ -126,14 +127,17 @@ class NlMcqOption extends StatelessWidget {
           ? '$selectedLabel: $label. $text'
           : '$label. $text',
       child: ExcludeSemantics(
-        child: Material(
-          color: Colors.transparent,
-          borderRadius: BorderRadius.circular(NetLearnRadius.button),
-          clipBehavior: Clip.antiAlias,
-          child: InkWell(
-            onTap: onTap,
+        child: NlTapScale(
+          scaleDown: 0.98,
+          child: Material(
+            color: Colors.transparent,
             borderRadius: BorderRadius.circular(NetLearnRadius.button),
-            child: content,
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(NetLearnRadius.button),
+              child: content,
+            ),
           ),
         ),
       ),

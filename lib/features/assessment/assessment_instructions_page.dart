@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_error_view.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import 'assessment_completed_dialog.dart';
@@ -59,9 +60,7 @@ class AssessmentInstructionsPage extends ConsumerWidget {
       body: SafeArea(
         child: assessmentAsync.when(
           loading: () {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
+            return const NlSkeletonDetail(showBanner: false, paragraphBlocks: 3);
           },
           error: (error, stackTrace) {
             return _errorList(

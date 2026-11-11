@@ -64,6 +64,7 @@ import '../../features/virtual_lab/virtual_lab_page.dart';
 import '../supabase/supabase_client.dart';
 import '../session/session_reset.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_micro_transition.dart';
 import 'profile_cache.dart';
 import 'router_error_page.dart';
 
@@ -492,9 +493,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
       GoRoute(
         path: '/splash',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const SplashPage();
-        },
+        }),
       ),
 
       // =========================================================
@@ -502,16 +503,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // =========================================================
       GoRoute(
         path: '/login',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const LoginPage();
-        },
+        }),
       ),
 
       GoRoute(
         path: '/forgot-password',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const ForgotPasswordPage();
-        },
+        }),
       ),
 
       // --------------------------------------------------------
@@ -526,16 +527,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // there is nothing to change anyway.
       GoRoute(
         path: '/reset-password',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const ResetPasswordPage();
-        },
+        }),
       ),
 
       GoRoute(
         path: '/register',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const RegisterPage();
-        },
+        }),
       ),
 
       // --------------------------------------------------------
@@ -549,9 +550,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // onward to the role area once the flow finishes at '/'.
       GoRoute(
         path: '/onboarding',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const OnboardingFlowPage();
-        },
+        }),
       ),
 
       // =========================================================
@@ -559,9 +560,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // =========================================================
       GoRoute(
         path: '/student',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const StudentDashboardPage();
-        },
+        }),
         routes: [
           // -------------------------------------------------------
           // DAFTAR MATERI
@@ -569,9 +570,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
           GoRoute(
             path: 'materials',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentMaterialsPage();
-            },
+            }),
 
             // ---------------------------------------------------
             // DAFTAR MATERI SATU MODUL
@@ -585,7 +586,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: ':moduleNumber',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final moduleNumber =
                       int.tryParse(state.pathParameters['moduleNumber'] ?? '');
 
@@ -597,7 +598,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return ModuleMaterialsPage(moduleNumber: moduleNumber);
-                },
+                }),
               ),
             ],
           ),
@@ -607,7 +608,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'material/:materialId',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -617,7 +618,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return MaterialDetailPage(materialId: materialId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -625,7 +626,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'material/:materialId/read',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -635,7 +636,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return MaterialReaderPage(materialId: materialId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -643,14 +644,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'video-list',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const VideoListPage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'video/:materialId',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -660,7 +661,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return VideoPage(materialId: materialId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -668,7 +669,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'material/:materialId/pdf',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -678,7 +679,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return PdfViewerPage(materialId: materialId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -686,7 +687,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'assessment-instructions/:assessmentType',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final assessmentType = state.pathParameters['assessmentType'];
 
               if (assessmentType == null || assessmentType.isEmpty) {
@@ -707,7 +708,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return AssessmentInstructionsPage(assessmentType: assessmentType);
-            },
+            }),
           ),
 
           // =======================================================
@@ -715,9 +716,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // =======================================================
           GoRoute(
             path: 'assessment',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const AssessmentListPage();
-            },
+            }),
             routes: [
               // ---------------------------------------------------
               // PENGERJAAN ASSESSMENT
@@ -725,7 +726,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
               GoRoute(
                 path: ':assessmentType',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final assessmentType = state.pathParameters['assessmentType'];
 
                   if (assessmentType == null || assessmentType.isEmpty) {
@@ -748,7 +749,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return AssessmentPage(assessmentType: assessmentType);
-                },
+                }),
               ),
             ],
           ),
@@ -758,7 +759,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'assessment-result/:attemptId',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final attemptId = state.pathParameters['attemptId'];
 
               if (attemptId == null || attemptId.isEmpty) {
@@ -769,7 +770,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return AssessmentResultPage(attemptId: attemptId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -777,40 +778,40 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'assessment-history',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentAssessmentHistoryPage();
-            },
+            }),
           ),
 
            GoRoute(
              path: 'virtual-lab',
-             builder: (context, state) {
+             pageBuilder: nlPageBuilder((context, state) {
                final labBinding = state.extra is MaterialLabBinding
                    ? state.extra as MaterialLabBinding
                    : null;
                return VirtualLabPage(labBinding: labBinding);
-             },
+             }),
            ),
 
            GoRoute(
              path: 'subnet-drill',
-             builder: (context, state) {
+             pageBuilder: nlPageBuilder((context, state) {
                return const SubnetDrillPage();
-             },
+             }),
            ),
 
           // -------------------------------------------------------
           GoRoute(
             path: 'leaderboard',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassLeaderboardPage(
                 classId: state.uri.queryParameters['classId'],
               );
-            },
+            }),
           ),
           GoRoute(
             path: 'discussions',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassDiscussionPage(
                 classId: state.uri.queryParameters['classId'],
                 initialModuleNumber: int.tryParse(
@@ -819,17 +820,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 initialMaterialId: state.uri.queryParameters['materialId'],
                 isLecturer: false,
               );
-            },
+            }),
             routes: [
               GoRoute(
                 path: ':threadId',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final threadId = state.pathParameters['threadId'] ?? '';
                   return DiscussionThreadDetailPage(
                     threadId: threadId,
                     isLecturer: false,
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -837,9 +838,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'ar',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentArScannerPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -851,9 +852,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'notifications',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentNotificationsPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -864,9 +865,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'about',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentAboutPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -874,9 +875,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'profile',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentProfilePage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -888,27 +889,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'profile-info',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentProfileInfoPage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'academic',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentAcademicInfoPage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'security',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const StudentSecurityPage();
-            },
+            }),
             routes: [
               GoRoute(
                 path: 'change-password',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   // Form ubah kata sandi yang sama dengan dosen; navbar
                   // bawah tidak dibawa karena sub-page profil mahasiswa
                   // yang lain juga tidak membawanya.
@@ -916,7 +917,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     useStudentProfile: true,
                     backFallback: '/student/security',
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -924,13 +925,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // FORGOT PASSWORD (student entry point)
           GoRoute(
             path: 'class-onboarding',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassOnboardingPage(
                 role: ClassOnboardingRole.student,
                 hasExistingClass:
                     state.uri.queryParameters['required'] != '1',
               );
-            },
+            }),
           ),
           //
           // Satu lagi penggunaan [ForgotPasswordPage] yang sama dengan
@@ -940,9 +941,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // cabang /lecturer/forgot-password dibuat.
           GoRoute(
             path: 'forgot-password',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const ForgotPasswordPage();
-            },
+            }),
           ),
         ],
       ),
@@ -952,45 +953,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // =========================================================
       GoRoute(
         path: '/lecturer',
-        builder: (context, state) {
+        pageBuilder: nlPageBuilder((context, state) {
           return const LecturerDashboardPage();
-        },
+        }),
         routes: [
           // -------------------------------------------------------
           // -------------------------------------------------------
           // KELOLA KELAS (v7 Multi-Class LMS)
           GoRoute(
             path: 'class-onboarding',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassOnboardingPage(
                 role: ClassOnboardingRole.lecturer,
                 hasExistingClass:
                     state.uri.queryParameters['required'] != '1',
               );
-            },
+            }),
           ),
           // -------------------------------------------------------
           GoRoute(
             path: 'classes',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerManageClassesPage();
-            },
+            }),
           ),
           GoRoute(
             path: 'classes/create',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerCreateClassPage();
-            },
+            }),
           ),
           GoRoute(
             path: 'classes/archived',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerArchivedClassesPage();
-            },
+            }),
           ),
           GoRoute(
             path: 'classes/:classId',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final classId = state.pathParameters['classId'] ?? '';
               final startWalkthrough =
                   state.uri.queryParameters['walkthrough'] == '1';
@@ -998,24 +999,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 classId: classId,
                 startWalkthrough: startWalkthrough,
               );
-            },
+            }),
             routes: [
               GoRoute(
                 path: 'leaderboard',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final classId = state.pathParameters['classId'];
                   return ClassLeaderboardPage(classId: classId);
-                },
+                }),
               ),
               GoRoute(
                 path: 'discussions',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final classId = state.pathParameters['classId'];
                   return ClassDiscussionPage(
                     classId: classId,
                     isLecturer: true,
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -1026,9 +1027,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
           GoRoute(
             path: 'materials',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerMaterialsPage();
-            },
+            }),
             routes: [
               // ---------------------------------------------------
               // TAMBAH MATERI
@@ -1039,7 +1040,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
               GoRoute(
                 path: 'create',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   return LecturerMaterialFormPage(
                     classId: state.uri.queryParameters['classId'],
                     moduleId: state.uri.queryParameters['moduleId'],
@@ -1047,7 +1048,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                       state.uri.queryParameters['moduleNumber'] ?? '',
                     ),
                   );
-                },
+                }),
               ),
 
               // ---------------------------------------------------
@@ -1061,7 +1062,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // ---------------------------------------------------
               GoRoute(
                 path: ':materialId/view',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final materialId = state.pathParameters['materialId'];
 
                   if (materialId == null || materialId.isEmpty) {
@@ -1074,7 +1075,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     materialId: materialId,
                     fromLecturer: true,
                   );
-                },
+                }),
               ),
 
               // ---------------------------------------------------
@@ -1082,7 +1083,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // ---------------------------------------------------
               GoRoute(
                 path: ':materialId/edit',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final materialId = state.pathParameters['materialId'];
 
                   if (materialId == null || materialId.isEmpty) {
@@ -1092,7 +1093,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return LecturerMaterialFormPage(materialId: materialId);
-                },
+                }),
               ),
             ],
           ),
@@ -1107,7 +1108,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'material/:materialId/pdf',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -1120,7 +1121,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 materialId: materialId,
                 fromLecturer: true,
               );
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1128,13 +1129,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'assessments',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerAssessmentsPage();
-            },
+            }),
             routes: [
               GoRoute(
                 path: ':quizId/questions',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final quizId = state.pathParameters['quizId'];
 
                   if (quizId == null || quizId.isEmpty) {
@@ -1145,7 +1146,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return LecturerQuestionsPage(quizId: quizId);
-                },
+                }),
               ),
 
               // Add a question. A page rather than the modal sheet the list used
@@ -1153,7 +1154,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // writes the row and invalidates the list itself.
               GoRoute(
                 path: ':quizId/questions/create',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final quizId = state.pathParameters['quizId'];
 
                   if (quizId == null || quizId.isEmpty) {
@@ -1164,7 +1165,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return LecturerQuestionFormPage(quizId: quizId);
-                },
+                }),
               ),
 
               // Edit a question. The id is a path parameter rather than an
@@ -1172,7 +1173,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // question from the same assessment it belongs to.
               GoRoute(
                 path: ':quizId/questions/:questionId/edit',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final quizId = state.pathParameters['quizId'];
                   final questionId = state.pathParameters['questionId'];
 
@@ -1190,7 +1191,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     quizId: quizId,
                     questionId: questionId,
                   );
-                },
+                }),
               ),
 
               // ---------------------------------------------------
@@ -1200,15 +1201,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               // Create new task
               GoRoute(
                 path: 'task/create',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   return const LecturerTaskFormPage();
-                },
+                }),
               ),
 
               // Task detail
               GoRoute(
                 path: 'task/:taskId',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final taskId = state.pathParameters['taskId'];
 
                   if (taskId == null || taskId.isEmpty) {
@@ -1218,13 +1219,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return LecturerTaskDetailPage(taskId: taskId);
-                },
+                }),
               ),
 
               // Edit task
               GoRoute(
                 path: 'task/:taskId/edit',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final taskId = state.pathParameters['taskId'];
 
                   if (taskId == null || taskId.isEmpty) {
@@ -1234,7 +1235,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   }
 
                   return LecturerTaskFormPage(taskId: taskId);
-                },
+                }),
               ),
             ],
           ),
@@ -1244,9 +1245,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'video-list',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const VideoListPage();
-            },
+            }),
           ),
 
           // The player itself. Same page as the student side (`VideoPage`);
@@ -1254,7 +1255,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // lecturer off a `/student/video/...` push back to the dashboard.
           GoRoute(
             path: 'video/:materialId',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final materialId = state.pathParameters['materialId'];
 
               if (materialId == null || materialId.isEmpty) {
@@ -1264,7 +1265,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               }
 
               return VideoPage(materialId: materialId);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1279,26 +1280,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // /lecturer; a student opening it is bounced to /student.
           GoRoute(
             path: 'virtual-lab',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               final labBinding = state.extra is MaterialLabBinding
                   ? state.extra as MaterialLabBinding
                   : null;
               return VirtualLabPage(labBinding: labBinding);
-            },
+            }),
           ),
 
           // -------------------------------------------------------
           GoRoute(
             path: 'leaderboard',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassLeaderboardPage(
                 classId: state.uri.queryParameters['classId'],
               );
-            },
+            }),
           ),
           GoRoute(
             path: 'discussions',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return ClassDiscussionPage(
                 classId: state.uri.queryParameters['classId'],
                 initialModuleNumber: int.tryParse(
@@ -1307,17 +1308,17 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 initialMaterialId: state.uri.queryParameters['materialId'],
                 isLecturer: true,
               );
-            },
+            }),
             routes: [
               GoRoute(
                 path: ':threadId',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final threadId = state.pathParameters['threadId'] ?? '';
                   return DiscussionThreadDetailPage(
                     threadId: threadId,
                     isLecturer: true,
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -1330,9 +1331,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // is bounced back to /student.
           GoRoute(
             path: 'ar',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerArScannerPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1340,36 +1341,36 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'profile',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerProfilePage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'profile-info',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerProfileInfoPage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'academic',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerAcademicInfoPage();
-            },
+            }),
           ),
 
           GoRoute(
             path: 'security',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerSecurityPage();
-            },
+            }),
             routes: [
               GoRoute(
                 path: 'change-password',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   return const LecturerChangePasswordPage();
-                },
+                }),
               ),
             ],
           ),
@@ -1383,9 +1384,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'forgot-password',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const ForgotPasswordPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1393,9 +1394,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'about',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerAboutPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1403,9 +1404,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'notifications',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerNotificationsPage();
-            },
+            }),
           ),
 
           // -------------------------------------------------------
@@ -1413,9 +1414,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'students',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerStudentListPage();
-            },
+            }),
 
             // Detail "Rekap Nilai Mahasiswa" untuk satu mahasiswa —
             // pengganti bottom sheet lama yang berisiko overflow di 360dp.
@@ -1424,7 +1425,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             routes: [
               GoRoute(
                 path: ':studentId',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final studentId = state.pathParameters['studentId'] ?? '';
                   if (studentId.isEmpty) {
                     return RouterErrorPage(
@@ -1436,7 +1437,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   return LecturerStudentScoreDetailPage(
                     studentId: studentId,
                   );
-                },
+                }),
               ),
             ],
           ),
@@ -1446,19 +1447,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // -------------------------------------------------------
           GoRoute(
             path: 'announcements',
-            builder: (context, state) {
+            pageBuilder: nlPageBuilder((context, state) {
               return const LecturerAnnouncementListPage();
-            },
+            }),
             routes: [
               GoRoute(
                 path: 'create',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   return const LecturerAnnouncementFormPage();
-                },
+                }),
               ),
               GoRoute(
                 path: ':announcementId/edit',
-                builder: (context, state) {
+                pageBuilder: nlPageBuilder((context, state) {
                   final announcementId = state.pathParameters['announcementId'];
 
                   if (announcementId == null || announcementId.isEmpty) {
@@ -1470,7 +1471,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   return LecturerAnnouncementFormPage(
                     announcementId: announcementId,
                   );
-                },
+                }),
               ),
             ],
           ),

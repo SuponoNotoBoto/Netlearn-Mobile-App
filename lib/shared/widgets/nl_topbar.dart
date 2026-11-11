@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.compact` dari index.css: bar putih setinggi 53px, garis bawah rambut,
 /// tombol kembali di kiri, judul rata kiri, dan area aksi di kanan.
@@ -44,9 +45,12 @@ class NlTopBar extends StatelessWidget implements PreferredSizeWidget {
       // ketika leading tombol kembali memakan 52px.
       leading: onBack == null
           ? null
-          : IconButton(
-              icon: const Icon(Icons.arrow_back, size: 21),
-              onPressed: onBack,
+          : NlTapScale(
+              scaleDown: 0.9,
+              child: IconButton(
+                icon: const Icon(Icons.arrow_back, size: 21),
+                onPressed: onBack,
+              ),
             ),
       leadingWidth: onBack == null ? 0 : 52,
       titleSpacing: onBack == null ? NetLearnSpace.s20 : 0,

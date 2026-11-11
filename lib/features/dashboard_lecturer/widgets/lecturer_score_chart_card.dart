@@ -233,7 +233,7 @@ class _LecturerScoreChartCardState
                 label: isId ? 'Baik / Lulus (70–84)' : 'Good / Pass (70–84)',
                 count: bucketGood,
                 total: totalStudents,
-                color: const Color(0xFF3B82F6),
+                color: const Color(0xFF8C52FF),
               ),
               const SizedBox(height: 6),
               _DistributionRow(

@@ -7,6 +7,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_surface_card.dart';
 import '../profile/public_profile_sheet.dart';
@@ -178,7 +179,10 @@ class _DiscussionThreadDetailPageState
           children: [
             Expanded(
               child: threadAsync.when(
-                loading: () => const Center(child: CircularProgressIndicator()),
+                loading: () => const NlSkeletonDetail(
+                  showBanner: false,
+                  paragraphBlocks: 3,
+                ),
                 error: (_, _) => Center(
                   child: Padding(
                     padding: const EdgeInsets.all(AppSpacing.s24),
@@ -217,9 +221,11 @@ class _DiscussionThreadDetailPageState
                         ),
                         const SizedBox(height: 10),
                         repliesAsync.when(
-                          loading: () => const Padding(
-                            padding: EdgeInsets.all(20),
-                            child: Center(child: CircularProgressIndicator()),
+                          loading: () => const NlSkeletonList(
+                            itemCount: 2,
+                            shrinkWrap: true,
+                            physics: NeverScrollableScrollPhysics(),
+                            padding: EdgeInsets.symmetric(vertical: 8),
                           ),
                           error: (_, _) => Text(
                             isId

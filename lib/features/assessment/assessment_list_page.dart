@@ -8,7 +8,9 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_error_view.dart';
+import '../../shared/widgets/nl_micro_transition.dart';
 import '../../shared/widgets/nl_segmented_tabs.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
@@ -90,9 +92,11 @@ class _AssessmentListPageState extends ConsumerState<AssessmentListPage> {
             // text-button lama di bawah daftar dihapus (sekarang sudah
             // jadi tab).
             Expanded(
-              child: _selectedTab == _historyTab
-                  ? const AssessmentHistoryView()
-                  : _buildCoreTab(context, ref, l10n),
+              child: NlContentTransition(
+                child: _selectedTab == _historyTab
+                    ? const AssessmentHistoryView()
+                    : _buildCoreTab(context, ref, l10n),
+              ),
             ),
           ],
         ),
@@ -124,8 +128,17 @@ class _AssessmentListPageState extends ConsumerState<AssessmentListPage> {
           },
           child: assessmentsAsync.when(
             loading: () {
-              return const Center(
-                child: CircularProgressIndicator(),
+              return ListView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s16,
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s32,
+                ),
+                children: const [
+                  NlSkeletonList(itemCount: 3),
+                ],
               );
             },
             error: (error, stackTrace) {
@@ -494,20 +507,20 @@ class _CustomTaskCard extends StatelessWidget {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3.5),
                             decoration: BoxDecoration(
-                              color: Colors.blueAccent.withValues(alpha: 0.12),
+                              color: const Color(0xFF7E3FF2).withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                const Icon(Icons.assignment_rounded, size: 12, color: Colors.blueAccent),
+                                const Icon(Icons.assignment_rounded, size: 12, color: Color(0xFF7E3FF2)),
                                 const SizedBox(width: 4),
                                 Text(
                                   isId ? 'Tugas Mandiri LMS' : 'LMS Task',
                                   style: const TextStyle(
                                     fontSize: 10.5,
                                     fontWeight: FontWeight.w700,
-                                    color: Colors.blueAccent,
+                                    color: Color(0xFF7E3FF2),
                                   ),
                                 ),
                               ],

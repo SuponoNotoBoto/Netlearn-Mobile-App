@@ -8,7 +8,9 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_surface_card.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
 import 'class_controller.dart';
 import 'class_models.dart';
 
@@ -309,85 +311,89 @@ class LecturerActiveClassBar extends ConsumerWidget {
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
                 children: [
-                  InkWell(
-                    key: const Key('lecturer_switch_class_modal_btn'),
-                    onTap: () => showLecturerClassSwitcherModal(
-                      context,
-                      ref,
-                      classes: classes,
-                      activeClass: activeClass,
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                  NlTapScale(
+                    child: InkWell(
+                      key: const Key('lecturer_switch_class_modal_btn'),
+                      onTap: () => showLecturerClassSwitcherModal(
+                        context,
+                        ref,
+                        classes: classes,
+                        activeClass: activeClass,
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F1FF),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.swap_horiz_rounded,
-                            size: 14,
-                            color: Color(0xFF6C2CE2),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isId
-                                ? 'Pindah (${classes.length})'
-                                : 'Switch (${classes.length})',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F1FF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 14,
                               color: Color(0xFF6C2CE2),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              isId
+                                  ? 'Pindah (${classes.length})'
+                                  : 'Switch (${classes.length})',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF6C2CE2),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  InkWell(
-                    key: const Key('lecturer_active_bar_create_btn'),
-                    onTap: () => context.push('/lecturer/classes/create'),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8C52FF),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x388C52FF),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.add_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isId ? 'Buat Kelas' : l10n.createClassTitle,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                  NlTapScale(
+                    child: InkWell(
+                      key: const Key('lecturer_active_bar_create_btn'),
+                      onTap: () => context.push('/lecturer/classes/create'),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8C52FF),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x388C52FF),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.add_rounded,
+                              size: 14,
                               color: Colors.white,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              isId ? 'Buat Kelas' : l10n.createClassTitle,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -525,104 +531,108 @@ class LecturerActiveClassBar extends ConsumerWidget {
             child: Row(
               children: [
                 Expanded(
-                  child: InkWell(
-                    key: const Key('lecturer_open_leaderboard_btn'),
-                    onTap: () {
-                      selectLecturerActiveClass(ref, activeClass.id);
-                      context.push('/lecturer/classes/${activeClass.id}/leaderboard');
-                    },
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? NetLearnColors.darkApp
-                            : const Color(0xFFFAF8FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark
-                              ? NetLearnColors.darkLine
-                              : const Color(0xFFE9E2FA),
+                  child: NlTapScale(
+                    child: InkWell(
+                      key: const Key('lecturer_open_leaderboard_btn'),
+                      onTap: () {
+                        selectLecturerActiveClass(ref, activeClass.id);
+                        context.push('/lecturer/classes/${activeClass.id}/leaderboard');
+                      },
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 7,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.emoji_events_outlined,
-                            size: 14,
-                            color: Color(0xFF5B2EE8),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? NetLearnColors.darkApp
+                              : const Color(0xFFFAF8FF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark
+                                ? NetLearnColors.darkLine
+                                : const Color(0xFFE9E2FA),
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              isId
-                                  ? 'Leaderboard Kelas'
-                                  : l10n.classTabLeaderboard,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF5B2EE8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.emoji_events_outlined,
+                              size: 14,
+                              color: Color(0xFF5B2EE8),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                isId
+                                    ? 'Leaderboard Kelas'
+                                    : l10n.classTabLeaderboard,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF5B2EE8),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 8),
                 Expanded(
-                  child: InkWell(
-                    key: const Key('lecturer_open_class_settings_btn'),
-                    onTap: () =>
-                        context.push('/lecturer/classes/${activeClass.id}'),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? NetLearnColors.darkApp
-                            : const Color(0xFFFAF8FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark
-                              ? NetLearnColors.darkLine
-                              : const Color(0xFFE9E2FA),
+                  child: NlTapScale(
+                    child: InkWell(
+                      key: const Key('lecturer_open_class_settings_btn'),
+                      onTap: () =>
+                          context.push('/lecturer/classes/${activeClass.id}'),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 7,
                         ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.settings_outlined,
-                            size: 14,
-                            color: Color(0xFF5B2EE8),
+                        decoration: BoxDecoration(
+                          color: isDark
+                              ? NetLearnColors.darkApp
+                              : const Color(0xFFFAF8FF),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: isDark
+                                ? NetLearnColors.darkLine
+                                : const Color(0xFFE9E2FA),
                           ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              isId
-                                  ? 'Pengaturan & Kode'
-                                  : l10n.classManageButton,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF5B2EE8),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(
+                              Icons.settings_outlined,
+                              size: 14,
+                              color: Color(0xFF5B2EE8),
+                            ),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                isId
+                                    ? 'Pengaturan & Kode'
+                                    : l10n.classManageButton,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: Color(0xFF5B2EE8),
+                                ),
                               ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -631,60 +641,62 @@ class LecturerActiveClassBar extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: 8),
-          InkWell(
-            key: const Key('lecturer_open_discussions_btn'),
-            onTap: () {
-              selectLecturerActiveClass(ref, activeClass.id);
-              context.push('/lecturer/discussions?classId=${activeClass.id}');
-            },
-            borderRadius: BorderRadius.circular(10),
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 10,
-                vertical: 7,
-              ),
-              decoration: BoxDecoration(
-                color: isDark
-                    ? NetLearnColors.darkApp
-                    : const Color(0xFFFAF8FF),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: isDark
-                      ? NetLearnColors.darkLine
-                      : const Color(0xFFE9E2FA),
+          NlTapScale(
+            child: InkWell(
+              key: const Key('lecturer_open_discussions_btn'),
+              onTap: () {
+                selectLecturerActiveClass(ref, activeClass.id);
+                context.push('/lecturer/discussions?classId=${activeClass.id}');
+              },
+              borderRadius: BorderRadius.circular(10),
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
                 ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.forum_outlined,
-                    size: 14,
-                    color: Color(0xFF5B2EE8),
+                decoration: BoxDecoration(
+                  color: isDark
+                      ? NetLearnColors.darkApp
+                      : const Color(0xFFFAF8FF),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                    color: isDark
+                        ? NetLearnColors.darkLine
+                        : const Color(0xFFE9E2FA),
                   ),
-                  const SizedBox(width: 6),
-                  Flexible(
-                    child: Text(
-                      isId
-                          ? 'Forum Tanya-Jawab Kelas'
-                          : 'Class Q&A Discussion Forum',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: Color(0xFF5B2EE8),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(
+                      Icons.forum_outlined,
+                      size: 14,
+                      color: Color(0xFF5B2EE8),
+                    ),
+                    const SizedBox(width: 6),
+                    Flexible(
+                      child: Text(
+                        isId
+                            ? 'Forum Tanya-Jawab Kelas'
+                            : 'Class Q&A Discussion Forum',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF5B2EE8),
+                        ),
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 4),
-                  const Icon(
-                    Icons.chevron_right_rounded,
-                    size: 14,
-                    color: Color(0xFF5B2EE8),
-                  ),
-                ],
+                    const SizedBox(width: 4),
+                    const Icon(
+                      Icons.chevron_right_rounded,
+                      size: 14,
+                      color: Color(0xFF5B2EE8),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -769,8 +781,8 @@ class LecturerManageClassSection extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s12),
         classesAsync.when(
           loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.s16),
-            child: Center(child: CircularProgressIndicator()),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+            child: NlSkeletonList(itemCount: 2),
           ),
           error: (_, _) => NlSurfaceCard(
             child: Column(

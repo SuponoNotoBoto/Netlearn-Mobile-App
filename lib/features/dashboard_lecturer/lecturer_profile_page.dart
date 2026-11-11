@@ -10,6 +10,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../profile/avatar_customizer_dialog.dart';
 import 'lecturer_bottom_navbar.dart';
@@ -119,9 +120,7 @@ class LecturerProfilePage extends ConsumerWidget {
       ),
 
       body: profile.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const NlSkeletonProfile(),
 
         error: (error, stackTrace) => NlErrorView(
           message: l10n.failedToLoad,
@@ -460,14 +459,6 @@ class _StatsStripSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 92,
-      decoration: BoxDecoration(
-        color: context.surface,
-        borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        border: Border.all(color: context.border),
-      ),
-      child: const Center(child: CircularProgressIndicator()),
-    );
+    return const NlSkeletonCard(showSubtitle: true, showTrailing: false);
   }
 }

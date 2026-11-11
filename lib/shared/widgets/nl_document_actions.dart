@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.document-actions` dari index.css: sepasang tombol aksi yang lebarnya sama.
 ///
@@ -135,14 +136,17 @@ class _ActionButton extends StatelessWidget {
 
     return Semantics(
       button: true,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(NetLearnRadius.action),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: action.onPressed,
+      child: NlTapScale(
+        scaleDown: 0.96,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(NetLearnRadius.action),
-          child: button,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: action.onPressed,
+            borderRadius: BorderRadius.circular(NetLearnRadius.action),
+            child: button,
+          ),
         ),
       ),
     );

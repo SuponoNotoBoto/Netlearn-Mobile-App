@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_surface_card.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
 import 'class_action_messages.dart';
 import 'class_controller.dart';
 import 'class_models.dart';
@@ -370,86 +371,90 @@ class StudentMyClassesBar extends ConsumerWidget {
                 runSpacing: 6,
                 alignment: WrapAlignment.end,
                 children: [
-                  InkWell(
-                    key: const Key('student_switch_class_modal_btn'),
-                    onTap: () => showStudentClassSwitcherModal(
-                      context,
-                      ref,
-                      classes: classes,
-                      activeClass: activeClass,
-                      onAddClass: () => _openAddClass(context, ref),
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
+                  NlTapScale(
+                    child: InkWell(
+                      key: const Key('student_switch_class_modal_btn'),
+                      onTap: () => showStudentClassSwitcherModal(
+                        context,
+                        ref,
+                        classes: classes,
+                        activeClass: activeClass,
+                        onAddClass: () => _openAddClass(context, ref),
                       ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF5F1FF),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.swap_horiz_rounded,
-                            size: 14,
-                            color: Color(0xFF6C2CE2),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isId
-                                ? 'Pindah (${classes.length})'
-                                : 'Switch (${classes.length})',
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF5F1FF),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.swap_horiz_rounded,
+                              size: 14,
                               color: Color(0xFF6C2CE2),
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              isId
+                                  ? 'Pindah (${classes.length})'
+                                  : 'Switch (${classes.length})',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Color(0xFF6C2CE2),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
-                  InkWell(
-                    key: const Key('student_join_class_btn'),
-                    onTap: () => _openAddClass(context, ref),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF8C52FF),
-                        borderRadius: BorderRadius.circular(10),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x388C52FF),
-                            blurRadius: 10,
-                            offset: Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(
-                            Icons.add_rounded,
-                            size: 14,
-                            color: Colors.white,
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            isId ? 'Gabung Kode' : l10n.studentJoinClassAction,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
+                  NlTapScale(
+                    child: InkWell(
+                      key: const Key('student_join_class_btn'),
+                      onTap: () => _openAddClass(context, ref),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF8C52FF),
+                          borderRadius: BorderRadius.circular(10),
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x388C52FF),
+                              blurRadius: 10,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(
+                              Icons.add_rounded,
+                              size: 14,
                               color: Colors.white,
                             ),
-                          ),
-                        ],
+                            const SizedBox(width: 4),
+                            Text(
+                              isId ? 'Gabung Kode' : l10n.studentJoinClassAction,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -657,10 +662,66 @@ class StudentMyClassesBar extends ConsumerWidget {
               children: [
                 if (leaderboardOn) ...[
                   Expanded(
+                    child: NlTapScale(
+                      child: InkWell(
+                        key: leaderboardButtonKey ??
+                            const Key('student_open_leaderboard_btn'),
+                        onTap: () => context.push('/student/leaderboard'),
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 7,
+                          ),
+                          decoration: BoxDecoration(
+                            color: isDark
+                                ? NetLearnColors.darkApp
+                                : const Color(0xFFFAF8FF),
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(
+                              color: isDark
+                                  ? NetLearnColors.darkLine
+                                  : const Color(0xFFE9E2FA),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Icon(
+                                Icons.emoji_events_outlined,
+                                size: 14,
+                                color: Color(0xFF5B2EE8),
+                              ),
+                              const SizedBox(width: 4),
+                              Flexible(
+                                child: Text(
+                                  isId
+                                      ? 'Leaderboard Kelas'
+                                      : l10n.classTabLeaderboard,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF5B2EE8),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                ],
+                Expanded(
+                  child: NlTapScale(
                     child: InkWell(
-                      key: leaderboardButtonKey ??
-                          const Key('student_open_leaderboard_btn'),
-                      onTap: () => context.push('/student/leaderboard'),
+                      key: const Key('student_open_discussions_btn'),
+                      onTap: () => context.push(
+                        '/student/discussions?classId=${activeClass.id}',
+                      ),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(
                         padding: const EdgeInsets.symmetric(
@@ -682,16 +743,14 @@ class StudentMyClassesBar extends ConsumerWidget {
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
                             const Icon(
-                              Icons.emoji_events_outlined,
+                              Icons.forum_outlined,
                               size: 14,
                               color: Color(0xFF5B2EE8),
                             ),
                             const SizedBox(width: 4),
                             Flexible(
                               child: Text(
-                                isId
-                                    ? 'Leaderboard Kelas'
-                                    : l10n.classTabLeaderboard,
+                                isId ? 'Forum Diskusi' : 'Q&A Forum',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
@@ -703,56 +762,6 @@ class StudentMyClassesBar extends ConsumerWidget {
                             ),
                           ],
                         ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                ],
-                Expanded(
-                  child: InkWell(
-                    key: const Key('student_open_discussions_btn'),
-                    onTap: () => context.push(
-                      '/student/discussions?classId=${activeClass.id}',
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 7,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isDark
-                            ? NetLearnColors.darkApp
-                            : const Color(0xFFFAF8FF),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: isDark
-                              ? NetLearnColors.darkLine
-                              : const Color(0xFFE9E2FA),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.forum_outlined,
-                            size: 14,
-                            color: Color(0xFF5B2EE8),
-                          ),
-                          const SizedBox(width: 4),
-                          Flexible(
-                            child: Text(
-                              isId ? 'Forum Diskusi' : 'Q&A Forum',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                color: Color(0xFF5B2EE8),
-                              ),
-                            ),
-                          ),
-                        ],
                       ),
                     ),
                   ),

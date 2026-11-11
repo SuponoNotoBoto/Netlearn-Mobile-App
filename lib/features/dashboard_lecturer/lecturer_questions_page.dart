@@ -8,6 +8,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import 'ai_question_generator_dialog.dart';
@@ -76,8 +77,9 @@ class LecturerQuestionsPage extends ConsumerWidget {
       ),
 
       body: questions.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
+        loading: () => const NlSkeletonList(
+          itemCount: 4,
+          padding: EdgeInsets.all(NetLearnSpace.s20),
         ),
 
         error: (error, stackTrace) => Center(

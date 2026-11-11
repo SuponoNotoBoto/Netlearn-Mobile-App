@@ -11,6 +11,7 @@ import '../../shared/models/material_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_section_heading.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/nl_unavailable_notice.dart';
@@ -74,9 +75,7 @@ class MaterialDetailPage extends ConsumerWidget {
           onBack: () => goBack(context, fallback: backFallback),
         ),
         body: materialAsync.when(
-          loading: () => const Center(
-            child: CircularProgressIndicator(),
-          ),
+          loading: () => const NlSkeletonDetail(),
           error: (error, stackTrace) => NlErrorView(
             message: l10n.failedToLoad,
             onRetry: () {

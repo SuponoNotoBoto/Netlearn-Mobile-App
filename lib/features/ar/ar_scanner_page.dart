@@ -11,6 +11,7 @@ import 'package:ar_flutter_plugin_plus/widgets/ar_view.dart';
 
 import '../../l10n/app_localizations.dart';
 import '../achievements/achievement_service.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import '../dashboard_lecturer/lecturer_bottom_navbar.dart';
 import 'ar_lab_panel.dart';
@@ -1004,7 +1005,11 @@ class _ObjectInfoCard extends StatelessWidget {
   }
 }
 
-/// Control button for top bar (back, help)
+/// Control button for top bar (back, sound, refresh, how to scan marker).
+///
+/// Drawn on top of the live camera feed, so it always uses high-contrast white
+/// iconography over a dark translucent pill with a crisp light border so every
+/// control stays clearly visible regardless of light/dark camera scenery.
 class _ControlButton extends StatelessWidget {
   final IconData icon;
   final VoidCallback onTap;
@@ -1018,31 +1023,38 @@ class _ControlButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final color = isDark ? Colors.white : Colors.black;
-
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(24),
-          child: Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: (isDark ? Colors.white : Colors.black).withValues(alpha: 0.15),
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: color.withValues(alpha: 0.3),
-                width: 1.5,
+      child: NlTapScale(
+        scaleDown: 0.92,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(24),
+            child: Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xB8181424),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.45),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.35),
+                    blurRadius: 8,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
               ),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 24,
+              child: Icon(
+                icon,
+                color: Colors.white,
+                size: 24,
+              ),
             ),
           ),
         ),

@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/models/announcement_model.dart';
 import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../classes/class_controller.dart';
@@ -189,7 +190,10 @@ class _LecturerAnnouncementListPageState
           ],
           Expanded(
             child: announcementsAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const NlSkeletonList(
+                itemCount: 4,
+                padding: EdgeInsets.all(20),
+              ),
               error: (error, stackTrace) => Center(
                 child: Padding(
                   padding: const EdgeInsets.all(24),

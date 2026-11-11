@@ -15,6 +15,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/models/learning_flow_status_model.dart';
 import '../../shared/services/student_service.dart';
 import '../../shared/utils/youtube_link.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import '../classes/class_controller.dart';
@@ -472,7 +473,7 @@ class _VideoPageState extends ConsumerState<VideoPage> {
 
   Widget _buildBody(String localizedTitle, String localizedDescription) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const NlSkeletonDetail(showBanner: true, paragraphBlocks: 2);
     }
 
     if (_errorReason != null) {

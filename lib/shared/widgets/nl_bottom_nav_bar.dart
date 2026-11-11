@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.bottom-nav` dari index.css: bar navigasi bawah lima slot.
 ///
@@ -178,55 +179,63 @@ class NlNavItem extends StatelessWidget {
       // Tanpa ini, `Text` di dalam `InkWell` ikut menyumbang label yang sama
       // dan node hasilnya berbunyi "Dashboard\nDashboard".
       excludeSemantics: true,
-      child: InkWell(
-        onTap: onTap,
-        // `InkSparkle` bawaan Material 3 memuat shader dari aset dan tidak ada di
-        // lingkungan `flutter test`, jadi setiap ketukan di bar akan melempar
-        // `Asset 'shaders/ink_sparkle.frag' not found`. `InkRipple` memberi umpan
-        // balik yang sama tanpa aset shader, dan ini juga bawaan Material pada
-        // tema non-Android.
+      child: NlTapScale(
+        scaleDown: 0.92,
+        child: InkWell(
+          onTap: onTap,
+          // `InkSparkle` bawaan Material 3 memuat shader dari aset dan tidak ada di
+          // lingkungan `flutter test`, jadi setiap ketukan di bar akan melempar
+          // `Asset 'shaders/ink_sparkle.frag' not found`. `InkRipple` memberi umpan
+          // balik yang sama tanpa aset shader, dan ini juga bawaan Material pada
+          // tema non-Android.
 
-        splashFactory: InkRipple.splashFactory,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              height: iconSlotHeight,
-              child: Icon(selected ? activeIcon : icon, size: 22, color: color),
-            ),
-
-            const SizedBox(height: _iconLabelGap),
-
-            // Titik indikator digambar sebagai Stack di dalam label, bukan
-            // sebagai elemen layout, supaya `bottom:-7px` benar-benar menggambar
-            // di bawah label tanpa menambah tinggi bar.
-            Stack(
-              clipBehavior: Clip.none,
-              alignment: Alignment.center,
-              children: [
-                Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: labelStyle,
+          splashFactory: InkRipple.splashFactory,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SizedBox(
+                height: iconSlotHeight,
+                child: AnimatedScale(
+                  scale: selected ? 1.06 : 1.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOutCubic,
+                  child: Icon(selected ? activeIcon : icon, size: 22, color: color),
                 ),
+              ),
 
-                if (selected)
-                  Positioned(
-                    bottom: -_dotOffset,
-                    child: Container(
-                      width: _dotSize,
-                      height: _dotSize,
-                      decoration: BoxDecoration(
-                        color: active,
-                        shape: BoxShape.circle,
+              const SizedBox(height: _iconLabelGap),
+
+              // Titik indikator digambar sebagai Stack di dalam label, bukan
+              // sebagai elemen layout, supaya `bottom:-7px` benar-benar menggambar
+              // di bawah label tanpa menambah tinggi bar.
+              Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: labelStyle,
+                  ),
+
+                  if (selected)
+                    Positioned(
+                      bottom: -_dotOffset,
+                      child: Container(
+                        width: _dotSize,
+                        height: _dotSize,
+                        decoration: BoxDecoration(
+                          color: active,
+                          shape: BoxShape.circle,
+                        ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-          ],
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -291,65 +300,68 @@ class _CenterAction extends StatelessWidget {
           onTap: onTap,
           // Sama seperti [NlNavItem]: mencegah label terbaca dua kali.
           excludeSemantics: true,
-          child: InkWell(
-            // `InkWell`, bukan `GestureDetector`: versi lama tidak bisa
-            // difokuskan dari keyboard maupun dijangkau TalkBack.
-            onTap: onTap,
-            // Lihat catatan `splashFactory` di [NlNavItem].
-            splashFactory: InkRipple.splashFactory,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.end,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: circleSize,
-                  height: circleSize,
-                  decoration: BoxDecoration(
-                    // `.center-nav>span` = `background:#8c52ff`
-                    color: NetLearnColors.primary,
-                    shape: BoxShape.circle,
-                    // Cincin mengikuti warna bar tepat di belakangnya supaya
-                    // terbaca sebagai celah, bukan sebagai warna kedua.
-                    // `index.css` menulis `#f4f5fa`; memakai warna bar memberi
-                    // hasil visual yang sama di terang dan benar di gelap.
-                    border: Border.all(
-                      color: context.surface,
-                      width: ringWidth,
+          child: NlTapScale(
+            scaleDown: 0.92,
+            child: InkWell(
+              // `InkWell`, bukan `GestureDetector`: versi lama tidak bisa
+              // difokuskan dari keyboard maupun dijangkau TalkBack.
+              onTap: onTap,
+              // Lihat catatan `splashFactory` di [NlNavItem].
+              splashFactory: InkRipple.splashFactory,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.end,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: circleSize,
+                    height: circleSize,
+                    decoration: BoxDecoration(
+                      // `.center-nav>span` = `background:#8c52ff`
+                      color: NetLearnColors.primary,
+                      shape: BoxShape.circle,
+                      // Cincin mengikuti warna bar tepat di belakangnya supaya
+                      // terbaca sebagai celah, bukan sebagai warna kedua.
+                      // `index.css` menulis `#f4f5fa`; memakai warna bar memberi
+                      // hasil visual yang sama di terang dan benar di gelap.
+                      border: Border.all(
+                        color: context.surface,
+                        width: ringWidth,
+                      ),
+                      // `box-shadow:0 3px 8px #4e33c820`
+                      boxShadow: NetLearnShadows.navCenter,
                     ),
-                    // `box-shadow:0 3px 8px #4e33c820`
-                    boxShadow: NetLearnShadows.navCenter,
+                    child: Icon(
+                      Icons.view_in_ar_rounded,
+                      color: NetLearnColors.white,
+                      size: iconSize,
+                    ),
                   ),
-                  child: Icon(
-                    Icons.view_in_ar_rounded,
-                    color: NetLearnColors.white,
-                    size: iconSize,
-                  ),
-                ),
 
-                // `gap:6px` milik `.center-nav`
-                const SizedBox(height: NetLearnSpace.s6),
+                  // `gap:6px` milik `.center-nav`
+                  const SizedBox(height: NetLearnSpace.s6),
 
-                // Label dikunci pada skala teks platform. Alasannya nilai, bukan
-                // selera: tinggi isi bar hanya 69px (`height:73px` dikurangi
-                // `padding-top:4px`), sedangkan lingkaran 52px dan jarak 6px
-                // sudah memakai 58px. Pada text scale 1.3 label 9px tumbuh jadi
-                // sekitar 11.7px sehingga kolom jadi 69.7px dan meluber 1px.
-                //
-                // Menghapus kunci ini akan mengembalikan overflow yang sama, dan
-                // menaikkan tinggi bar akan mengubah sisa layout. Label ini
-                // sekunder secara visual -- tombol besarnya yang menentukan --
-                // dan tetap terbaca utuh oleh pembaca layar karena yang dikirim
-                // ke Semantics adalah stringnya, bukan teks yang diskalakan.
-                // Pola yang sama dipakai `NlLanguageRow`.
-                MediaQuery.withNoTextScaling(
-                  child: Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.clip,
-                    style: labelStyle,
+                  // Label dikunci pada skala teks platform. Alasannya nilai, bukan
+                  // selera: tinggi isi bar hanya 69px (`height:73px` dikurangi
+                  // `padding-top:4px`), sedangkan lingkaran 52px dan jarak 6px
+                  // sudah memakai 58px. Pada text scale 1.3 label 9px tumbuh jadi
+                  // sekitar 11.7px sehingga kolom jadi 69.7px dan meluber 1px.
+                  //
+                  // Menghapus kunci ini akan mengembalikan overflow yang sama, dan
+                  // menaikkan tinggi bar akan mengubah sisa layout. Label ini
+                  // sekunder secara visual -- tombol besarnya yang menentukan --
+                  // dan tetap terbaca utuh oleh pembaca layar karena yang dikirim
+                  // ke Semantics adalah stringnya, bukan teks yang diskalakan.
+                  // Pola yang sama dipakai `NlLanguageRow`.
+                  MediaQuery.withNoTextScaling(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.clip,
+                      style: labelStyle,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

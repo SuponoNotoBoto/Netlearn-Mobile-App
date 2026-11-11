@@ -11,6 +11,7 @@ import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_score_ring.dart';
 import '../../shared/widgets/nl_section_heading.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
@@ -284,9 +285,7 @@ class AssessmentResultView extends StatelessWidget {
     final l10n = AppLocalizations.of(context)!;
 
     if (isLoading) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const NlSkeletonDetail(showBanner: true, paragraphBlocks: 2);
     }
 
     if (errorMessage != null) {

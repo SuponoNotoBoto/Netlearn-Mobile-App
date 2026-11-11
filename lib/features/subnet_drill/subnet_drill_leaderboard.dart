@@ -6,6 +6,7 @@ import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../profile/public_profile_sheet.dart';
 
 class SubnetDrillScore {
@@ -427,7 +428,10 @@ class _SubnetDrillLeaderboardSheetState extends State<_SubnetDrillLeaderboardShe
                 future: _future,
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const NlSkeletonList(
+                      itemCount: 4,
+                      padding: EdgeInsets.all(20),
+                    );
                   }
 
                   final scores = snapshot.data ?? [];

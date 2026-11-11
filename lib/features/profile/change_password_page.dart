@@ -8,6 +8,7 @@ import '../dashboard_lecturer/lecturer_dashboard_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_field.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import 'student_profile_controller.dart';
 
@@ -169,7 +170,10 @@ class _ChangePasswordPageState extends ConsumerState<ChangePasswordPage> {
     }
 
     return profile.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const NlSkeletonDetail(
+        showBanner: false,
+        paragraphBlocks: 2,
+      ),
       error: (error, stackTrace) => NlErrorView(
         message: l10n.failedToLoad,
         onRetry: invalidate,
@@ -460,7 +464,7 @@ class _ChangePasswordForm extends StatelessWidget {
                         : const Icon(Icons.check_rounded, size: 17),
                     label: Text(l10n.saveChanges),
                     style: FilledButton.styleFrom(
-                      backgroundColor: const Color(0xFF543CD1),
+                      backgroundColor: context.accent,
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
@@ -478,7 +482,7 @@ class _ChangePasswordForm extends StatelessWidget {
                     child: Text(
                       l10n.cancel,
                       style: TextStyle(
-                        color: const Color(0xFF543CD1),
+                        color: context.accent,
                         fontSize: 11,
                       ),
                     ),

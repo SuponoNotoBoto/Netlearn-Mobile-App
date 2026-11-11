@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.module-row` dari index.css: satu baris modul yang bisa disentuh.
 ///
@@ -192,13 +193,16 @@ class NlModuleRow extends StatelessWidget {
       return body;
     }
 
-    return Material(
-      color: Colors.transparent,
-      borderRadius: BorderRadius.circular(NetLearnRadius.card),
-      child: InkWell(
-        onTap: onTap,
+    return NlTapScale(
+      scaleDown: 0.98,
+      child: Material(
+        color: Colors.transparent,
         borderRadius: BorderRadius.circular(NetLearnRadius.card),
-        child: body,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(NetLearnRadius.card),
+          child: body,
+        ),
       ),
     );
   }

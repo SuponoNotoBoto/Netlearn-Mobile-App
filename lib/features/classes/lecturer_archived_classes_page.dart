@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_surface_card.dart';
 import '../dashboard_lecturer/lecturer_bottom_navbar.dart';
 import 'class_action_messages.dart';
@@ -24,7 +25,10 @@ class LecturerArchivedClassesPage extends ConsumerWidget {
       ),
       body: SafeArea(
         child: archivedAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => const NlSkeletonList(
+            itemCount: 3,
+            padding: EdgeInsets.all(AppSpacing.s20),
+          ),
           error: (_, _) => Center(child: Text(l10n.couldNotLoadData)),
           data: (classes) {
             if (classes.isEmpty) {

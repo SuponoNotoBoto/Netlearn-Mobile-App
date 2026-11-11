@@ -9,6 +9,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_spacing.dart';
 import '../../../core/theme/app_theme.dart';
 import '../../../core/theme/app_typography.dart';
+import '../../../shared/widgets/nl_skeleton.dart';
 import '../../../shared/widgets/nl_surface_card.dart';
 import '../../classes/class_controller.dart';
 import '../../profile/public_profile_sheet.dart';
@@ -227,7 +228,10 @@ class _OverallVirtualLabList extends StatelessWidget {
       future: VirtualLabLeaderboardService.getOverallScores(classId: classId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const NlSkeletonList(
+            itemCount: 4,
+            padding: EdgeInsets.all(AppSpacing.s20),
+          );
         }
 
         final list = snapshot.data ?? [];
@@ -555,7 +559,10 @@ class _MissionSpecificVirtualLabList extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const NlSkeletonList(
+            itemCount: 4,
+            padding: EdgeInsets.all(AppSpacing.s20),
+          );
         }
 
         final list = snapshot.data ?? [];

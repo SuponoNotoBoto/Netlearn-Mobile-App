@@ -9,6 +9,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_material_thumbnail.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
@@ -51,13 +52,14 @@ class StudentMaterialsPage extends ConsumerWidget {
           loading: () {
             return ListView(
               physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                NetLearnSpace.s20,
+                NetLearnSpace.s20,
+                NetLearnSpace.s20,
+                NetLearnSpace.s32,
+              ),
               children: const [
-                SizedBox(
-                  height: 260,
-                  child: Center(
-                    child: CircularProgressIndicator(),
-                  ),
-                ),
+                NlSkeletonList(itemCount: 4),
               ],
             );
           },

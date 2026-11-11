@@ -9,6 +9,7 @@ import '../../core/router/safe_back.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/nl_unavailable_notice.dart';
@@ -290,7 +291,7 @@ class _PdfViewerPageState extends ConsumerState<PdfViewerPage> {
 
   Widget _buildBody(AppLocalizations l10n) {
     if (_isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const NlSkeletonDetail(showBanner: false, paragraphBlocks: 4);
     }
 
     if (_missingPdf) {

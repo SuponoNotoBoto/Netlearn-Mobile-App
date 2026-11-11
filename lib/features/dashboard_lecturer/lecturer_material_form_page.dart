@@ -11,6 +11,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/models/material_model.dart';
 import '../../shared/widgets/nl_field.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../classes/class_controller.dart';
 import '../classes/class_models.dart';
@@ -657,8 +658,9 @@ class _LecturerMaterialFormPageState
       ),
 
       body: materialsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
+        loading: () => const NlSkeletonDetail(
+          showBanner: false,
+          paragraphBlocks: 3,
         ),
 
         error: (error, stackTrace) => Center(
@@ -1628,7 +1630,7 @@ class _SaveButton extends StatelessWidget {
       child: FilledButton.icon(
         onPressed: loading ? null : onPressed,
         style: FilledButton.styleFrom(
-          backgroundColor: const Color(0xFF543CD1),
+          backgroundColor: NetLearnColors.primary,
           foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

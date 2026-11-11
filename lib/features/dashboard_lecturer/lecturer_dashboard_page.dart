@@ -8,9 +8,11 @@ import '../../core/notifications/announcement_read_store.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_metric_grid.dart';
+import '../../shared/widgets/nl_micro_transition.dart';
 import '../../shared/widgets/nl_notification_bell.dart';
 import '../../shared/widgets/nl_promo_banner.dart';
 import '../../shared/widgets/nl_shortcut_tile.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 // class imports
 // class imports
 import '../classes/class_controller.dart';
@@ -146,18 +148,20 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
 
                         // Recent Activities — placeholder jujur; diganti
                         // feed aktivitas nyata saat backend tersedia.
-                        statsAsync.when(
-                          loading: () => _buildRecentActivitiesShell(
-                            context,
-                            const _ProgressSkeleton(),
+                        NlContentTransition(
+                          child: statsAsync.when(
+                            loading: () => _buildRecentActivitiesShell(
+                              context,
+                              const _ProgressSkeleton(),
+                            ),
+                            error: (error, stackTrace) =>
+                                _buildRecentActivitiesShell(
+                                  context,
+                                  _StatsError(onRetry: _refresh),
+                                ),
+                            data: (stats) =>
+                                _buildRecentActivities(context, stats),
                           ),
-                          error: (error, stackTrace) =>
-                              _buildRecentActivitiesShell(
-                                context,
-                                _StatsError(onRetry: _refresh),
-                              ),
-                          data: (stats) =>
-                              _buildRecentActivities(context, stats),
                         ),
 
                       ]),
@@ -741,13 +745,9 @@ class _ProgressSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Tinggi mendekati dua panel NlProgressSummary terisi supaya isi halaman
-    // tidak melompat jauh saat data tiba. Satu indikator cukup: menaruh dua
-    // spinner bertumpuk terbaca seperti panel yang macet.
-    return const SizedBox(
-      height: 200,
-      child: Card(child: Center(child: CircularProgressIndicator())),
-    );
+    // Tinggi mendekati panel aktivitas terisi supaya isi halaman
+    // tidak melompat jauh saat data tiba.
+    return const NlNotificationsPreviewSkeleton(rows: 3);
   }
 }
 

@@ -13,6 +13,7 @@ import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_mcq_option.dart';
 import '../../shared/widgets/nl_section_heading.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import 'assessment_controller.dart';
@@ -529,9 +530,7 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
           title: _fallbackTitle(l10n),
           onBack: () => goBack(context, fallback: '/student/assessment'),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const NlSkeletonDetail(showBanner: false, paragraphBlocks: 3),
       );
     }
 
@@ -564,9 +563,7 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
           title: _fallbackTitle(l10n),
           onBack: () => goBack(context, fallback: '/student/assessment'),
         ),
-        body: const Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: const NlSkeletonDetail(showBanner: false, paragraphBlocks: 3),
       );
     }
 

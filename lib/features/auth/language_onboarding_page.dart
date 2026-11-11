@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/localization/language_controller.dart';
+import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 
 /// Signature of the confirm callback fired by
@@ -66,14 +67,14 @@ class _LanguageOnboardingFormState
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFFF0EEFC),
+            color: NetLearnColors.purple100,
             borderRadius: BorderRadius.circular(18),
           ),
           alignment: Alignment.center,
-          child: Icon(
+          child: const Icon(
             Icons.translate_rounded,
             size: 22,
-            color: const Color(0xFF543CD1),
+            color: NetLearnColors.primary,
           ),
         ),
         const SizedBox(height: 18),
@@ -132,7 +133,7 @@ class _LanguageOnboardingFormState
           child: ElevatedButton(
             onPressed: _continue,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF543CD1),
+              backgroundColor: NetLearnColors.primary,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
@@ -202,11 +203,11 @@ class _LanguageCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(15),
           decoration: BoxDecoration(
-            color: isSelected ? const Color(0xFFEFEBFC) : Colors.white,
+            color: isSelected ? NetLearnColors.purple100 : Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected
-                  ? const Color(0xFF7358D8)
+                  ? NetLearnColors.primary
                   : const Color(0xFFE3E4ED),
             ),
           ),
@@ -217,11 +218,11 @@ class _LanguageCard extends StatelessWidget {
                 width: 29,
                 height: 29,
                 decoration: BoxDecoration(
-                  color: isSelected ? const Color(0xFF543CD1) : Colors.white,
+                  color: isSelected ? NetLearnColors.primary : Colors.white,
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
                     color: isSelected
-                        ? const Color(0xFF543CD1)
+                        ? NetLearnColors.primary
                         : const Color(0xFFE6E6EF),
                   ),
                 ),
@@ -251,7 +252,7 @@ class _LanguageCard extends StatelessWidget {
                         fontSize: 13,
                         letterSpacing: -0.25,
                         color: isSelected
-                            ? const Color(0xFF543CD1)
+                            ? NetLearnColors.primary
                             : const Color(0xFF1A1D26),
                       ),
                     ),
@@ -273,7 +274,7 @@ class _LanguageCard extends StatelessWidget {
                 Icon(
                   Icons.check_rounded,
                   size: 19,
-                  color: const Color(0xFF543CD1),
+                  color: NetLearnColors.primary,
                 ),
             ],
           ),

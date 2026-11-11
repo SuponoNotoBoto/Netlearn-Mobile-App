@@ -8,6 +8,7 @@ import '../../features/dashboard_lecturer/announcement_controller.dart';
 import '../../features/dashboard_lecturer/notification_controller.dart';
 import '../../features/notifications/notification_widgets.dart';
 import '../../l10n/app_localizations.dart';
+import 'nl_skeleton.dart';
 import 'nl_snack_bar.dart';
 import '../../shared/models/announcement_model.dart';
 import '../../shared/models/reminder_model.dart';
@@ -211,11 +212,9 @@ class _AnnouncementsTab extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return announcementsAsync.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
-        ),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: NlNotificationsPreviewSkeleton(count: 2),
       ),
       error: (error, stackTrace) => Center(
         child: Padding(
@@ -358,11 +357,9 @@ class _LecturerRemindersTab extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return ref.watch(lecturerMissingAssessmentRemindersProvider).when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
-        ),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: NlNotificationsPreviewSkeleton(count: 2),
       ),
       error: (error, stackTrace) => Center(
         child: Padding(
@@ -427,11 +424,9 @@ class _RemindersTab extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
 
     return remindersAsync.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(32),
-          child: CircularProgressIndicator(),
-        ),
+      loading: () => const Padding(
+        padding: EdgeInsets.all(16),
+        child: NlNotificationsPreviewSkeleton(count: 2),
       ),
       error: (error, stackTrace) => Center(
         child: Padding(

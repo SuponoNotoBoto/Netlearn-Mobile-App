@@ -4,6 +4,7 @@ import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/avatar/nl_avatar_widget.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'nl_tap_scale.dart';
 
 /// Profile building blocks shared by the student and lecturer profile pages.
 ///
@@ -201,10 +202,12 @@ class NlProfileHeader extends StatelessWidget {
                 ),
               ),
               if (onEditAvatar != null)
-                InkWell(
-                  key: customizeAvatarKey ??
-                      const Key('profile_customize_avatar_btn'),
-                  onTap: onEditAvatar,
+                NlTapScale(
+                  scaleDown: 0.95,
+                  child: InkWell(
+                    key: customizeAvatarKey ??
+                        const Key('profile_customize_avatar_btn'),
+                    onTap: onEditAvatar,
                   borderRadius: BorderRadius.circular(999),
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -242,6 +245,7 @@ class NlProfileHeader extends StatelessWidget {
                       ],
                     ),
                   ),
+                ),
                 ),
             ],
           ),
@@ -665,10 +669,13 @@ class NlProfileMenuRow extends StatelessWidget {
     final bgColor = NetLearnAccents.tintBackgrounds[tintIndex];
     final fgColor = NetLearnAccents.tintForegrounds[tintIndex];
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: type == NlProfileMenuRowType.navigation ? onTap : null,
+    return NlTapScale(
+      enabled: type == NlProfileMenuRowType.navigation,
+      scaleDown: 0.98,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: type == NlProfileMenuRowType.navigation ? onTap : null,
         borderRadius: BorderRadius.circular(NetLearnRadius.card),
         child: Container(
           padding: const EdgeInsets.symmetric(
@@ -735,6 +742,7 @@ class NlProfileMenuRow extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 

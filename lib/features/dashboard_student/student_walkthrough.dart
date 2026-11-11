@@ -152,7 +152,7 @@ class StudentWalkthroughManager {
       NlWalkthroughStep(
         targetKey: StudentWalkthroughKeys.materiTileKey,
         icon: Icons.menu_book_rounded,
-        accentColor: const Color(0xFF2563EB),
+        accentColor: const Color(0xFF8C52FF),
         highlightPadding: const EdgeInsets.all(6),
         highlightRadius: 16,
         title: isId ? 'Materi Pembelajaran' : 'Learning Materials',

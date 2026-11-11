@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// Card surface following `design.md` ("Design System Token Specs"):
 /// - Standard card: `--bg-card-container` (`#FFFFFF`), `--radius-md` (`16px`),
@@ -60,12 +61,15 @@ class NlSurfaceCard extends StatelessWidget {
       return content;
     }
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: radius,
-        onTap: onTap,
-        child: content,
+    return NlTapScale(
+      scaleDown: 0.98,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: radius,
+          onTap: onTap,
+          child: content,
+        ),
       ),
     );
   }

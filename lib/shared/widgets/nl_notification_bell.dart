@@ -6,6 +6,7 @@ import '../../core/notifications/announcement_unread.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/dashboard_lecturer/notification_controller.dart';
 import '../models/announcement_model.dart';
+import 'nl_tap_scale.dart';
 
 final _bellUserIdProvider = Provider<String?>((ref) {
   try {
@@ -48,12 +49,14 @@ class NlNotificationBell extends ConsumerWidget {
 
     return Tooltip(
       message: tooltip,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
-          customBorder: const CircleBorder(),
-          child: Container(
+      child: NlTapScale(
+        scaleDown: 0.92,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
@@ -109,6 +112,7 @@ class NlNotificationBell extends ConsumerWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

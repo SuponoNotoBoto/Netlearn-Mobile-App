@@ -27,6 +27,7 @@ import '../netbot/netbot_chat_sheet.dart';
 import '../netbot/netbot_models.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 
 // Redesign v1.2 mengikuti desain Figma "Virtual Lab" (file JR7kY4bvGkLTTod6qNblsx,
@@ -4056,7 +4057,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
             // Tab Content
             Expanded(
               child: _loading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const NlSkeletonList(
+                      itemCount: 3,
+                      padding: EdgeInsets.all(16),
+                    )
                   : _activeTab == 0
                       ? _buildSavedListTab(isEn)
                       : _buildSaveFormTab(isEn),

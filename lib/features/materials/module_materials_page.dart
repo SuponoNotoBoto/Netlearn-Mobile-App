@@ -11,6 +11,7 @@ import '../../shared/models/learning_progress_model.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_material_thumbnail.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
@@ -63,7 +64,18 @@ class ModuleMaterialsPage extends ConsumerWidget {
       ),
 
       body: isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.fromLTRB(
+                NetLearnSpace.s20,
+                NetLearnSpace.s20,
+                NetLearnSpace.s20,
+                NetLearnSpace.s32,
+              ),
+              children: const [
+                NlSkeletonList(itemCount: 4),
+              ],
+            )
           : hasError
               ? ListView(
                   physics: const AlwaysScrollableScrollPhysics(),

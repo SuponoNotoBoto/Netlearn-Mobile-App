@@ -7,6 +7,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/models/student_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import 'lecturer_ai_service.dart';
 import 'lecturer_bottom_navbar.dart';
@@ -43,7 +44,10 @@ class LecturerStudentScoreDetailPage extends ConsumerWidget {
       bottomNavigationBar:
           LecturerBottomNavbar(currentIndex: _LecturerStudentListNav.profileNavIndex),
       body: studentsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const NlSkeletonList(
+          itemCount: 4,
+          padding: EdgeInsets.all(NetLearnSpace.s20),
+        ),
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(NetLearnSpace.s24),

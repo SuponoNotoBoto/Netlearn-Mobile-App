@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/utils/youtube_link.dart';
 import '../../shared/widgets/nl_empty_state.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../classes/class_controller.dart';
 import '../classes/class_models.dart';
@@ -348,7 +349,13 @@ class VideoListPage extends ConsumerWidget {
           await ref.read(videoListProvider.future);
         },
         child: videosAsync.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
+          loading: () => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
+            children: const [
+              NlSkeletonList(itemCount: 4),
+            ],
+          ),
           error: (error, stackTrace) => _ErrorView(
             onRetry: () => ref.invalidate(videoListProvider),
           ),

@@ -8,6 +8,7 @@ import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart'
     show NlEmptyState;
 import '../../shared/widgets/nl_section_heading.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart'
     show NetLearnStatus, StatusBadge;
@@ -46,7 +47,10 @@ class LecturerTaskDetailPage extends ConsumerWidget {
         onBack: () => context.pop(),
       ),
       body: taskAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const NlSkeletonDetail(
+          showBanner: false,
+          paragraphBlocks: 3,
+        ),
         error: (error, stackTrace) => Center(
           child: Padding(
             padding: const EdgeInsets.all(NetLearnSpace.s24),
@@ -512,11 +516,11 @@ class _TaskQuestionsList extends ConsumerWidget {
     final questionsAsync = ref.watch(lecturerQuestionsProvider(taskId));
 
     return questionsAsync.when(
-      loading: () => const Center(
-        child: Padding(
-          padding: EdgeInsets.all(NetLearnSpace.s24),
-          child: CircularProgressIndicator(),
-        ),
+      loading: () => const NlSkeletonList(
+        itemCount: 3,
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(vertical: NetLearnSpace.s8),
       ),
       error: (error, stackTrace) => Padding(
         padding: const EdgeInsets.all(NetLearnSpace.s16),

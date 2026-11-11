@@ -11,6 +11,7 @@ import '../../shared/models/reminder_model.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_segmented_tabs.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
@@ -409,8 +410,8 @@ class _NotificationLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const Padding(
-      padding: EdgeInsets.symmetric(vertical: NetLearnSpace.s32),
-      child: Center(child: CircularProgressIndicator()),
+      padding: EdgeInsets.symmetric(vertical: NetLearnSpace.s8),
+      child: NlNotificationsPreviewSkeleton(count: 3),
     );
   }
 }

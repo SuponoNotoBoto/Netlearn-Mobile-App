@@ -17,10 +17,13 @@ import '../../shared/models/material_model.dart';
 import '../../shared/models/reminder_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_metric_grid.dart';
+import '../../shared/widgets/nl_micro_transition.dart';
 import '../../shared/widgets/nl_notification_bell.dart';
 import '../../shared/widgets/nl_progress_summary.dart';
 import '../../shared/widgets/nl_shortcut_tile.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
+import '../../shared/widgets/nl_tap_scale.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import '../../shared/widgets/nl_promo_banner.dart';
 import '../assessment/assessment_completed_dialog.dart';
@@ -512,7 +515,9 @@ class _StudentDashboardPageState
       children: [
         _buildSectionTitle(context, l10n.learningProgress),
         const SizedBox(height: NetLearnSpace.s12),
-        _buildProgressContent(context, l10n, dashboard),
+        NlContentTransition(
+          child: _buildProgressContent(context, l10n, dashboard),
+        ),
       ],
     );
   }
@@ -1287,13 +1292,16 @@ class _ModuleProgressCard extends StatelessWidget {
       completed: completed,
     );
 
-    return Material(
-      color: context.surface,
-      borderRadius: BorderRadius.circular(
-        NetLearnRadius.card,
-      ),
-      child: InkWell(
-        onTap: isUnlocked ? onTap : null,
+    return NlTapScale(
+      enabled: isUnlocked,
+      scaleDown: 0.98,
+      child: Material(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        child: InkWell(
+          onTap: isUnlocked ? onTap : null,
         borderRadius: BorderRadius.circular(
           NetLearnRadius.card,
         ),
@@ -1405,6 +1413,7 @@ class _ModuleProgressCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 
@@ -1593,13 +1602,8 @@ class _ProgressSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     // Tinggi mendekati panel ringkasan plus beberapa kartu modul supaya isi
     // halaman tidak melompat jauh saat data tiba.
-    return const SizedBox(
-      height: 240,
-      child: Card(
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      ),
+    return const NlDashboardProgressSkeleton(
+      moduleRows: 2,
     );
   }
 }
@@ -1885,13 +1889,16 @@ class _AssessmentProgressCard extends StatelessWidget {
       tileIcon = icon;
     }
 
-    return Material(
-      color: context.surface,
-      borderRadius: BorderRadius.circular(
-        NetLearnRadius.card,
-      ),
-      child: InkWell(
-        onTap: locked ? null : onTap,
+    return NlTapScale(
+      enabled: !locked,
+      scaleDown: 0.98,
+      child: Material(
+        color: context.surface,
+        borderRadius: BorderRadius.circular(
+          NetLearnRadius.card,
+        ),
+        child: InkWell(
+          onTap: locked ? null : onTap,
         borderRadius: BorderRadius.circular(
           NetLearnRadius.card,
         ),
@@ -1979,6 +1986,7 @@ class _AssessmentProgressCard extends StatelessWidget {
           ),
         ),
       ),
+    ),
     );
   }
 }
@@ -2233,19 +2241,7 @@ class _NotificationsPreviewSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      height: 72,
-      decoration: BoxDecoration(
-        color: context.surface,
-        borderRadius: BorderRadius.circular(
-          NetLearnRadius.card,
-        ),
-        border: Border.all(
-          color: context.border,
-        ),
-      ),
-    );
+    return const NlNotificationsPreviewSkeleton(rows: 2);
   }
 }
 

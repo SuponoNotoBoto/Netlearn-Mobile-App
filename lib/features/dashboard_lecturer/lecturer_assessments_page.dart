@@ -7,6 +7,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_segmented_tabs.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart'
@@ -154,12 +155,7 @@ class _LecturerAssessmentsPageState
           ),
           const SizedBox(height: NetLearnSpace.s12),
           assessments.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(NetLearnSpace.s24),
-                child: CircularProgressIndicator(),
-              ),
-            ),
+            loading: () => const NlSkeletonList(itemCount: 2),
             error: (error, stackTrace) => Padding(
               padding: const EdgeInsets.all(NetLearnSpace.s24),
               child: Column(
@@ -232,12 +228,7 @@ class _LecturerAssessmentsPageState
           ),
           const SizedBox(height: NetLearnSpace.s12),
           tasksAsync.when(
-            loading: () => const Center(
-              child: Padding(
-                padding: EdgeInsets.all(NetLearnSpace.s24),
-                child: CircularProgressIndicator(),
-              ),
-            ),
+            loading: () => const NlSkeletonList(itemCount: 2),
             error: (error, stackTrace) => Padding(
               padding: const EdgeInsets.all(NetLearnSpace.s24),
               child: Text(

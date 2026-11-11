@@ -8,6 +8,7 @@ import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_section_heading.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import 'lecturer_ai_service.dart';
@@ -429,8 +430,9 @@ class _LecturerQuestionFormPageState
 
   Widget _buildBody(AppLocalizations l10n) {
     if (_loading) {
-      return const Center(
-        child: CircularProgressIndicator(),
+      return const NlSkeletonDetail(
+        showBanner: false,
+        paragraphBlocks: 3,
       );
     }
 

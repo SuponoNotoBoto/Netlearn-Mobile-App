@@ -8,6 +8,7 @@ import '../../l10n/app_localizations.dart';
 import '../../shared/models/material_model.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_material_thumbnail.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
@@ -197,8 +198,16 @@ class _LecturerMaterialsPageState
       ),
 
       body: materialsAsync.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
+        loading: () => ListView(
+          padding: const EdgeInsets.fromLTRB(
+            NetLearnSpace.s20,
+            NetLearnSpace.s20,
+            NetLearnSpace.s20,
+            NetLearnSpace.s32,
+          ),
+          children: const [
+            NlSkeletonList(itemCount: 4),
+          ],
         ),
 
         error: (error, stackTrace) => Center(

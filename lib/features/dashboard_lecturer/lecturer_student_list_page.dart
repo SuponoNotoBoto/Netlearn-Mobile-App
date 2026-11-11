@@ -8,6 +8,7 @@ import '../../shared/models/student_model.dart';
 import '../../shared/widgets/nl_button.dart';
 import '../../shared/widgets/nl_empty_state.dart';
 import '../../shared/widgets/nl_segmented_tabs.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_score_overview.dart';
@@ -158,8 +159,9 @@ class _LecturerStudentListPageState
     final search = ref.watch(_searchProvider);
 
     return studentsAsync.when(
-      loading: () => const Center(
-        child: CircularProgressIndicator(),
+      loading: () => const NlSkeletonList(
+        itemCount: 5,
+        padding: EdgeInsets.all(NetLearnSpace.s20),
       ),
       error: (error, stackTrace) => Center(
         child: Padding(

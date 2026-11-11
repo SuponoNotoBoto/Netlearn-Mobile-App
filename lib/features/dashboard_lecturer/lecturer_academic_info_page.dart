@@ -6,6 +6,7 @@ import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import 'lecturer_dashboard_controller.dart';
 
 class LecturerAcademicInfoPage extends ConsumerWidget {
@@ -33,7 +34,10 @@ class LecturerAcademicInfoPage extends ConsumerWidget {
         ),
       ),
       body: profile.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const NlSkeletonList(
+          itemCount: 4,
+          padding: EdgeInsets.all(NetLearnSpace.s20),
+        ),
         error: (error, stackTrace) => NlErrorView(
           message: l10n.failedToLoad,
           onRetry: () => ref.invalidate(lecturerProfileProvider),

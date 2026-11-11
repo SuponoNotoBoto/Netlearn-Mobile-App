@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.promo-banner` dari `design_figma/scr_figma_new/App.tsx` & `index.css`:
 ///
@@ -88,38 +89,41 @@ class NlPromoBanner extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 14),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: onPressed,
-                    borderRadius: BorderRadius.circular(
-                      NetLearnRadius.radiusPill,
-                    ),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
+                NlTapScale(
+                  scaleDown: 0.95,
+                  child: Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: onPressed,
+                      borderRadius: BorderRadius.circular(
+                        NetLearnRadius.radiusPill,
                       ),
-                      decoration: BoxDecoration(
-                        color: NetLearnColors.primary,
-                        borderRadius: BorderRadius.circular(
-                          NetLearnRadius.radiusPill,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                        boxShadow: const [
-                          BoxShadow(
-                            color: Color(0x478C52FF),
-                            blurRadius: 12,
-                            offset: Offset(0, 4),
+                        decoration: BoxDecoration(
+                          color: NetLearnColors.primary,
+                          borderRadius: BorderRadius.circular(
+                            NetLearnRadius.radiusPill,
                           ),
-                        ],
-                      ),
-                      child: Text(
-                        ctaLabel,
-                        style: const TextStyle(
-                          fontFamily: AppTheme.fontFamily,
-                          color: NetLearnColors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
+                          boxShadow: const [
+                            BoxShadow(
+                              color: Color(0x478C52FF),
+                              blurRadius: 12,
+                              offset: Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Text(
+                          ctaLabel,
+                          style: const TextStyle(
+                            fontFamily: AppTheme.fontFamily,
+                            color: NetLearnColors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
                         ),
                       ),
                     ),

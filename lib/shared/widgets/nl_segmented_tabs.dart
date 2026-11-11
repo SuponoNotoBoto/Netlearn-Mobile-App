@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_tap_scale.dart';
 
 /// `.tabs` dari index.css: segmented control untuk pilihan yang sedikit.
 ///
@@ -119,7 +120,9 @@ class _Segment extends StatelessWidget {
 
     final foreground = selected ? selectedForeground : context.mutedText;
 
-    final child = Container(
+    final child = AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOutCubic,
       // `padding:10px 6px` untuk `.tabs`; versi language memakai `6px 5px`.
       padding: EdgeInsets.symmetric(
         vertical: compact ? NetLearnSpace.s6 : NetLearnSpace.s10,
@@ -153,14 +156,17 @@ class _Segment extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(NetLearnRadius.sm),
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onTap,
+      child: NlTapScale(
+        scaleDown: 0.96,
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(NetLearnRadius.sm),
-          child: child,
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(NetLearnRadius.sm),
+            child: child,
+          ),
         ),
       ),
     );

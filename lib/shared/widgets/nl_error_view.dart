@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
+import 'nl_tap_scale.dart';
 
 /// Centered error state with an optional retry button.
 ///
@@ -45,9 +46,11 @@ class NlErrorView extends StatelessWidget {
             if (onRetry != null) ...[
               const SizedBox(height: NetLearnSpace.s16),
 
-              OutlinedButton(
-                onPressed: onRetry,
-                child: Text(l10n.retry),
+              NlTapScale(
+                child: OutlinedButton(
+                  onPressed: onRetry,
+                  child: Text(l10n.retry),
+                ),
               ),
             ],
           ],

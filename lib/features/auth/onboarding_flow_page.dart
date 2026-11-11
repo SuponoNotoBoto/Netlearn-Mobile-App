@@ -43,9 +43,9 @@ class _OnboardingFlowPageState extends ConsumerState<OnboardingFlowPage> {
   static const _ink = Color(0xFF29213F);
   static const _muted = Color(0xFF6C727F);
   static const _border = Color(0xFFECEEF2);
-  static const _soft = Color(0xFFF0EDFB);
+  static const _soft = Color(0xFFF3EEFF);
   static const _paper = Color(0xFFFFFFFF);
-  static const _primary = Color(0xFF543CD1);
+  static const _primary = Color(0xFF8C52FF);
 
   bool _flagsLoaded = false;
   bool _selectingLanguage = true;

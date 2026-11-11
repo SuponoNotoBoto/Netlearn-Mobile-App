@@ -10,6 +10,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_surface_card.dart';
 import '../../shared/widgets/nl_walkthrough_overlay.dart';
 import '../dashboard_lecturer/lecturer_bottom_navbar.dart';
@@ -797,9 +798,11 @@ class _ModulesTab extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.s16),
         if (modulesAsync.isLoading && modulesAsync.value == null)
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: AppSpacing.s24),
-            child: Center(child: CircularProgressIndicator()),
+          const NlSkeletonList(
+            itemCount: 3,
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
           )
         else if (modulesAsync.hasError && modulesAsync.value == null)
           Center(child: Text(l10n.couldNotLoadData))
@@ -1036,7 +1039,7 @@ class _ClassModuleCard extends ConsumerWidget {
           materialsAsync.when(
             loading: () => const Padding(
               padding: EdgeInsets.all(AppSpacing.s8),
-              child: LinearProgressIndicator(),
+              child: NlSkeletonBox(height: 36, borderRadius: 10),
             ),
             error: (_, _) => Text(l10n.couldNotLoadData),
             data: (materials) {
@@ -1418,7 +1421,7 @@ class _SettingsGatesTab extends ConsumerWidget {
       padding: const EdgeInsets.all(AppSpacing.s20),
       children: [
         if (settingsAsync.isLoading && settings == null) ...[
-          const LinearProgressIndicator(),
+          const NlSkeletonBox(height: 12, borderRadius: 6),
           const SizedBox(height: AppSpacing.s12),
         ],
         // Card 1: Class Basic Info
@@ -1559,7 +1562,7 @@ class _SettingsGatesTab extends ConsumerWidget {
                   gatesAsync.when(
                     loading: () => const Padding(
                       padding: EdgeInsets.all(AppSpacing.s8),
-                      child: LinearProgressIndicator(),
+                      child: NlSkeletonBox(height: 44, borderRadius: 10),
                     ),
                     error: (_, _) => Text(l10n.couldNotLoadData),
                     data: (gates) {
@@ -1792,7 +1795,7 @@ class _InviteRosterTab extends ConsumerWidget {
               ),
               if (inviteAsync.isLoading && invite == null) ...[
                 const SizedBox(height: AppSpacing.s8),
-                const LinearProgressIndicator(),
+                const NlSkeletonBox(height: 12, borderRadius: 6),
               ],
               const SizedBox(height: AppSpacing.s12),
               Row(
@@ -1855,7 +1858,12 @@ class _InviteRosterTab extends ConsumerWidget {
         const SizedBox(height: AppSpacing.s16),
         NlSurfaceCard(
           child: rosterAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
+            loading: () => const NlSkeletonList(
+              itemCount: 3,
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+            ),
             error: (_, _) => Text(l10n.couldNotLoadData),
             data: (roster) {
               return Column(

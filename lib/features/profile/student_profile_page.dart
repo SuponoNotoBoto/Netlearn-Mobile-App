@@ -10,6 +10,7 @@ import '../../features/auth/auth_controller.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_error_view.dart';
 import '../../shared/widgets/nl_profile_section.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import '../achievements/achievement_service.dart';
@@ -107,9 +108,7 @@ class StudentProfilePage extends ConsumerWidget {
       ),
 
       body: profile.when(
-        loading: () => const Center(
-          child: CircularProgressIndicator(),
-        ),
+        loading: () => const NlSkeletonProfile(),
 
         error: (error, stackTrace) => NlErrorView(
           message: l10n.failedToLoad,

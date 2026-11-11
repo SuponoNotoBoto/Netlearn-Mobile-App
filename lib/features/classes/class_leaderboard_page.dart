@@ -9,6 +9,7 @@ import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_surface_card.dart';
 import '../profile/public_profile_sheet.dart';
 import '../subnet_drill/subnet_drill_leaderboard.dart';
@@ -173,9 +174,11 @@ class _OverallClassLeaderboardSection extends ConsumerWidget {
     final entriesAsync = ref.watch(classLeaderboardProvider(classId));
 
     return entriesAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(AppSpacing.s24),
-        child: Center(child: CircularProgressIndicator()),
+      loading: () => const NlSkeletonList(
+        itemCount: 4,
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
       ),
       error: (_, _) => NlSurfaceCard(
         child: Text(
@@ -393,7 +396,12 @@ class _AssessmentLeaderboardSection extends ConsumerWidget {
     final quizzesAsync = ref.watch(classLeaderboardQuizzesProvider(classId));
 
     return quizzesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
+      loading: () => const NlSkeletonList(
+        itemCount: 3,
+        shrinkWrap: true,
+        physics: NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+      ),
       error: (_, _) => Text(l10n.couldNotLoadData),
       data: (quizzes) {
         if (quizzes.isEmpty) {
@@ -430,7 +438,12 @@ class _AssessmentLeaderboardSection extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.s12),
             boardAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
+              loading: () => const NlSkeletonList(
+                itemCount: 3,
+                shrinkWrap: true,
+                physics: NeverScrollableScrollPhysics(),
+                padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
+              ),
               error: (_, _) => Text(l10n.couldNotLoadData),
               data: (entries) {
                 if (entries.isEmpty) {
@@ -614,9 +627,11 @@ class _SubnetDrillLeaderboardSectionState
       future: _future,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(AppSpacing.s24),
-            child: Center(child: CircularProgressIndicator()),
+          return const NlSkeletonList(
+            itemCount: 3,
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
           );
         }
 
@@ -877,9 +892,11 @@ class _ClassVirtualLabOverallList extends StatelessWidget {
       future: VirtualLabLeaderboardService.getOverallScores(classId: classId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(AppSpacing.s24),
-            child: Center(child: CircularProgressIndicator()),
+          return const NlSkeletonList(
+            itemCount: 3,
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
           );
         }
 
@@ -1076,9 +1093,11 @@ class _ClassVirtualLabMissionList extends StatelessWidget {
       ),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
-            padding: EdgeInsets.all(AppSpacing.s24),
-            child: Center(child: CircularProgressIndicator()),
+          return const NlSkeletonList(
+            itemCount: 3,
+            shrinkWrap: true,
+            physics: NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s8),
           );
         }
 

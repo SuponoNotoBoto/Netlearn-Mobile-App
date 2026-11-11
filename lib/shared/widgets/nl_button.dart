@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../core/theme/app_theme.dart';
+import 'nl_micro_transition.dart';
+import 'nl_tap_scale.dart';
 
 enum NlButtonVariant { primary, secondary, outline, danger, ghost }
 
@@ -65,50 +67,58 @@ class NlButton extends StatelessWidget {
         border = BorderSide.none;
     }
 
-    return SizedBox(
-      // `.button` padding 15px + label 12px ≈ 48px.
-      height: 48,
-      child: OutlinedButton(
-        onPressed: loading ? null : onPressed,
-        style: OutlinedButton.styleFrom(
-          backgroundColor: bg,
-          foregroundColor: fg,
-          side: border,
-          shadowColor: Colors.transparent,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(NetLearnRadius.button),
+    return NlTapScale(
+      enabled: onPressed != null && !loading,
+      child: SizedBox(
+        // `.button` padding 15px + label 12px ≈ 48px.
+        height: 48,
+        child: OutlinedButton(
+          onPressed: loading ? null : onPressed,
+          style: OutlinedButton.styleFrom(
+            backgroundColor: bg,
+            foregroundColor: fg,
+            side: border,
+            shadowColor: Colors.transparent,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(NetLearnRadius.button),
+            ),
+            textStyle: theme.textTheme.labelLarge,
           ),
-          textStyle: theme.textTheme.labelLarge,
-        ),
-        child: loading
-            ? SizedBox(
-          height: 16,
-          width: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: fg),
-        )
-            : Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18),
-              const SizedBox(width: 8),
-            ],
-            // `Flexible`, bukan `Text` telanjang: label Bahasa Indonesia lebih
-            // panjang dari Bahasa Inggris untuk kalimat yang sama -- "Tandai
-            // sebagai Dibaca" (21 karakter) melebar 8px melewati tombol pada
-            // lebar minimum 360dp, dan `Row(mainAxisSize.min)` dengan `Text`
-            // telanjang tidak punya cara untuk menyusut, jadi hanya meluber.
-            //
-            // Bungkus, bukan ellipsis: label yang muat dalam satu baris tetap
-            // satu baris, dan yang tidak muat turun satu baris -- dua baris
-            // 12px masih muat di dalam tinggi 48px, jadi tidak ada tinggi
-            // tombol yang berubah dan tidak ada teks yang terpotong.
-            Flexible(child: Text(label)),
-            if (trailingIcon != null) ...[
-              const SizedBox(width: 8),
-              Icon(trailingIcon, size: 18),
-            ],
-          ],
+          child: NlContentTransition(
+            alignment: Alignment.center,
+            child: loading
+                ? SizedBox(
+                    key: const ValueKey('nl_button_loading'),
+                    height: 16,
+                    width: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: fg),
+                  )
+                : Row(
+                    key: ValueKey('nl_button_label_$label'),
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (icon != null) ...[
+                        Icon(icon, size: 18),
+                        const SizedBox(width: 8),
+                      ],
+                      // `Flexible`, bukan `Text` telanjang: label Bahasa Indonesia lebih
+                      // panjang dari Bahasa Inggris untuk kalimat yang sama -- "Tandai
+                      // sebagai Dibaca" (21 karakter) melebar 8px melewati tombol pada
+                      // lebar minimum 360dp, dan `Row(mainAxisSize.min)` dengan `Text`
+                      // telanjang tidak punya cara untuk menyusut, jadi hanya meluber.
+                      //
+                      // Bungkus, bukan ellipsis: label yang muat dalam satu baris tetap
+                      // satu baris, dan yang tidak muat turun satu baris -- dua baris
+                      // 12px masih muat di dalam tinggi 48px, jadi tidak ada tinggi
+                      // tombol yang berubah dan tidak ada teks yang terpotong.
+                      Flexible(child: Text(label)),
+                      if (trailingIcon != null) ...[
+                        const SizedBox(width: 8),
+                        Icon(trailingIcon, size: 18),
+                      ],
+                    ],
+                  ),
+          ),
         ),
       ),
     );
