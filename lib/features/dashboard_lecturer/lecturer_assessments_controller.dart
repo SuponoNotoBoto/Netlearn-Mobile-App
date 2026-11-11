@@ -126,7 +126,7 @@ final lecturerAssessmentsProvider =
               .where((q) => q['class_id']?.toString() == activeClass.id)
               .toList()
           : const <Map<String, dynamic>>[];
-      final quizzes = classQuizzes.isNotEmpty
+      final quizzes = validClass
           ? classQuizzes
           : rawQuizzes.where((q) => q['class_id'] == null).toList();
       if (quizzes.isEmpty) {

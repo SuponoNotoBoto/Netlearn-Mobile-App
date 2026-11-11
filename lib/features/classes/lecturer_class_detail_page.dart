@@ -11,6 +11,7 @@ import '../../core/theme/app_spacing.dart';
 import '../../core/theme/app_typography.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_surface_card.dart';
+import '../../shared/widgets/nl_walkthrough_overlay.dart';
 import '../dashboard_lecturer/lecturer_bottom_navbar.dart';
 import '../profile/public_profile_sheet.dart';
 import 'class_action_messages.dart';
@@ -21,9 +22,11 @@ class LecturerClassDetailPage extends ConsumerStatefulWidget {
   const LecturerClassDetailPage({
     super.key,
     required this.classId,
+    this.startWalkthrough = false,
   });
 
   final String classId;
+  final bool startWalkthrough;
 
   @override
   ConsumerState<LecturerClassDetailPage> createState() =>
@@ -35,16 +38,159 @@ class _LecturerClassDetailPageState
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
 
+  final _statusBadgeKey = GlobalKey();
+  final _modulesHeaderKey = GlobalKey();
+  final _settingsCardKey = GlobalKey();
+  final _inviteCardKey = GlobalKey();
+  OverlayEntry? _walkthroughEntry;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    // Pre-warm tab providers so switching tabs during walkthrough mounts immediately.
+    ref.read(classModulesProvider(widget.classId));
+    ref.read(classSettingsProvider(widget.classId));
+    ref.read(classInviteProvider(widget.classId));
+    if (widget.startWalkthrough) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _scheduleWalkthroughAfterRouteTransition();
+      });
+    }
+  }
+
+  void _scheduleWalkthroughAfterRouteTransition() {
+    if (!mounted) return;
+    final routeAnim = ModalRoute.of(context)?.animation;
+    if (routeAnim == null || routeAnim.isCompleted) {
+      _startWalkthrough();
+      return;
+    }
+
+    void listener(AnimationStatus status) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
+        routeAnim.removeStatusListener(listener);
+        if (!mounted) return;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) _startWalkthrough();
+        });
+      }
+    }
+
+    routeAnim.addStatusListener(listener);
   }
 
   @override
   void dispose() {
+    _removeWalkthroughOverlay();
     _tabController.dispose();
     super.dispose();
+  }
+
+  void _removeWalkthroughOverlay() {
+    _walkthroughEntry?.remove();
+    _walkthroughEntry = null;
+  }
+
+  void _startWalkthrough() {
+    if (!mounted) return;
+    _removeWalkthroughOverlay();
+
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final steps = [
+      NlWalkthroughStep(
+        targetKey: _statusBadgeKey,
+        tabIndex: 0,
+        icon: Icons.edit_note_rounded,
+        accentColor: AppColors.warningAmber,
+        highlightPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+        highlightRadius: 999,
+        title: isId
+            ? 'Status Kelas Masih Draf'
+            : 'Class Status is Still Draft',
+        description: isId
+            ? 'Kelas kustom Anda baru dibuat dan saat ini masih berstatus Draf (belum dipublikasikan), sehingga siswa belum dapat bergabung ke kelas ini.'
+            : 'Your custom class was just created and is currently in Draft status (not published yet), so students cannot join it yet.',
+        onPrepare: () async {
+          if (_tabController.index != 0) {
+            _tabController.animateTo(0);
+          }
+        },
+      ),
+      NlWalkthroughStep(
+        targetKey: _modulesHeaderKey,
+        tabIndex: 0,
+        icon: Icons.library_add_rounded,
+        accentColor: AppColors.primaryBlue,
+        highlightPadding: const EdgeInsets.all(8),
+        highlightRadius: 14,
+        title: isId
+            ? 'Isi Minimal 1 Modul & 1 Materi'
+            : 'Add at Least 1 Module & 1 Material',
+        description: isId
+            ? 'Sebelum dapat memublikasikan kelas, isi minimal 1 modul dan 1 materi terlebih dahulu lewat tombol "+ Tambah Modul" lalu tambahkan materi di dalamnya. Setelah siap, baru kelas bisa dipublikasikan.'
+            : 'Before you can publish this class, add at least 1 module via "+ Add Module" and add at least 1 material inside it first. Once ready, you can publish the class.',
+        onPrepare: () async {
+          if (_tabController.index != 0) {
+            _tabController.animateTo(0);
+          }
+        },
+      ),
+      NlWalkthroughStep(
+        targetKey: _settingsCardKey,
+        tabIndex: 1,
+        icon: Icons.tune_rounded,
+        accentColor: const Color(0xFF6C2CE2),
+        highlightPadding: const EdgeInsets.all(6),
+        highlightRadius: 16,
+        title: isId
+            ? 'Atur Kelas di Settings & Gates'
+            : 'Configure Class in Settings & Gates',
+        description: isId
+            ? 'Di tab Pengaturan & Gerbang ini Anda dapat mengatur Pretest, Posttest, dan Leaderboard kelas, mengubah info kelas, serta mempublikasikan kelas.'
+            : 'In this Settings & Gates tab you can configure Pretest, Posttest, and Leaderboard rules, edit class details, and publish the class.',
+        onPrepare: () async {
+          if (_tabController.index != 1) {
+            _tabController.animateTo(1);
+          }
+        },
+      ),
+      NlWalkthroughStep(
+        targetKey: _inviteCardKey,
+        tabIndex: 2,
+        icon: Icons.vpn_key_rounded,
+        accentColor: const Color(0xFF00897B),
+        highlightPadding: const EdgeInsets.all(6),
+        highlightRadius: 16,
+        title: isId
+            ? 'Kode Kelas untuk Siswa'
+            : 'Class Code for Students',
+        description: isId
+            ? 'Di tab Invite & Roster ini terdapat kode kelas Anda. Salin dan bagikan kode tersebut — kode inilah yang harus dimasukkan oleh siswa untuk bergabung ke kelas.'
+            : 'In this Invite & Roster tab you can find your class invite code. Share this code with students — they must enter it to join your class.',
+        onPrepare: () async {
+          if (_tabController.index != 2) {
+            _tabController.animateTo(2);
+          }
+        },
+      ),
+    ];
+
+    final overlay = Overlay.of(context, rootOverlay: true);
+    _walkthroughEntry = OverlayEntry(
+      builder: (_) => NlWalkthroughOverlay(
+        steps: steps,
+        isIndonesian: isId,
+        onFinish: ({required bool completed}) {
+          _removeWalkthroughOverlay();
+          if (completed && mounted && _tabController.index != 0) {
+            _tabController.animateTo(0);
+          }
+        },
+      ),
+    );
+    overlay.insert(_walkthroughEntry!);
   }
 
   LecturerClass? _findClass(
@@ -67,6 +213,7 @@ class _LecturerClassDetailPageState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final isId = Localizations.localeOf(context).languageCode == 'id';
     final classesAsync = ref.watch(lecturerClassesProvider);
     final archivedAsync = ref.watch(lecturerArchivedClassesProvider);
     final inviteAsync = ref.watch(classInviteProvider(widget.classId));
@@ -77,6 +224,14 @@ class _LecturerClassDetailPageState
     return Scaffold(
       appBar: AppBar(
         title: Text(cls?.name ?? l10n.manageClassesTitle),
+        actions: [
+          IconButton(
+            key: const Key('class_detail_walkthrough_btn'),
+            tooltip: isId ? 'Panduan Kelas' : 'Class Guide',
+            onPressed: _startWalkthrough,
+            icon: const Icon(Icons.help_outline_rounded),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppColors.primaryBlue,
@@ -96,17 +251,26 @@ class _LecturerClassDetailPageState
               classId: widget.classId,
               cls: cls,
               inviteCode: inviteCode,
+              statusBadgeKey: _statusBadgeKey,
             ),
             Expanded(
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  _ModulesTab(classId: widget.classId),
+                  _ModulesTab(
+                    classId: widget.classId,
+                    headerKey: _modulesHeaderKey,
+                  ),
                   _SettingsGatesTab(
                     classId: widget.classId,
                     cls: cls,
+                    settingsCardKey: _settingsCardKey,
                   ),
-                  _InviteRosterTab(classId: widget.classId),
+                  _InviteRosterTab(
+                    classId: widget.classId,
+                    fallbackCode: inviteCode,
+                    inviteCardKey: _inviteCardKey,
+                  ),
                 ],
               ),
             ),
@@ -127,11 +291,13 @@ class _ClassStatusHeaderBanner extends ConsumerStatefulWidget {
     required this.classId,
     required this.cls,
     required this.inviteCode,
+    this.statusBadgeKey,
   });
 
   final String classId;
   final LecturerClass? cls;
   final String? inviteCode;
+  final GlobalKey? statusBadgeKey;
 
   @override
   ConsumerState<_ClassStatusHeaderBanner> createState() =>
@@ -197,6 +363,7 @@ class _ClassStatusHeaderBannerState
             mainAxisSize: MainAxisSize.min,
             children: [
               Container(
+                key: widget.statusBadgeKey,
                 padding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.s10,
                   vertical: 4,
@@ -354,9 +521,13 @@ class _ClassStatusHeaderBannerState
 // ============================================================
 
 class _ModulesTab extends ConsumerWidget {
-  const _ModulesTab({required this.classId});
+  const _ModulesTab({
+    required this.classId,
+    this.headerKey,
+  });
 
   final String classId;
+  final GlobalKey? headerKey;
 
   Future<void> _showModuleDialog(
     BuildContext context,
@@ -592,66 +763,69 @@ class _ModulesTab extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final lang = ref.watch(languageProvider).languageCode;
     final modulesAsync = ref.watch(classModulesProvider(classId));
+    final modules = modulesAsync.value ?? const <ClassModule>[];
 
-    return modulesAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => Center(child: Text(l10n.couldNotLoadData)),
-      data: (modules) {
-        return ListView(
-          padding: const EdgeInsets.all(AppSpacing.s20),
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.s20),
+      children: [
+        Row(
+          key: headerKey,
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    '${l10n.classTabModules} (${modules.length})',
-                    style: AppTypography.sectionTitle(context),
-                  ),
-                ),
-                OutlinedButton.icon(
-                  onPressed: () => _showCloneCurriculumDialog(context, ref),
-                  icon: const Icon(Icons.copy_all_rounded, size: 16),
-                  label: Text(lang == 'id' ? 'Salin Kurikulum' : 'Clone'),
-                ),
-                const SizedBox(width: 8),
-                FilledButton.icon(
-                  key: const Key('class_add_module_button'),
-                  onPressed: () => _showModuleDialog(context, ref),
-                  icon: const Icon(Icons.add_rounded, size: 18),
-                  label: Text(l10n.classAddModuleAction),
-                ),
-              ],
+            Expanded(
+              child: Text(
+                '${l10n.classTabModules} (${modules.length})',
+                style: AppTypography.sectionTitle(context),
+              ),
             ),
-            const SizedBox(height: AppSpacing.s16),
-            if (modules.isEmpty)
-              NlSurfaceCard(
-                child: Padding(
-                  padding: const EdgeInsets.all(AppSpacing.s16),
-                  child: Text(
-                    l10n.classNoModulesEmpty,
-                    style: AppTypography.body(context),
-                  ),
-                ),
-              )
-            else
-              for (var i = 0; i < modules.length; i++) ...[
-                _ClassModuleCard(
-                  classId: classId,
-                  module: modules[i],
-                  languageCode: lang,
-                  canMoveUp: i > 0,
-                  canMoveDown: i < modules.length - 1,
-                  onMoveUp: () => _moveModule(context, ref, modules, i, -1),
-                  onMoveDown: () => _moveModule(context, ref, modules, i, 1),
-                  onEdit: () =>
-                      _showModuleDialog(context, ref, editing: modules[i]),
-                ),
-                const SizedBox(height: AppSpacing.s12),
-              ],
+            OutlinedButton.icon(
+              onPressed: () => _showCloneCurriculumDialog(context, ref),
+              icon: const Icon(Icons.copy_all_rounded, size: 16),
+              label: Text(lang == 'id' ? 'Salin Kurikulum' : 'Clone'),
+            ),
+            const SizedBox(width: 8),
+            FilledButton.icon(
+              key: const Key('class_add_module_button'),
+              onPressed: () => _showModuleDialog(context, ref),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: Text(l10n.classAddModuleAction),
+            ),
           ],
-        );
-      },
+        ),
+        const SizedBox(height: AppSpacing.s16),
+        if (modulesAsync.isLoading && modulesAsync.value == null)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: AppSpacing.s24),
+            child: Center(child: CircularProgressIndicator()),
+          )
+        else if (modulesAsync.hasError && modulesAsync.value == null)
+          Center(child: Text(l10n.couldNotLoadData))
+        else if (modules.isEmpty)
+          NlSurfaceCard(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.s16),
+              child: Text(
+                l10n.classNoModulesEmpty,
+                style: AppTypography.body(context),
+              ),
+            ),
+          )
+        else
+          for (var i = 0; i < modules.length; i++) ...[
+            _ClassModuleCard(
+              classId: classId,
+              module: modules[i],
+              languageCode: lang,
+              canMoveUp: i > 0,
+              canMoveDown: i < modules.length - 1,
+              onMoveUp: () => _moveModule(context, ref, modules, i, -1),
+              onMoveDown: () => _moveModule(context, ref, modules, i, 1),
+              onEdit: () =>
+                  _showModuleDialog(context, ref, editing: modules[i]),
+            ),
+            const SizedBox(height: AppSpacing.s12),
+          ],
+      ],
     );
   }
 }
@@ -1100,10 +1274,12 @@ class _SettingsGatesTab extends ConsumerWidget {
   const _SettingsGatesTab({
     required this.classId,
     required this.cls,
+    this.settingsCardKey,
   });
 
   final String classId;
   final LecturerClass? cls;
+  final GlobalKey? settingsCardKey;
 
   Future<void> _showEditClassInfoDialog(
     BuildContext context,
@@ -1227,23 +1403,23 @@ class _SettingsGatesTab extends ConsumerWidget {
     final settingsAsync = ref.watch(classSettingsProvider(classId));
     final gatesAsync = ref.watch(classGateAssessmentsProvider(classId));
 
-    return settingsAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (_, _) => Center(child: Text(l10n.couldNotLoadData)),
-      data: (settings) {
-        final pretestOn =
-            settings?.pretestEnabled ?? cls?.pretestEnabled ?? false;
-        final posttestOn =
-            settings?.posttestEnabled ?? cls?.posttestEnabled ?? false;
-        final lbOn =
-            settings?.leaderboardEnabled ?? cls?.leaderboardEnabled ?? true;
-        final currentStatus = cls?.status ?? 'draft';
+    final settings = settingsAsync.value;
+    final pretestOn = settings?.pretestEnabled ?? cls?.pretestEnabled ?? false;
+    final posttestOn =
+        settings?.posttestEnabled ?? cls?.posttestEnabled ?? false;
+    final lbOn =
+        settings?.leaderboardEnabled ?? cls?.leaderboardEnabled ?? true;
+    final currentStatus = cls?.status ?? 'draft';
 
-        return ListView(
-          padding: const EdgeInsets.all(AppSpacing.s20),
-          children: [
-            // Card 1: Class Basic Info
-            NlSurfaceCard(
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.s20),
+      children: [
+        if (settingsAsync.isLoading && settings == null) ...[
+          const LinearProgressIndicator(),
+          const SizedBox(height: AppSpacing.s12),
+        ],
+        // Card 1: Class Basic Info
+        NlSurfaceCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1291,6 +1467,7 @@ class _SettingsGatesTab extends ConsumerWidget {
 
             // Card 2: Learning Flow Gate Toggles
             NlSurfaceCard(
+              key: settingsCardKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -1569,8 +1746,6 @@ class _SettingsGatesTab extends ConsumerWidget {
             ),
           ],
         );
-      },
-    );
   }
 }
 
@@ -1579,9 +1754,15 @@ class _SettingsGatesTab extends ConsumerWidget {
 // ============================================================
 
 class _InviteRosterTab extends ConsumerWidget {
-  const _InviteRosterTab({required this.classId});
+  const _InviteRosterTab({
+    required this.classId,
+    this.fallbackCode,
+    this.inviteCardKey,
+  });
 
   final String classId;
+  final String? fallbackCode;
+  final GlobalKey? inviteCardKey;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -1590,82 +1771,82 @@ class _InviteRosterTab extends ConsumerWidget {
     final inviteAsync = ref.watch(classInviteProvider(classId));
     final rosterAsync = ref.watch(classRosterProvider(classId));
 
+    final invite = inviteAsync.value;
+    final code = invite?.code ?? fallbackCode ?? '—';
+    final active = invite?.active ?? true;
+
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.s20),
       children: [
         NlSurfaceCard(
-          child: inviteAsync.when(
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (_, _) => Text(l10n.couldNotLoadData),
-            data: (invite) {
-              final code = invite?.code ?? '—';
-              final active = invite?.active ?? true;
-
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          key: inviteCardKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                l10n.classInviteCodeLabel,
+                style: AppTypography.cardTitle(context),
+              ),
+              if (inviteAsync.isLoading && invite == null) ...[
+                const SizedBox(height: AppSpacing.s8),
+                const LinearProgressIndicator(),
+              ],
+              const SizedBox(height: AppSpacing.s12),
+              Row(
                 children: [
-                  Text(
-                    l10n.classInviteCodeLabel,
-                    style: AppTypography.cardTitle(context),
-                  ),
-                  const SizedBox(height: AppSpacing.s12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: SelectableText(
-                          code,
-                          key: const Key('invite_code_display'),
-                          style: AppTypography.displayTitle(context).copyWith(
-                            color: AppColors.primaryBlue,
-                            letterSpacing: 2.0,
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        key: const Key('copy_invite_code_button'),
-                        tooltip: l10n.classInviteCodeLabel,
-                        onPressed: () {
-                          Clipboard.setData(ClipboardData(text: code));
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(l10n.classInviteCodeCopied),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.copy_rounded),
-                      ),
-                      IconButton(
-                        key: const Key('rotate_invite_code_button'),
-                        tooltip: l10n.classRotateInviteAction,
-                        onPressed: () => runClassAction(
-                          context,
-                          () => rotateClassInviteAction(ref, classId),
-                          successMessage: isId
-                              ? 'Kode undangan berhasil diperbarui.'
-                              : 'Invite code rotated.',
-                        ),
-                        icon: const Icon(Icons.refresh_rounded),
-                      ),
-                    ],
-                  ),
-                  const Divider(),
-                  SwitchListTile(
-                    key: const Key('invite_active_switch'),
-                    contentPadding: EdgeInsets.zero,
-                    value: active,
-                    onChanged: (v) => runClassAction(
-                      context,
-                      () => setClassInviteActiveAction(
-                        ref,
-                        classId: classId,
-                        active: v,
+                  Expanded(
+                    child: SelectableText(
+                      code,
+                      key: const Key('invite_code_display'),
+                      style: AppTypography.displayTitle(context).copyWith(
+                        color: AppColors.primaryBlue,
+                        letterSpacing: 2.0,
                       ),
                     ),
-                    title: Text(l10n.classInviteActiveLabel),
+                  ),
+                  IconButton(
+                    key: const Key('copy_invite_code_button'),
+                    tooltip: l10n.classInviteCodeLabel,
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: code));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(l10n.classInviteCodeCopied),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded),
+                  ),
+                  IconButton(
+                    key: const Key('rotate_invite_code_button'),
+                    tooltip: l10n.classRotateInviteAction,
+                    onPressed: () => runClassAction(
+                      context,
+                      () => rotateClassInviteAction(ref, classId),
+                      successMessage: isId
+                          ? 'Kode undangan berhasil diperbarui.'
+                          : 'Invite code rotated.',
+                    ),
+                    icon: const Icon(Icons.refresh_rounded),
                   ),
                 ],
-              );
-            },
+              ),
+              const Divider(),
+              SwitchListTile(
+                key: const Key('invite_active_switch'),
+                contentPadding: EdgeInsets.zero,
+                value: active,
+                onChanged: (v) => runClassAction(
+                  context,
+                  () => setClassInviteActiveAction(
+                    ref,
+                    classId: classId,
+                    active: v,
+                  ),
+                ),
+                title: Text(l10n.classInviteActiveLabel),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: AppSpacing.s16),

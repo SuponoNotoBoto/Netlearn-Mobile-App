@@ -88,17 +88,9 @@ class StudentService {
         return list;
       }
 
-      // If the class owns modules, return the empty list rather than falling
-      // back to global template rows (e.g. a custom class with no published
-      // materials yet).
-      final modCheck = await _client
-          .from('class_modules')
-          .select('id')
-          .eq('class_id', classId)
-          .limit(1);
-      if ((modCheck as List).isNotEmpty) {
-        return const <MaterialModel>[];
-      }
+      // Active real class with no published materials yet: always return empty
+      // rather than falling back to global NetLearn template rows.
+      return const <MaterialModel>[];
     }
 
     final response = await _client
@@ -209,14 +201,7 @@ class StudentService {
         }
       } catch (_) {}
 
-      final modCheck = await _client
-          .from('class_modules')
-          .select('id')
-          .eq('class_id', classId)
-          .limit(1);
-      if ((modCheck as List).isNotEmpty) {
-        return const <MaterialModel>[];
-      }
+      return const <MaterialModel>[];
     }
 
     final response = await _client

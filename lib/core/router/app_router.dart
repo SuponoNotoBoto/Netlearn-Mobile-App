@@ -991,7 +991,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'classes/:classId',
             builder: (context, state) {
               final classId = state.pathParameters['classId'] ?? '';
-              return LecturerClassDetailPage(classId: classId);
+              final startWalkthrough =
+                  state.uri.queryParameters['walkthrough'] == '1';
+              return LecturerClassDetailPage(
+                classId: classId,
+                startWalkthrough: startWalkthrough,
+              );
             },
             routes: [
               GoRoute(

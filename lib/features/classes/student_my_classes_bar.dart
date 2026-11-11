@@ -251,11 +251,13 @@ class StudentMyClassesBar extends ConsumerWidget {
     required this.classes,
     required this.activeClass,
     this.onJoinOverride,
+    this.leaderboardButtonKey,
   });
 
   final List<StudentClass> classes;
   final StudentClass activeClass;
   final JoinClassSubmitCallback? onJoinOverride;
+  final Key? leaderboardButtonKey;
 
   void _openAddClass(BuildContext context, WidgetRef ref) {
     if (onJoinOverride != null) {
@@ -656,7 +658,8 @@ class StudentMyClassesBar extends ConsumerWidget {
                 if (leaderboardOn) ...[
                   Expanded(
                     child: InkWell(
-                      key: const Key('student_open_leaderboard_btn'),
+                      key: leaderboardButtonKey ??
+                          const Key('student_open_leaderboard_btn'),
                       onTap: () => context.push('/student/leaderboard'),
                       borderRadius: BorderRadius.circular(10),
                       child: Container(

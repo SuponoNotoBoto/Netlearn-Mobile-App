@@ -159,9 +159,7 @@ final lecturerDashboardStatsProvider =
         final classMaterials = allMaterials
             .where((r) => r['class_id']?.toString() == activeClass.id)
             .toList();
-        final materialsToCount = classMaterials.isNotEmpty
-            ? classMaterials
-            : allMaterials.where((r) => r['class_id'] == null).toList();
+        final materialsToCount = classMaterials;
 
         int publishedMaterials = materialsToCount
             .where((r) => r['published'] == true)
@@ -177,9 +175,7 @@ final lecturerDashboardStatsProvider =
         final classQuizzes = allQuizzes
             .where((q) => q['class_id']?.toString() == activeClass.id)
             .toList();
-        final quizzesToCount = classQuizzes.isNotEmpty
-            ? classQuizzes
-            : allQuizzes.where((q) => q['class_id'] == null).toList();
+        final quizzesToCount = classQuizzes;
 
         int publishedAssessments = quizzesToCount
             .where((q) => q['status']?.toString() == 'published')

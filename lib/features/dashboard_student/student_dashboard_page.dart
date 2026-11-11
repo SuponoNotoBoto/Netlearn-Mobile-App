@@ -31,6 +31,7 @@ import '../classes/student_my_classes_bar.dart';
 import '../dashboard_lecturer/notification_controller.dart';
 import '../materials/student_materials_controller.dart';
 import 'student_dashboard_controller.dart';
+import 'student_walkthrough.dart';
 
 class StudentDashboardPage extends ConsumerStatefulWidget {
   const StudentDashboardPage({
@@ -44,6 +45,8 @@ class StudentDashboardPage extends ConsumerStatefulWidget {
 
 class _StudentDashboardPageState
     extends ConsumerState<StudentDashboardPage> {
+  String? _checkedWalkthroughUserId;
+
   Future<void> _refresh() async {
     invalidateStudentProgress(ref);
 
@@ -110,6 +113,23 @@ class _StudentDashboardPageState
       );
     }
 
+    if (userId != null &&
+        userId.isNotEmpty &&
+        classes != null &&
+        classes.isNotEmpty &&
+        _checkedWalkthroughUserId != userId) {
+      _checkedWalkthroughUserId = userId;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          StudentWalkthroughManager.instance.maybeStartFirstTime(
+            context,
+            ref,
+            userId: userId,
+          );
+        }
+      });
+    }
+
     return Scaffold(
       backgroundColor: context.background,
 
@@ -145,9 +165,10 @@ class _StudentDashboardPageState
                   NetLearnSpace.s20,
                   NetLearnSpace.s32,
                 ),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate(
-                    [
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       // Banner error dashboard hanya muncul kalau data
                       // sapaan gagal; bagian progres punya penanganannya
                       // sendiri supaya satu kegagalan tidak mengosongkan
@@ -167,6 +188,8 @@ class _StudentDashboardPageState
                         StudentMyClassesBar(
                           classes: classes,
                           activeClass: activeClass,
+                          leaderboardButtonKey:
+                              StudentWalkthroughKeys.leaderboardButtonKey,
                         ),
                         const SizedBox(
                           height: NetLearnSpace.s16,
@@ -268,6 +291,7 @@ class _StudentDashboardPageState
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             _DashboardAvatar(
+              key: StudentWalkthroughKeys.profileAvatarKey,
               userId: dashboard?.userId,
               initial: dashboard?.initial ?? 'M',
               avatarConfig: dashboard?.avatarConfig ??
@@ -320,7 +344,16 @@ class _StudentDashboardPageState
               onTap: _openNotifications,
               tooltip: l10n.notificationsTitle,
             ),
-            const SizedBox(width: NetLearnSpace.s8),
+            const SizedBox(width: NetLearnSpace.s6),
+            _HeroIconButton(
+              key: const Key('student_dashboard_walkthrough_btn'),
+              icon: Icons.tips_and_updates_outlined,
+              tooltip: Localizations.localeOf(context).languageCode == 'id'
+                  ? 'Panduan Aplikasi'
+                  : 'App Guide',
+              onTap: () => StudentWalkthroughManager.instance.start(context, ref),
+            ),
+            const SizedBox(width: NetLearnSpace.s6),
             _HeroIconButton(
               icon: Icons.help_outline_rounded,
               tooltip: l10n.aboutNetLearn,
@@ -931,6 +964,7 @@ class _StudentDashboardPageState
         ),
 
         NlShortcutTile(
+          key: StudentWalkthroughKeys.materiTileKey,
           icon: Icons.menu_book_outlined,
           accentColor: accents[0],
           title: l10n.shortcutModules,
@@ -941,6 +975,7 @@ class _StudentDashboardPageState
         ),
 
         NlShortcutTile(
+          key: StudentWalkthroughKeys.arScannerTileKey,
           icon: Icons.view_in_ar_rounded,
           accentColor: accents[3],
           title: l10n.shortcutScanner,
@@ -975,6 +1010,7 @@ class _StudentDashboardPageState
         ),
 
         NlShortcutTile(
+          key: StudentWalkthroughKeys.assessmentTileKey,
           icon: Icons.assignment_outlined,
           accentColor: accents[1],
           title: l10n.shortcutAssignments,
@@ -1012,6 +1048,7 @@ class _StudentDashboardPageState
         ),
 
         NlShortcutTile(
+          key: StudentWalkthroughKeys.virtualLabTileKey,
           icon: Icons.lan_outlined,
           accentColor: accents[0],
           title: l10n.virtualLab,
@@ -1090,6 +1127,7 @@ class _HeroIconButton extends StatelessWidget {
   final VoidCallback onTap;
 
   const _HeroIconButton({
+    super.key,
     required this.icon,
     required this.tooltip,
     required this.onTap,
@@ -1154,6 +1192,7 @@ class _DashboardAvatar extends StatelessWidget {
   final VoidCallback onTap;
 
   const _DashboardAvatar({
+    super.key,
     this.userId,
     required this.initial,
     this.avatarConfig,

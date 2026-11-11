@@ -6,12 +6,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/localization/language_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/models/material_model.dart';
 import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
 import '../materials/material_lab_binding.dart';
 import '../virtual_lab/virtual_lab_saved_topology.dart';
 import '../virtual_lab/virtual_lab_storage_service.dart';
@@ -653,6 +655,46 @@ class _LecturerMaterialFormPageState
             _orderIndex.text = '${maxOrder + 1}';
           }
 
+          final langCode = ref.watch(languageProvider).languageCode;
+          final activeClass = ref.watch(activeLecturerClassProvider).value;
+          final effectiveClassId = widget.classId ??
+              (activeClass != null &&
+                      activeClass.id.isNotEmpty &&
+                      activeClass.id != kLegacyFallbackClassId
+                  ? activeClass.id
+                  : null);
+          final classModules = effectiveClassId != null
+              ? (ref.watch(classModulesProvider(effectiveClassId)).value ??
+                  const <ClassModule>[])
+              : const <ClassModule>[];
+
+          final moduleItems = <int, String>{};
+          if (effectiveClassId != null) {
+            for (final mod in classModules) {
+              moduleItems[mod.position] =
+                  '${l10n.module} ${mod.position}: ${mod.localizedTitle(langCode)}';
+            }
+            if (moduleItems.isEmpty) {
+              for (var module = 1; module <= 4; module++) {
+                moduleItems[module] = '${l10n.module} $module';
+              }
+            }
+            if (_moduleNumber != null &&
+                !moduleItems.containsKey(_moduleNumber)) {
+              moduleItems[_moduleNumber!] = '${l10n.module} $_moduleNumber';
+            }
+          } else {
+            if (_moduleNumber != null &&
+                (_moduleNumber! < 1 || _moduleNumber! > 4)) {
+              moduleItems[_moduleNumber!] = '${l10n.module} $_moduleNumber';
+            }
+            for (var module = 1; module <= 4; module++) {
+              moduleItems[module] =
+                  '${l10n.module} $module: ${_moduleName(module)}';
+            }
+          }
+          final sortedModuleNumbers = moduleItems.keys.toList()..sort();
+
           return Form(
             key: _formKey,
             child: ListView(
@@ -675,25 +717,17 @@ class _LecturerMaterialFormPageState
                         : null,
                   ),
                   items: [
-                    if (_moduleNumber != null &&
-                        (_moduleNumber! < 1 || _moduleNumber! > 4))
-                      DropdownMenuItem(
-                        value: _moduleNumber,
-                        child: Text(
-                          '${l10n.module} $_moduleNumber',
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    for (var module = 1; module <= 4; module++)
+                    for (final module in sortedModuleNumbers)
                       DropdownMenuItem(
                         value: module,
                         child: Text(
-                          '${l10n.module} $module: ${_moduleName(module)}',
+                          moduleItems[module]!,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
                   ],
-                  onChanged: (_editing?.isCore ?? false)
+                  onChanged: (_editing?.isCore ?? false) ||
+                          (widget.classId != null && widget.moduleId != null)
                       ? null
                       : (value) {
                           if (value == null) return;

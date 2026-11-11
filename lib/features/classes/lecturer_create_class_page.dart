@@ -104,7 +104,11 @@ class _LecturerCreateClassPageState
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(l10n.classCreatedSuccess)),
       );
-      context.pushReplacement('/lecturer/classes/$classId');
+      if (!_useTemplate) {
+        context.pushReplacement('/lecturer/classes/$classId?walkthrough=1');
+      } else {
+        context.pushReplacement('/lecturer/classes/$classId');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

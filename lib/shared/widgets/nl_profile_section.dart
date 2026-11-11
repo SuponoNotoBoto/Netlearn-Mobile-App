@@ -42,6 +42,9 @@ class NlProfileHeader extends StatelessWidget {
   /// Callback untuk membuka Studio Kustomisasi Avatar.
   final VoidCallback? onEditAvatar;
 
+  /// Key opsional untuk menyorot tombol Kustomisasi Avatar saat walkthrough.
+  final Key? customizeAvatarKey;
+
   const NlProfileHeader({
     super.key,
     required this.name,
@@ -53,6 +56,7 @@ class NlProfileHeader extends StatelessWidget {
     this.avatarConfig,
     this.bio,
     this.onEditAvatar,
+    this.customizeAvatarKey,
   });
 
   @override
@@ -198,7 +202,8 @@ class NlProfileHeader extends StatelessWidget {
               ),
               if (onEditAvatar != null)
                 InkWell(
-                  key: const Key('profile_customize_avatar_btn'),
+                  key: customizeAvatarKey ??
+                      const Key('profile_customize_avatar_btn'),
                   onTap: onEditAvatar,
                   borderRadius: BorderRadius.circular(999),
                   child: Container(

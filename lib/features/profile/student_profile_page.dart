@@ -13,6 +13,7 @@ import '../../shared/widgets/nl_profile_section.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
 import '../achievements/achievement_service.dart';
+import '../dashboard_student/student_walkthrough.dart';
 import 'avatar_customizer_dialog.dart';
 import 'student_profile_controller.dart';
 
@@ -161,6 +162,7 @@ class StudentProfilePage extends ConsumerWidget {
                   academicTag: l10n.studentAcademicTag,
                   avatarConfig: avatarCfg,
                   bio: bio,
+                  customizeAvatarKey: StudentWalkthroughKeys.customProfileKey,
                   onEditAvatar: () {
                     showAvatarCustomizerSheet(
                       context,

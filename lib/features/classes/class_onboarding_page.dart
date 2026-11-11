@@ -1368,7 +1368,14 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
             child: FilledButton(
               key: const Key('lecturer_continue_to_dashboard_btn'),
               onPressed: () {
-                if (widget.onContinueToDashboard != null) {
+                if (!created.useTemplate &&
+                    created.classId.isNotEmpty &&
+                    widget.onCreateOverride == null) {
+                  ref.invalidate(lecturerClassesProvider);
+                  context.go(
+                    '/lecturer/classes/${created.classId}?walkthrough=1',
+                  );
+                } else if (widget.onContinueToDashboard != null) {
                   widget.onContinueToDashboard!(created.classId);
                 } else {
                   ref.invalidate(lecturerClassesProvider);
@@ -1386,9 +1393,13 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                 children: [
                   Flexible(
                     child: Text(
-                      isId
-                          ? 'Masuk ke Dashboard Dosen'
-                          : 'Enter Lecturer Dashboard',
+                      !created.useTemplate
+                          ? (isId
+                              ? 'Kelola Kelas & Mulai Panduan'
+                              : 'Manage Class & Start Guide')
+                          : (isId
+                              ? 'Masuk ke Dashboard Dosen'
+                              : 'Enter Lecturer Dashboard'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(

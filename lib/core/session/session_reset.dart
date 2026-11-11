@@ -8,6 +8,7 @@ import '../../features/dashboard_lecturer/announcement_controller.dart';
 import '../../features/dashboard_lecturer/lecturer_dashboard_controller.dart';
 import '../../features/dashboard_lecturer/notification_controller.dart';
 import '../../features/dashboard_student/student_dashboard_controller.dart';
+import '../../features/dashboard_student/student_walkthrough.dart';
 import '../../features/discussions/discussion_controller.dart';
 import '../../features/materials/student_materials_controller.dart';
 import '../../features/profile/student_profile_controller.dart';
@@ -30,6 +31,7 @@ import '../notifications/announcement_read_store.dart';
 /// `Notifier`, where the available reference is the base type.
 void resetUserSession(Ref ref) {
   ref.invalidate(studentDashboardProvider);
+  StudentWalkthroughManager.instance.dismiss();
   ref.invalidate(assessmentListProvider);
   ref.invalidate(assessmentControllerProvider);
 

@@ -146,7 +146,7 @@ final lecturerMaterialsProvider =
               .where((r) => r['class_id']?.toString() == activeClass.id)
               .toList()
           : const <Map<String, dynamic>>[];
-      final filteredRows = classRows.isNotEmpty
+      final filteredRows = validClass
           ? classRows
           : allRows.where((r) => r['class_id'] == null).toList();
       return filteredRows
@@ -326,11 +326,51 @@ Future<String?> createMaterial(
   }
 
   try {
+    final activeClass = await resolveActiveLecturerClass(ref);
+    final validClass = activeClass != null &&
+        activeClass.id.isNotEmpty &&
+        activeClass.id != kLegacyFallbackClassId;
+
+    String? moduleId;
+    if (validClass && draft.moduleNumber != null) {
+      final modPos = draft.moduleNumber!;
+      final existingMod = await supabase
+          .from('class_modules')
+          .select('id')
+          .eq('class_id', activeClass.id)
+          .eq('position', modPos)
+          .maybeSingle();
+      if (existingMod != null && existingMod['id'] != null) {
+        moduleId = existingMod['id'].toString();
+      } else {
+        try {
+          final createdMod = await supabase.rpc(
+            'create_class_module',
+            params: {
+              'p_class': activeClass.id,
+              'p_title': 'Modul $modPos',
+              'p_title_en': 'Module $modPos',
+              'p_title_id': 'Modul $modPos',
+              'p_description': null,
+              'p_description_en': null,
+              'p_description_id': null,
+              'p_position': modPos,
+            },
+          );
+          if (createdMod != null && createdMod.toString().isNotEmpty) {
+            moduleId = createdMod.toString();
+          }
+        } catch (_) {}
+      }
+    }
+
     final response = await supabase
         .from('materials')
         .insert({
           ..._lecturerWritableColumns(draft),
 
+          if (validClass) 'class_id': activeClass.id,
+          'module_id': ?moduleId,
           'module_number': draft.moduleNumber,
           'order_index': draft.orderIndex,
 
