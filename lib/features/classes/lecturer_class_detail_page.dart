@@ -709,7 +709,10 @@ class _ModulesTab extends ConsumerWidget {
                       groupValue: selectedSourceId,
                       contentPadding: EdgeInsets.zero,
                       title: Text(c.name, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                      subtitle: Text('${c.code} · ${c.status}', style: const TextStyle(fontSize: 11)),
+                      subtitle: Text(
+                        '${c.code} · ${c.status == 'published' ? l10n.classStatusPublished : c.status == 'archived' ? l10n.classStatusArchived : l10n.classStatusDraft}',
+                        style: const TextStyle(fontSize: 11),
+                      ),
                       onChanged: (val) => setDialogState(() => selectedSourceId = val),
                     ),
                 ],

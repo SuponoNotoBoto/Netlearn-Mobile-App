@@ -6,6 +6,8 @@ import 'package:go_router/go_router.dart';
 import '../../core/session/session_reset.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
+import '../../l10n/app_localizations.dart';
+import '../../shared/widgets/nl_netlearn_logo.dart';
 import 'class_action_messages.dart';
 import 'class_controller.dart';
 
@@ -142,9 +144,10 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
 
   // Lecturer create state
   final _nameController = TextEditingController();
-  final _semesterController = TextEditingController(text: 'Ganjil 2026/2027');
+  final _semesterController = TextEditingController();
   final _descController = TextEditingController();
   final _firstModuleController = TextEditingController();
+  String? _lastAutoSemester;
   bool _useTemplate = true;
   bool _pretestEnabled = true;
   bool _posttestEnabled = true;
@@ -158,6 +161,18 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
     bool pretestEnabled,
     bool posttestEnabled,
   })? _createdClass;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final defaultSemester = isId ? 'Ganjil 2026/2027' : 'Odd 2026/2027';
+    if (_lastAutoSemester == null ||
+        _semesterController.text == _lastAutoSemester) {
+      _semesterController.text = defaultSemester;
+    }
+    _lastAutoSemester = defaultSemester;
+  }
 
   @override
   void dispose() {
@@ -397,26 +412,7 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(11),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x26000000),
-                      blurRadius: 8,
-                      offset: Offset(0, 3),
-                    ),
-                  ],
-                ),
-                child: const Icon(
-                  Icons.hub_rounded,
-                  color: Color(0xFF7E3FF2),
-                  size: 20,
-                ),
-              ),
+              const NlNetLearnLogo(inverse: true, size: 36),
               const SizedBox(width: 10),
               const Text(
                 'NetLearn',
@@ -509,9 +505,13 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        isId
-                            ? 'Wajib Sebelum Masuk Dashboard'
-                            : 'Join a Class to Start Learning',
+                        widget.hasExistingClass
+                            ? (isId
+                                ? 'Gabung Kelas Tambahan'
+                                : 'Join Another Class')
+                            : (isId
+                                ? 'Wajib Sebelum Masuk Dashboard'
+                                : 'Join a Class to Start Learning'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -540,9 +540,13 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
         ),
         const SizedBox(height: 6),
         Text(
-          isId
-              ? 'Anda belum tergabung dalam kelas aktif. Masukkan kode kelas dari dosen untuk mengakses materi, asesmen, dan progres belajar di Dashboard.'
-              : 'You have not joined an active class yet. Enter the class code from your lecturer to access materials, assessments, and learning progress on the Dashboard.',
+          widget.hasExistingClass
+              ? (isId
+                  ? 'Masukkan kode kelas dari dosen untuk bergabung ke kelas tambahan dan mengakses materinya di Dashboard.'
+                  : 'Enter the class invite code from your lecturer to join an additional class and access its materials on the Dashboard.')
+              : (isId
+                  ? 'Anda belum tergabung dalam kelas aktif. Masukkan kode kelas dari dosen untuk mengakses materi, asesmen, dan progres belajar di Dashboard.'
+                  : 'You have not joined an active class yet. Enter the class code from your lecturer to access materials, assessments, and learning progress on the Dashboard.'),
           style: TextStyle(
             fontSize: 13,
             height: 1.55,
@@ -811,6 +815,7 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
     required bool isId,
     required bool isDark,
   }) {
+    final l10n = AppLocalizations.of(context);
     final title = widget.hasExistingClass
         ? (isId ? 'Buat Kelas Baru' : 'Create New Class')
         : (isId ? 'Buat Kelas Pertama Anda' : 'Create Your First Class');
@@ -863,9 +868,11 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                     const SizedBox(width: 6),
                     Flexible(
                       child: Text(
-                        isId
-                            ? 'Wajib Sebelum Masuk Dashboard'
-                            : 'Create a Class to Start Teaching',
+                        widget.hasExistingClass
+                            ? (isId ? 'Tambah Kelas Baru' : 'Add Another Class')
+                            : (isId
+                                ? 'Wajib Sebelum Masuk Dashboard'
+                                : 'Create a Class to Start Teaching'),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -894,9 +901,13 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
         ),
         const SizedBox(height: 6),
         Text(
-          isId
-              ? 'Sebagai dosen, Anda wajib membuat minimal satu kelas dan menghasilkan kode kelas sebelum dapat masuk ke Teaching Workspace di Dashboard.'
-              : 'As a lecturer, you must create at least one class and generate a class invite code before entering your Teaching Workspace on the Dashboard.',
+          widget.hasExistingClass
+              ? (isId
+                  ? 'Buat kelas baru, pilih apakah menggunakan template NetLearn atau kelas kustom, lalu bagikan kode kelas kepada mahasiswa Anda.'
+                  : 'Create a new class, choose between the NetLearn template or a custom class, then share the class invite code with your students.')
+              : (isId
+                  ? 'Sebagai dosen, Anda wajib membuat minimal satu kelas dan menghasilkan kode kelas sebelum dapat masuk ke Teaching Workspace di Dashboard.'
+                  : 'As a lecturer, you must create at least one class and generate a class invite code before entering your Teaching Workspace on the Dashboard.'),
           style: TextStyle(
             fontSize: 13,
             height: 1.55,
@@ -966,7 +977,9 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                             key: const Key('create_class_semester_field'),
                             controller: _semesterController,
                             decoration: _inputDecoration(
-                              hintText: 'Ganjil 2026/2027',
+                              hintText: isId
+                                  ? 'Ganjil 2026/2027'
+                                  : 'Odd 2026/2027',
                               isDark: isDark,
                             ),
                           ),
@@ -1011,7 +1024,10 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                       child: _TemplateChoiceCard(
                         key: const Key('create_class_mode_template'),
                         icon: Icons.auto_awesome_rounded,
-                        title: 'Use NetLearn Template',
+                        title: l10n?.classUseTemplateTitle ??
+                            (isId
+                                ? 'Gunakan Template NetLearn'
+                                : 'Use NetLearn Template'),
                         subtitle: isId
                             ? 'Salin 4 Modul, Materi, Video & Pre/Post Test bawaan'
                             : 'Copy the 4 default Modules, Materials, Videos & Pre/Post Test',
@@ -1024,7 +1040,10 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
                       child: _TemplateChoiceCard(
                         key: const Key('create_class_mode_custom'),
                         icon: Icons.layers_outlined,
-                        title: 'Create Custom Class',
+                        title: l10n?.classCreateCustomTitle ??
+                            (isId
+                                ? 'Buat Kelas Kustom'
+                                : 'Create Custom Class'),
                         subtitle: isId
                             ? 'Susun modul, materi, dan asesmen sendiri dari awal'
                             : 'Build your own modules, materials, and assessments from scratch',
@@ -1246,7 +1265,13 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
     required bool isId,
     required bool isDark,
   }) {
+    final l10n = AppLocalizations.of(context);
     final created = _createdClass!;
+    final originLabel = created.useTemplate
+        ? (l10n?.classOriginTemplate ??
+            (isId ? 'Template NetLearn' : 'NetLearn Template'))
+        : (l10n?.classOriginCustom ??
+            (isId ? 'Kelas Kustom' : 'Custom Class'));
     return Container(
       key: const Key('lecturer_created_class_success_card'),
       padding: const EdgeInsets.all(20),
@@ -1285,7 +1310,7 @@ class _ClassOnboardingViewState extends ConsumerState<ClassOnboardingView> {
           ),
           const SizedBox(height: 6),
           Text(
-            '${created.className} (${created.useTemplate ? 'Template NetLearn' : 'Custom Class'})',
+            '${created.className} ($originLabel)',
             textAlign: TextAlign.center,
             style: TextStyle(
               fontSize: 13,

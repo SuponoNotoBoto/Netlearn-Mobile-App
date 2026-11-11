@@ -910,6 +910,7 @@ class _LecturerClassCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
+    final isId = Localizations.localeOf(context).languageCode == 'id';
     final statusLabel = switch (cls.status) {
       'published' => l10n.classStatusPublished,
       'archived' => l10n.classStatusArchived,
@@ -967,9 +968,9 @@ class _LecturerClassCard extends ConsumerWidget {
                     color: const Color(0xFFF1ECFF),
                     borderRadius: BorderRadius.circular(AppRadius.rPill),
                   ),
-                  child: const Text(
-                    'Active',
-                    style: TextStyle(
+                  child: Text(
+                    isId ? 'Aktif' : 'Active',
+                    style: const TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       color: Color(0xFF6C2CE2),
