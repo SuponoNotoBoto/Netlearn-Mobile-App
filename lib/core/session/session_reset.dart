@@ -13,6 +13,7 @@ import '../../features/discussions/discussion_controller.dart';
 import '../../features/materials/student_materials_controller.dart';
 import '../../features/profile/student_profile_controller.dart';
 import '../../features/virtual_lab/virtual_lab_controller.dart';
+import '../../features/netbot/netbot_controller.dart';
 import '../notifications/announcement_read_store.dart';
 
 /// Clears every provider whose value belongs to one specific signed-in user.
@@ -94,6 +95,8 @@ void resetUserSession(Ref ref) {
   ref.invalidate(discussionThreadDetailProvider);
   ref.invalidate(discussionThreadRepliesProvider);
 
+  // NetBot AI Tutor chat provider (isolates chat history across user/role boundaries)
+  ref.invalidate(netBotProvider);
   // Clean up legacy device-global keys that could leak across account boundaries
   SharedPreferences.getInstance().then((prefs) {
     prefs.remove('unlocked_badges');

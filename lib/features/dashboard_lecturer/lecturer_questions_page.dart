@@ -149,7 +149,12 @@ class LecturerQuestionsPage extends ConsumerWidget {
                     Expanded(
                       child: OutlinedButton.icon(
                         icon: const Icon(Icons.auto_awesome_rounded, size: 18, color: Color(0xFF8C52FF)),
-                        label: const Text('Buat Soal AI', style: TextStyle(color: Color(0xFF8C52FF), fontWeight: FontWeight.w700)),
+                        label: Text(
+                          ref.watch(languageProvider).languageCode == 'id'
+                              ? 'Buat Soal AI'
+                              : 'Generate AI Questions',
+                          style: const TextStyle(color: Color(0xFF8C52FF), fontWeight: FontWeight.w700),
+                        ),
                         style: OutlinedButton.styleFrom(
                           side: const BorderSide(color: Color(0xFF8C52FF), width: 1.5),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

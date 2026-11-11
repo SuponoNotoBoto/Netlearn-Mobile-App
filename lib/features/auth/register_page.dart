@@ -71,6 +71,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       email: _emailController.text,
       password: _passwordController.text,
       confirmPassword: _confirmPasswordController.text,
+      role: _role,
     );
 
     if (!mounted) {
@@ -285,10 +286,6 @@ class _RegisterForm extends StatelessWidget {
             ),
             const SizedBox(height: 18),
             AuthRoleSegmented(role: role, onChanged: onRoleChanged),
-            if (isLecturer) ...[
-              const SizedBox(height: 12),
-              _LecturerNotice(text: l10n.registerLecturerNotice),
-            ],
             if (errorMessage != null) ...[
               const SizedBox(height: 18),
               AuthFeedbackBanner(
@@ -313,8 +310,10 @@ class _RegisterForm extends StatelessWidget {
             ),
             const SizedBox(height: 17),
             AuthField(
-              label: l10n.studentIdOrEmployeeId,
-              placeholder: l10n.enterStudentOrEmployeeId,
+              label: isLecturer ? l10n.lecturerId : l10n.studentIdOrEmployeeId,
+              placeholder: isLecturer
+                  ? l10n.enterLecturerId
+                  : l10n.enterStudentOrEmployeeId,
               controller: identityController,
               keyboardType: TextInputType.number,
               autovalidateMode: showFieldErrors
@@ -322,7 +321,9 @@ class _RegisterForm extends StatelessWidget {
                   : null,
               validator: (value) {
                 if (value == null || value.trim().isEmpty) {
-                  return l10n.studentIdRequired;
+                  return isLecturer
+                      ? (l10n.lecturerId + ' wajib diisi.')
+                      : l10n.studentIdRequired;
                 }
                 return null;
               },
@@ -407,7 +408,7 @@ class _RegisterForm extends StatelessWidget {
                 }
                 return null;
               },
-              onFieldSubmitted: isLecturer ? null : (_) => onSubmit(),
+              onFieldSubmitted: (_) => onSubmit(),
             ),
             const SizedBox(height: 17),
             SizedBox(
@@ -415,7 +416,7 @@ class _RegisterForm extends StatelessWidget {
               child: NlButton(
                 label: l10n.registerButton,
                 loading: isLoading,
-                onPressed: isLecturer ? null : onSubmit,
+                onPressed: onSubmit,
                 trailingIcon: Icons.arrow_forward_rounded,
               ),
             ),

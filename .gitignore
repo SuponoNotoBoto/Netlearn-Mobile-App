@@ -48,7 +48,12 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 
+# Supabase CLI temp files
+supabase/
+
+
 # Local memory & AI guidelines (not pushed to GitHub)
 CONTEXT_MEMORY.md
+rules.md
 lib/features/virtual_lab_backup/
 

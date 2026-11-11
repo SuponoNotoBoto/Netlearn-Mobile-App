@@ -33,12 +33,6 @@ class StudentSecurityPage extends ConsumerWidget {
       appBar: NlTopBar(
         title: l10n.securityAndPassword,
         onBack: () => goBack(context),
-        // Lonceng sama seperti halaman Security dosen: menuju daftar
-        // notifikasi lengkap, alih-alih ikon mati.
-        actions: IconButton(
-          icon: const Icon(Icons.notifications_none_rounded),
-          onPressed: () => context.push('/student/notifications'),
-        ),
       ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),

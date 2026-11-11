@@ -12,6 +12,7 @@ import '../../shared/widgets/nl_snack_bar.dart';
 import 'lecturer_students_controller.dart';
 import 'lecturer_students_csv.dart';
 import 'lecturer_students_pdf.dart';
+import 'widgets/lecturer_score_chart_card.dart';
 import '../classes/class_controller.dart';
 
 /// Tab Rekap Nilai — tabel nilai seluruh mahasiswa beserta tombol ekspor
@@ -129,13 +130,15 @@ class LecturerScoreOverviewTab extends ConsumerWidget {
                 ],
               ),
               const SizedBox(height: NetLearnSpace.s12),
+              LecturerScoreChartCard(students: students),
+              const SizedBox(height: NetLearnSpace.s16),
               Text(
                 l10n.scoreScaleHint,
                 style: Theme.of(context).textTheme.bodySmall?.copyWith(
                       color: context.mutedText,
                     ),
               ),
-              const SizedBox(height: NetLearnSpace.s16),
+              const SizedBox(height: NetLearnSpace.s12),
 
               // Tabel nilai versi compact — setara <table class="w-full
               // text-xs"> di desain. DataTable bawaan membuat baris 56px dan

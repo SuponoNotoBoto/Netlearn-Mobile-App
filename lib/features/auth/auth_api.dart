@@ -19,6 +19,7 @@ abstract class AuthApi {
     required String email,
     required String password,
     required String identityNumber,
+    String role = 'student',
   });
 
   String? get currentUserId;
@@ -80,13 +81,14 @@ class SupabaseAuthApi implements AuthApi {
     required String email,
     required String password,
     required String identityNumber,
+    String role = 'student',
   }) async {
     final response = await supabase.auth.signUp(
       email: email.trim(),
       password: password,
       data: {
         'name': name.trim(),
-        'role': 'student',
+        'role': role,
         'identity_number': identityNumber.trim(),
       },
     );

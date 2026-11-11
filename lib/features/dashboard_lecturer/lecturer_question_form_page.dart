@@ -10,6 +10,7 @@ import '../../shared/widgets/nl_field.dart';
 import '../../shared/widgets/nl_section_heading.dart';
 import '../../shared/widgets/nl_snack_bar.dart';
 import '../../shared/widgets/nl_topbar.dart';
+import 'lecturer_ai_service.dart';
 import 'lecturer_assessments_controller.dart';
 import 'lecturer_bottom_navbar.dart';
 import 'lecturer_questions_page.dart' show answerLetters;
@@ -83,6 +84,7 @@ class _LecturerQuestionFormPageState
   bool _loadFailed = false;
   bool _notFound = false;
   bool _saving = false;
+  bool _translatingAi = false;
 
   @override
   void initState() {
@@ -316,6 +318,95 @@ class _LecturerQuestionFormPageState
     goBack(context, fallback: _questionsPath);
   }
 
+  Future<void> _translateQuestionWithAi(String targetLangCode) async {
+    final isTargetEn = targetLangCode == 'en';
+    final srcQuestion = isTargetEn
+        ? _questionTextId.text.trim()
+        : _questionTextEn.text.trim();
+    final srcA = isTargetEn
+        ? _optionId['A']!.text.trim()
+        : _optionEn['A']!.text.trim();
+    final srcB = isTargetEn
+        ? _optionId['B']!.text.trim()
+        : _optionEn['B']!.text.trim();
+    final srcC = isTargetEn
+        ? _optionId['C']!.text.trim()
+        : _optionEn['C']!.text.trim();
+    final srcD = isTargetEn
+        ? _optionId['D']!.text.trim()
+        : _optionEn['D']!.text.trim();
+
+    final isIdUi = Localizations.localeOf(context).languageCode == 'id';
+
+    if (srcQuestion.isEmpty &&
+        srcA.isEmpty &&
+        srcB.isEmpty &&
+        srcC.isEmpty &&
+        srcD.isEmpty) {
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Isi pertanyaan atau pilihan jawaban terlebih dahulu sebelum menerjemahkan.'
+            : 'Please fill in the source question or options before translating.',
+        tone: NlSnackTone.warning,
+      );
+      return;
+    }
+
+    setState(() => _translatingAi = true);
+
+    try {
+      final result = await LecturerAiService.translateQuestion(
+        questionText: srcQuestion,
+        optionA: srcA,
+        optionB: srcB,
+        optionC: srcC,
+        optionD: srcD,
+        targetLanguageCode: targetLangCode,
+      );
+
+      if (!mounted) return;
+      setState(() {
+        if (isTargetEn) {
+          if (result.questionText.isNotEmpty) {
+            _questionTextEn.text = result.questionText;
+          }
+          if (result.optionA.isNotEmpty) _optionEn['A']!.text = result.optionA;
+          if (result.optionB.isNotEmpty) _optionEn['B']!.text = result.optionB;
+          if (result.optionC.isNotEmpty) _optionEn['C']!.text = result.optionC;
+          if (result.optionD.isNotEmpty) _optionEn['D']!.text = result.optionD;
+        } else {
+          if (result.questionText.isNotEmpty) {
+            _questionTextId.text = result.questionText;
+          }
+          if (result.optionA.isNotEmpty) _optionId['A']!.text = result.optionA;
+          if (result.optionB.isNotEmpty) _optionId['B']!.text = result.optionB;
+          if (result.optionC.isNotEmpty) _optionId['C']!.text = result.optionC;
+          if (result.optionD.isNotEmpty) _optionId['D']!.text = result.optionD;
+        }
+        _translatingAi = false;
+      });
+
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Soal & opsi berhasil diterjemahkan oleh ${result.providerName} ✨'
+            : 'Question & options translated by ${result.providerName} ✨',
+        tone: NlSnackTone.success,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _translatingAi = false);
+      NlSnackBar.show(
+        context,
+        isIdUi
+            ? 'Gagal menerjemahkan soal dengan AI. Silakan coba lagi.'
+            : 'Failed to translate question with AI. Please try again.',
+        tone: NlSnackTone.error,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
@@ -385,6 +476,9 @@ class _LecturerQuestionFormPageState
           NetLearnSpace.s32,
         ),
         children: [
+          _buildAiTranslateBar(context),
+          const SizedBox(height: NetLearnSpace.s16),
+
           NlSectionHeading(
             title: l10n.questionText,
             leadingIcon: Icons.help_outline,
@@ -511,6 +605,88 @@ class _LecturerQuestionFormPageState
                   icon: Icons.check_rounded,
                   loading: _saving,
                   onPressed: _submit,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAiTranslateBar(BuildContext context) {
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final theme = Theme.of(context);
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: context.accentTint.withAlpha(110),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.accent.withAlpha(80)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.translate_rounded, size: 18, color: context.accent),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  isId
+                      ? 'Terjemahkan Soal & Pilihan Otomatis (AI) ✨'
+                      : 'AI Auto-Translate Question & Options ✨',
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: context.onSurface,
+                  ),
+                ),
+              ),
+              if (_translatingAi)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            isId
+                ? 'Isi pertanyaan dan opsi A–D dalam 1 bahasa, lalu klik untuk menerjemahkan sekaligus.'
+                : 'Fill in question and options A–D in one language, then tap to translate all at once.',
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: context.mutedText,
+              fontSize: 11,
+            ),
+          ),
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi || _saving
+                      ? null
+                      : () => _translateQuestionWithAi('en'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'ID → English',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _translatingAi || _saving
+                      ? null
+                      : () => _translateQuestionWithAi('id'),
+                  icon: const Icon(Icons.auto_awesome_rounded, size: 15),
+                  label: const Text(
+                    'English → ID',
+                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+                  ),
                 ),
               ),
             ],

@@ -440,14 +440,6 @@ class _VideoPageState extends ConsumerState<VideoPage> {
           style: Theme.of(context).textTheme.titleMedium
               ?.copyWith(fontSize: 15, fontWeight: FontWeight.w800),
         ),
-        actions: [
-          IconButton(
-            onPressed: () {
-              context.push('${_routeBase(context)}/notifications');
-            },
-            icon: const Icon(Icons.notifications_none_rounded),
-          ),
-        ],
       ),
       body: _buildBody(localizedTitle, localizedDescription),
       // Navbar bawah hanya untuk mahasiswa: `/lecturer/video/:id` adalah
