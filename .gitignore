@@ -54,5 +54,6 @@ supabase/
 
 # Local memory & AI guidelines (not pushed to GitHub)
 CONTEXT_MEMORY.md
+rules.md
 lib/features/virtual_lab_backup/
 

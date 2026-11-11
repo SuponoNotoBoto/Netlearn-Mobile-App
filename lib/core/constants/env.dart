@@ -9,9 +9,9 @@ class Env {
   // In Supabase architecture, the project URL and publishable (anon) key are client-facing
   // and public by design (secured via Row Level Security in Supabase).
   static const String _defaultSupabaseUrl =
-      'https://dsqxjnanoallwujlymmp.supabase.co';
+      '';
   static const String _defaultSupabasePublishableKey =
-      'sb_publishable_Rhf4KG8xiXjdkkytIEBm8w_sPn4FVQq';
+      '';
 
   static void _ensureInitialized() {
     if (dotenv.isInitialized) return;
