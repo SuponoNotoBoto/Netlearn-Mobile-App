@@ -341,6 +341,7 @@ class VirtualLabTerminalWidget extends StatefulWidget {
     required this.device,
     required this.session,
     required this.accent,
+    this.outputHeight = 240,
     this.onPingResult,
     this.onDhcpLease,
     this.onDhcpRelease,
@@ -349,6 +350,7 @@ class VirtualLabTerminalWidget extends StatefulWidget {
   final VirtualLabDevice device;
   final VirtualLabSession session;
   final Color accent;
+  final double outputHeight;
   final void Function(VirtualLabConnectivityResult result)? onPingResult;
   final void Function(VirtualLabDhcpResult lease)? onDhcpLease;
   final void Function()? onDhcpRelease;
@@ -518,7 +520,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
 
           // Output Teks Konsol
           Container(
-            height: 200,
+            height: widget.outputHeight,
             padding: const EdgeInsets.all(12),
             child: ListView.builder(
               controller: _scrollController,
@@ -650,7 +652,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
                         hintStyle: TextStyle(
                           fontFamily: 'monospace',
                           fontSize: 11.5,
-                          color: Color(0xFF64748B),
+                          color: Color(0x6B64748B),
                         ),
                       ),
                       onSubmitted: _submitCommand,

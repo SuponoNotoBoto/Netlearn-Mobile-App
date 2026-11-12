@@ -1,14 +1,100 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/avatar/nl_avatar_models.dart';
 import '../../core/supabase/supabase_client.dart';
 import 'virtual_lab_leaderboard_models.dart';
+import 'virtual_lab_mission.dart';
 
 class VirtualLabLeaderboardService {
   static String _storageKey(String? classId) =>
       'vlab_leaderboard_scores_v1_${classId != null && classId.isNotEmpty ? classId : "global"}';
+
+  /// Menormalkan identifier misi/preset ke salah satu tab resmi leaderboard
+  /// (`overall`, `p2p`, `star`, `dual_subnet`, `dhcp_server`).
+  static String normalizeMissionKey(String? raw) {
+    final v = (raw ?? '').trim().toLowerCase();
+    if (v.isEmpty || v == 'overall' || v == 'custom') return 'overall';
+    if (v.contains('p2p')) return 'p2p';
+    if (v.contains('star')) return 'star';
+    if (v.contains('dual_subnet') ||
+        v.contains('routing') ||
+        v.contains('gateway')) {
+      return 'dual_subnet';
+    }
+    if (v.contains('dhcp') || v.contains('server')) return 'dhcp_server';
+    return 'overall';
+  }
+
+  /// Menggabungkan dua daftar skor sambil mempertahankan entri skor tertinggi
+  /// per kombinasi `(studentId, materialKey)`.
+  static List<VirtualLabScore> mergeScoreLists(
+    Iterable<VirtualLabScore> primary,
+    Iterable<VirtualLabScore> secondary,
+  ) {
+    final Map<String, VirtualLabScore> merged = {};
+
+    void absorb(VirtualLabScore item) {
+      final matKey = item.materialId.isNotEmpty
+          ? item.materialId.toLowerCase()
+          : item.preset.toLowerCase();
+      final key = '${item.studentId}::$matKey';
+      final existing = merged[key];
+      if (existing == null ||
+          item.score > existing.score ||
+          (item.score == existing.score &&
+              item.completedTasks > existing.completedTasks) ||
+          (item.score == existing.score &&
+              item.completedTasks == existing.completedTasks &&
+              item.date.isAfter(existing.date))) {
+        merged[key] = item;
+      }
+    }
+
+    for (final s in primary) {
+      absorb(s);
+    }
+    for (final s in secondary) {
+      absorb(s);
+    }
+
+    final result = merged.values.toList();
+    result.sort((a, b) {
+      final cmpScore = b.score.compareTo(a.score);
+      if (cmpScore != 0) return cmpScore;
+      final cmpTasks = b.completedTasks.compareTo(a.completedTasks);
+      if (cmpTasks != 0) return cmpTasks;
+      return a.date.compareTo(b.date);
+    });
+    return result;
+  }
+
+  /// Menyinkronkan riwayat pengumpulan lokal/canvas milik user aktif ke cache
+  /// leaderboard jika belum tercatat atau memiliki skor lebih tinggi.
+  static Future<void> syncSubmissions({
+    required Map<String, VirtualLabMissionSubmission> submissions,
+    String? classId,
+    required String studentName,
+  }) async {
+    if (submissions.isEmpty) return;
+    for (final sub in submissions.values) {
+      await saveScore(
+        classId: classId,
+        studentId: sub.userId,
+        studentName: studentName,
+        materialId: sub.materialId,
+        materialTitle: sub.materialTitle,
+        preset: sub.preset,
+        score: sub.score,
+        completedTasks: sub.completedTaskIds.length,
+        totalTasks: sub.totalTasks,
+        isPassed: sub.isPassed,
+      );
+    }
+  }
 
   /// Menyimpan hasil skor misi praktikum mahasiswa ke cache lokal & sinkronisasi cloud.
   static Future<void> saveScore({
@@ -117,25 +203,21 @@ class VirtualLabLeaderboardService {
             } catch (_) {}
           }
 
-          // Upsert ke virtual_lab_scores jika tabel ada
-          try {
-            await supabase.from('virtual_lab_scores').upsert({
-              'user_id': validUid,
-              'student_name': cleanName,
-              'material_id': materialId,
-              'material_title': materialTitle,
-              'preset': preset,
-              'score': score,
-              'completed_tasks': completedTasks,
-              'total_tasks': totalTasks,
-              'is_passed': isPassed,
-              'class_id': classId,
-              if (myAvatar != null) 'avatar_config': myAvatar.toMap(),
-              'updated_at': DateTime.now().toIso8601String(),
-            }, onConflict: 'user_id, material_id');
-          } catch (_) {
-            // Jika tabel virtual_lab_scores belum dimigrasi di remote, fallback aman
-          }
+          // Upsert ke virtual_lab_scores dengan fallback bertingkat bila kolom
+          // opsional atau constraint ON CONFLICT belum tersedia di remote.
+          await _syncScoreToRemote(
+            userId: validUid,
+            studentName: cleanName,
+            materialId: materialId,
+            materialTitle: materialTitle,
+            preset: preset,
+            score: score,
+            completedTasks: completedTasks,
+            totalTasks: totalTasks,
+            isPassed: isPassed,
+            classId: classId,
+            avatarConfig: myAvatar,
+          );
         }
       } catch (e) {
         debugPrint('VirtualLabLeaderboardService sync remote warning: $e');
@@ -143,41 +225,164 @@ class VirtualLabLeaderboardService {
     } catch (_) {}
   }
 
-  /// Membaca seluruh skor mentah dari penyimpanan lokal/cloud.
+  static Future<void> _syncScoreToRemote({
+    required String userId,
+    required String studentName,
+    required String materialId,
+    required String materialTitle,
+    required String preset,
+    required int score,
+    required int completedTasks,
+    required int totalTasks,
+    required bool isPassed,
+    String? classId,
+    AvatarConfig? avatarConfig,
+  }) async {
+    final payload = <String, dynamic>{
+      'user_id': userId,
+      'student_name': studentName,
+      'material_id': materialId,
+      'material_title': materialTitle,
+      'preset': preset,
+      'score': score,
+      'completed_tasks': completedTasks,
+      'total_tasks': totalTasks,
+      'is_passed': isPassed,
+      if (classId != null && classId.isNotEmpty) 'class_id': classId,
+      if (avatarConfig != null) 'avatar_config': avatarConfig.toMap(),
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+
+    const optionalCols = [
+      'avatar_config',
+      'class_id',
+      'completed_tasks',
+      'total_tasks',
+      'is_passed',
+      'preset',
+      'material_title',
+    ];
+
+    for (var i = 0; i <= optionalCols.length; i++) {
+      try {
+        await supabase
+            .from('virtual_lab_scores')
+            .upsert(payload, onConflict: 'user_id, material_id');
+        return;
+      } on PostgrestException catch (e) {
+        final msg = e.message.toLowerCase();
+        // Tidak ada unique constraint (user_id, material_id) -> select + update/insert.
+        if (e.code == '42P10' || msg.contains('on conflict')) {
+          try {
+            final existing = await supabase
+                .from('virtual_lab_scores')
+                .select('id, score')
+                .eq('user_id', userId)
+                .eq('material_id', materialId)
+                .maybeSingle();
+            if (existing != null) {
+              final prevScore = (existing['score'] as num?)?.toInt() ?? 0;
+              if (score >= prevScore) {
+                await supabase
+                    .from('virtual_lab_scores')
+                    .update(payload)
+                    .eq('id', existing['id'].toString());
+              }
+            } else {
+              await supabase.from('virtual_lab_scores').insert(payload);
+            }
+            return;
+          } catch (_) {
+            return;
+          }
+        }
+
+        final isColError = e.code == '42703' ||
+            e.code == 'PGRST204' ||
+            msg.contains('column');
+        if (isColError) {
+          String? toDrop;
+          for (final col in optionalCols) {
+            if (payload.containsKey(col) && msg.contains(col)) {
+              toDrop = col;
+              break;
+            }
+          }
+          toDrop ??= optionalCols.firstWhere(
+            (c) => payload.containsKey(c),
+            orElse: () => '',
+          );
+          if (toDrop.isNotEmpty) {
+            payload.remove(toDrop);
+            continue;
+          }
+        }
+        return;
+      } catch (_) {
+        return;
+      }
+    }
+  }
+
+  /// Membaca seluruh skor dari penyimpanan lokal & cloud lalu menggabungkannya
+  /// agar skor terbaru selalu tampil meski sinkronisasi remote tertunda.
   static Future<List<VirtualLabScore>> getAllScores({String? classId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      final effectiveClassId =
+          (classId != null && classId.isNotEmpty) ? classId : null;
 
-      // 1. Coba baca dari remote Supabase jika ada koneksi
+      // 1. Baca dari SharedPreferences terlebih dahulu (scoped + global fallback)
+      final localScores = <VirtualLabScore>[];
+      void loadPrefsKey(String key, {required bool filterByClass}) {
+        final raw = prefs.getString(key);
+        if (raw == null || raw.isEmpty) return;
+        try {
+          final List decoded = jsonDecode(raw) as List;
+          for (final item in decoded) {
+            final parsed =
+                VirtualLabScore.fromMap(Map<String, dynamic>.from(item as Map));
+            if (filterByClass && effectiveClassId != null) {
+              if (parsed.classId != null &&
+                  parsed.classId!.isNotEmpty &&
+                  parsed.classId != effectiveClassId) {
+                continue;
+              }
+            }
+            localScores.add(parsed);
+          }
+        } catch (_) {}
+      }
+
+      loadPrefsKey(_storageKey(effectiveClassId), filterByClass: false);
+      if (effectiveClassId != null) {
+        loadPrefsKey(_storageKey(null), filterByClass: true);
+      }
+
+      // 2. Baca dari remote Supabase jika tersedia dan gabungkan
+      List<VirtualLabScore> remoteScores = const [];
       try {
         var query = supabase.from('virtual_lab_scores').select();
-        if (classId != null && classId.isNotEmpty) {
-          query = query.eq('class_id', classId);
+        if (effectiveClassId != null) {
+          query = query.eq('class_id', effectiveClassId);
         }
         final remoteRows = await query.order('score', ascending: false);
-        if (remoteRows.isNotEmpty) {
-          final remoteScores = remoteRows.map((item) {
-            final m = Map<String, dynamic>.from(item as Map);
-            return VirtualLabScore.fromMap(m);
-          }).toList();
-
-          final key = _storageKey(classId);
-          await prefs.setString(
-              key, jsonEncode(remoteScores.map((e) => e.toMap()).toList()));
-          return remoteScores;
-        }
+        remoteScores = (remoteRows as List).map((item) {
+          return VirtualLabScore.fromMap(
+            Map<String, dynamic>.from(item as Map),
+          );
+        }).toList();
       } catch (_) {}
 
-      // 2. Baca dari SharedPreferences
-      final key = _storageKey(classId);
-      final raw = prefs.getString(key) ?? prefs.getString(_storageKey(null));
-      if (raw != null && raw.isNotEmpty) {
-        final List decoded = jsonDecode(raw) as List;
-        return decoded
-            .map((item) =>
-                VirtualLabScore.fromMap(Map<String, dynamic>.from(item)))
-            .toList();
+      final merged = mergeScoreLists(remoteScores, localScores);
+      if (merged.isNotEmpty) {
+        final key = _storageKey(effectiveClassId);
+        await prefs.setString(
+          key,
+          jsonEncode(merged.map((e) => e.toMap()).toList()),
+        );
       }
+      return merged;
     } catch (_) {}
     return const [];
   }
@@ -258,7 +463,10 @@ class VirtualLabLeaderboardService {
     final allScores = await getAllScores(classId: classId);
     if (allScores.isEmpty) return const [];
 
-    final normalizedKey = missionKey.toLowerCase().replaceAll(' ', '_');
+    final normalizedKey = normalizeMissionKey(missionKey);
+    if (normalizedKey == 'overall') {
+      return allScores;
+    }
 
     // Filter skor yang cocok dengan materialId atau preset
     final filtered = allScores.where((s) {
@@ -266,7 +474,7 @@ class VirtualLabLeaderboardService {
       final preset = s.preset.toLowerCase();
       return matId.contains(normalizedKey) ||
           preset.contains(normalizedKey) ||
-          normalizedKey.contains(preset);
+          (preset.isNotEmpty && normalizedKey.contains(preset));
     }).toList();
 
     // Pastikan per mahasiswa hanya muncul skor tertingginya pada misi ini
