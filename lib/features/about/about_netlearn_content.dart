@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/localization/language_controller.dart';
 import '../../core/theme/app_theme.dart';
 import '../../l10n/app_localizations.dart';
 import '../../shared/widgets/nl_netlearn_logo.dart';
@@ -15,13 +14,10 @@ import 'about_downloads.dart';
 /// Structure follows the approved Figma Make frames (`About Application`):
 /// a hero card (app identity, release status, version), a "Key Features"
 /// list — only the six features that actually exist in this app — and a
-/// "Download Resources" section with three cards. All three now really
-/// download: the PDF files are bundled (`assets/downloads/`, see
-/// [AboutDownloadResource]), so each button hands the bytes to the same
-/// `saveAndOpenPdf` helper as the material-reader PDFs. The Manual Books card
-/// picks between the bundled Indonesian and English guides based on the
-/// active language at the moment of the tap — the choice is the file's, not
-/// the device's, so both variants exist as whole PDFs.
+/// "Download Resources" section with two cards (AR Markers & Material Book).
+/// Both download the bundled PDF files (`assets/downloads/`, see
+/// [AboutDownloadResource]), handing the bytes to the same `saveAndOpenPdf`
+/// helper as the material-reader PDFs.
 ///
 /// [openDownload] injects the download action so widget tests can pump the
 /// content without touching real assets or the filesystem.
@@ -41,7 +37,6 @@ class AboutNetLearnContent extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final theme = Theme.of(context);
-    final languageCode = ref.watch(languageProvider).languageCode;
 
     final mutedBody = theme.textTheme.bodyMedium?.copyWith(
       fontSize: 12,
@@ -75,7 +70,6 @@ class AboutNetLearnContent extends ConsumerWidget {
         _DownloadResourceCards(
           theme: theme,
           openDownload: openDownload,
-          languageCode: languageCode,
         ),
       ],
     );
@@ -386,33 +380,21 @@ class _FeatureRow extends StatelessWidget {
   }
 }
 
-/// Tiga kartu sumber daya unduhan. Kolomnya mengikuti lebar: tiga di layar
-/// lebar (>= 900), dua di ukuran tablet (>= 560), dan disusun vertikal pada
-/// lebar ponsel.
-///
-/// Ketiganya membawa [AboutDownloadResource]: Marker dan Material satu PDF
-/// tetap, Manual Books memilih varian bahasanya dari [languageCode].
+/// Dua kartu sumber daya unduhan (AR Markers & Buku Materi). Kolomnya mengikuti
+/// lebar: dua di ukuran tablet/lebar (>= 560), dan disusun vertikal pada lebar
+/// ponsel.
 class _DownloadResourceCards extends StatelessWidget {
   const _DownloadResourceCards({
     required this.theme,
     required this.openDownload,
-    required this.languageCode,
   });
 
   final ThemeData theme;
   final Future<void> Function(AboutDownloadResource resource) openDownload;
-  final String languageCode;
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-
-    // Buku panduan mengikuti bahasa aktif: PDF-nya berbeda berkas, bukan teks
-    // yang diterjemahkan satu berkas. Dibaca saat build, bukan saat tap, supaya
-    // pilihan bahasa selalu cocok dengan apa yang diumumkan halaman.
-    final manualResource = languageCode == 'id'
-        ? AboutDownloadResource.manualBookId
-        : AboutDownloadResource.manualBookEn;
 
     final cards = <(IconData, String, String, AboutDownloadResource)>[
       (
@@ -430,22 +412,11 @@ class _DownloadResourceCards extends StatelessWidget {
         l10n.downloadMaterialsDescription,
         AboutDownloadResource.materialBook,
       ),
-      (
-        // Buku panduan: manual per peran pengguna, varian bahasa aktif.
-        Icons.menu_book_outlined,
-        l10n.downloadManualsTitle,
-        l10n.downloadManualsDescription,
-        manualResource,
-      ),
     ];
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columnCount = constraints.maxWidth >= 900
-            ? 3
-            : constraints.maxWidth >= 560
-                ? 2
-                : 1;
+        final columnCount = constraints.maxWidth >= 560 ? 2 : 1;
 
         final rows = <List<(IconData, String, String, AboutDownloadResource)>>[];
 

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:netlearn/features/dashboard_lecturer/lecturer_ai_service.dart';
@@ -26,6 +27,19 @@ class _MockLecturerHttpClient extends http.BaseClient {
 
 void main() {
   group('LecturerAiService JSON & Translation Tests', () {
+    setUp(() {
+      dotenv.loadFromString(
+        envString: '''
+GROQ_API_KEY=test-groq-key
+OPENROUTER_API_KEY=test-openrouter-key
+GEMINI_API_KEY=test-gemini-key
+''',
+        isOptional: true,
+      );
+    });
+
+    tearDown(() => dotenv.clean());
+
     test('extractJsonMap extracts JSON cleanly from markdown code fences', () {
       const raw = '''
 Here is the translated content:

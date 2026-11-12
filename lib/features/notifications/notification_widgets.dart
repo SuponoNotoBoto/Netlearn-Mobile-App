@@ -233,6 +233,12 @@ class ReminderCard extends StatelessWidget {
     final metaText = isNotCompleted
         ? '${_assessmentLabel(l10n)} · ${l10n.reminderNotCompleted}'
         : '${reminder.formatDeadline(isIndonesian)} · ${reminder.timeLeft(isIndonesian)}';
+    final trimmedClassName = reminder.className?.trim();
+    final classLabel = trimmedClassName != null && trimmedClassName.isNotEmpty
+        ? (isIndonesian
+            ? 'Kelas: $trimmedClassName'
+            : 'Class: $trimmedClassName')
+        : null;
 
     return NlTapScale(
       pressedScale: 0.985,
@@ -289,6 +295,31 @@ class ReminderCard extends StatelessWidget {
                             height: 1.75,
                             color: context.mutedText,
                           ),
+                        ),
+                      ],
+                      if (classLabel != null) ...[
+                        const SizedBox(height: NetLearnSpace.s7),
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.class_outlined,
+                              size: 12,
+                              color: context.accent,
+                            ),
+                            const SizedBox(width: 5),
+                            Expanded(
+                              child: Text(
+                                classLabel,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: context.accent,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                       // `.badge` muncul sebagai baris tersendiri setelah isi kartu,

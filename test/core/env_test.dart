@@ -5,26 +5,34 @@ import 'package:netlearn/core/constants/env.dart';
 void main() {
   tearDown(() => dotenv.clean());
 
-  test('Env provides public Supabase fallback when .env entries are empty', () {
+  test('Env does not expose hardcoded credentials when .env entries are empty', () {
     dotenv.loadFromString(
       envString: '''
 SUPABASE_URL=
 SUPABASE_PUBLISHABLE_KEY=
+GROQ_API_KEY=
+GEMINI_API_KEY=
+OPENROUTER_API_KEY=
 ''',
       isOptional: true,
     );
 
-    expect(Env.supabaseUrl, startsWith('https://'));
-    expect(Uri.parse(Env.supabaseUrl).host, isNotEmpty);
-    expect(Env.supabasePublishableKey, isNotEmpty);
+    expect(Env.supabaseUrl, isEmpty);
+    expect(Env.supabasePublishableKey, isEmpty);
+    expect(Env.supabaseAnonKey, isEmpty);
+    expect(Env.groqApiKey, isEmpty);
+    expect(Env.geminiApiKey, isEmpty);
+    expect(Env.openrouterApiKey, isEmpty);
   });
 
-  test('Env prioritizes non-empty values from dotenv over fallback', () {
+  test('Env reads and trims configured values from dotenv', () {
     dotenv.loadFromString(
       envString: '''
-SUPABASE_URL=https://custom-project.supabase.co
-SUPABASE_PUBLISHABLE_KEY=sb_publishable_custom
-GROQ_API_KEY=test-groq
+SUPABASE_URL= https://custom-project.supabase.co
+SUPABASE_PUBLISHABLE_KEY= sb_publishable_custom
+GROQ_API_KEY= test-groq
+GEMINI_API_KEY= test-gemini
+OPENROUTER_API_KEY= test-openrouter
 ''',
       isOptional: true,
     );
@@ -32,5 +40,7 @@ GROQ_API_KEY=test-groq
     expect(Env.supabaseUrl, 'https://custom-project.supabase.co');
     expect(Env.supabasePublishableKey, 'sb_publishable_custom');
     expect(Env.groqApiKey, 'test-groq');
+    expect(Env.geminiApiKey, 'test-gemini');
+    expect(Env.openrouterApiKey, 'test-openrouter');
   });
 }

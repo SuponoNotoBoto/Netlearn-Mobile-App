@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -50,6 +51,32 @@ void main() {
   });
 
   group('NetBot Providers & Resilience Tests', () {
+    setUp(() {
+      dotenv.loadFromString(
+        envString: '''
+GROQ_API_KEY=test-groq-key
+OPENROUTER_API_KEY=test-openrouter-key
+GEMINI_API_KEY=test-gemini-key
+''',
+        isOptional: true,
+      );
+    });
+
+    tearDown(() => dotenv.clean());
+
+    test('getAvailableProviders returns empty when API keys are unconfigured', () {
+      dotenv.loadFromString(
+        envString: '''
+GROQ_API_KEY=
+OPENROUTER_API_KEY=
+GEMINI_API_KEY=
+''',
+        isOptional: true,
+      );
+
+      expect(NetBotProviders.getAvailableProviders(), isEmpty);
+    });
+
     test('getAvailableProviders returns non-empty list sorted by priority', () {
       final providers = NetBotProviders.getAvailableProviders();
 

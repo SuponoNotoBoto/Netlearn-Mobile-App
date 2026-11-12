@@ -993,16 +993,17 @@ class _AssessmentCard extends StatelessWidget {
                           status: NetLearnStatus.linked,
                           label: l10n.completed,
                         ),
-                        Text(
-                          l10n.scorePercent(
-                            assessment.score!
-                                .toStringAsFixed(0),
+                        if (assessment.score != null)
+                          Text(
+                            l10n.scorePercent(
+                              assessment.score!
+                                  .toStringAsFixed(0),
+                            ),
+                            style: theme.textTheme.titleMedium?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: tone,
+                            ),
                           ),
-                          style: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: tone,
-                          ),
-                        ),
                       ],
                     ),
                   ] else if (isLocked) ...[

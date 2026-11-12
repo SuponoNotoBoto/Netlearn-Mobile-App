@@ -5,13 +5,10 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 class Env {
   Env._();
 
-  // Public Supabase configuration fallback
-  // In Supabase architecture, the project URL and publishable (anon) key are client-facing
-  // and public by design (secured via Row Level Security in Supabase).
-  static const String _defaultSupabaseUrl =
-      'https://dsqxjnanoallwujlymmp.supabase.co';
-  static const String _defaultSupabasePublishableKey =
-      'sb_publishable_Rhf4KG8xiXjdkkytIEBm8w_sPn4FVQq';
+  // Credentials and API keys must be provided via `.env` or `--dart-define`
+  // so no values are hardcoded in source control.
+  static const String _defaultSupabaseUrl = '';
+  static const String _defaultSupabasePublishableKey = '';
 
   static void _ensureInitialized() {
     if (dotenv.isInitialized) return;
@@ -20,7 +17,7 @@ class Env {
         final file = File('.env');
         if (file.existsSync()) {
           final content = file.readAsStringSync();
-          dotenv.loadFromString(envString: content);
+          dotenv.loadFromString(envString: content, isOptional: true);
         }
       } catch (_) {}
     }

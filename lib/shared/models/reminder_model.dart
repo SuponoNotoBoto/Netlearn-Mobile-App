@@ -25,6 +25,7 @@ class ReminderItem {
   /// [assessmentType] saja — jalur deadline mahasiswa yang lama.
   final List<String> assessmentTypes;
   final ReminderReason reason;
+  final String? className;
 
   const ReminderItem({
     required this.id,
@@ -41,6 +42,7 @@ class ReminderItem {
     required this.assessmentType,
     this.assessmentTypes = const <String>[],
     this.reason = ReminderReason.deadline,
+    this.className,
   });
 
   String localizedTitle(bool isIndonesian) {
@@ -56,17 +58,27 @@ class ReminderItem {
   /// tidak punya waktu, jadi label asesmennya (atau subjek) yang ditampilkan —
   /// bukan countdown yang dibuat-buat di mana ada none.
   String subtitle(bool isIndonesian) {
+    final String base;
     if (reason == ReminderReason.notCompleted) {
       if (subject != null && subject!.isNotEmpty) {
-        return subject!;
+        base = subject!;
+      } else {
+        base = assessmentType == 'posttest' ? 'Posttest' : 'Pretest';
       }
-      return assessmentType == 'posttest' ? 'Posttest' : 'Pretest';
+    } else if (deadline == null) {
+      base = '';
+    } else {
+      base = formatDeadline(isIndonesian);
     }
 
-    if (deadline == null) {
-      return '';
+    final activeClassName = className?.trim();
+    if (activeClassName == null || activeClassName.isEmpty) {
+      return base;
     }
-    return formatDeadline(isIndonesian);
+    final classTag = isIndonesian
+        ? 'Kelas: $activeClassName'
+        : 'Class: $activeClassName';
+    return base.isEmpty ? classTag : '$base · $classTag';
   }
 
   String timeLeft(bool isIndonesian) {

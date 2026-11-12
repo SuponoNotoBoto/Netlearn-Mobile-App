@@ -1,10 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' show PostgrestException;
 
 import '../../core/supabase/supabase_client.dart';
 import '../../shared/models/announcement_model.dart';
 import '../../shared/models/reminder_model.dart';
 import '../../shared/models/student_model.dart';
 import '../classes/class_controller.dart';
+import '../classes/class_models.dart';
 import 'lecturer_students_controller.dart';
 
 /// Provides announcements for the current user based on their role.
@@ -167,15 +169,116 @@ const _quizzesReminderColumns = '''
 /// hanya muncul sekali, sebagai "belum dikerjakan" (bukan dua kartu).
 /// Item notCompleted selalu di awal, lalu item deadline terurut
 /// `deadline ASC` — bagian urutan dikerjakan query.
+/// Menggabungkan baris kuis milik kelas dengan fallback kuis inti global
+/// (Pretest/Posttest) hanya jika kelas tersebut belum memiliki salinan sendiri.
+List<Map<String, dynamic>> mergeClassWithMissingCoreQuizzes(
+  List<Map<String, dynamic>> classRows,
+  List<Map<String, dynamic>> globalRows,
+) {
+  final hasClassPretest = classRows.any(
+    (row) => row['assessment_type']?.toString() == 'pretest',
+  );
+  final hasClassPosttest = classRows.any(
+    (row) => row['assessment_type']?.toString() == 'posttest',
+  );
+
+  if (hasClassPretest && hasClassPosttest) {
+    return classRows;
+  }
+
+  return [
+    ...classRows,
+    for (final row in globalRows)
+      if ((row['assessment_type']?.toString() == 'pretest' &&
+              !hasClassPretest) ||
+          (row['assessment_type']?.toString() == 'posttest' &&
+              !hasClassPosttest))
+        row,
+  ];
+}
+
+Future<List<Map<String, dynamic>>> _fetchPublishedReminderQuizzes({
+  String? classId,
+  bool isNullClass = false,
+}) async {
+  try {
+    var query = supabase
+        .from('quizzes')
+        .select(_quizzesReminderColumns)
+        .eq('status', 'published');
+    if (isNullClass) {
+      query = query.isFilter('class_id', null);
+    } else if (classId != null) {
+      query = query.eq('class_id', classId);
+    }
+    final rows = await query.order('deadline');
+    return [for (final row in rows) Map<String, dynamic>.from(row as Map)];
+  } on PostgrestException catch (e) {
+    final isColError = e.code == '42703' ||
+        e.code == 'PGRST204' ||
+        e.message.toLowerCase().contains('column');
+    if (!isColError) rethrow;
+    // Fallback jika skema lama belum punya kolom `class_id`.
+    final rows = await supabase
+        .from('quizzes')
+        .select(_quizzesReminderColumns)
+        .eq('status', 'published')
+        .order('deadline');
+    return [for (final row in rows) Map<String, dynamic>.from(row as Map)];
+  }
+}
+
+Future<List<Map<String, dynamic>>> _loadClassScopedQuizRows({
+  String? activeClassId,
+}) async {
+  if (activeClassId == null) {
+    return _fetchPublishedReminderQuizzes(isNullClass: true);
+  }
+
+  final classRows = await _fetchPublishedReminderQuizzes(
+    classId: activeClassId,
+  );
+  final hasClassPretest = classRows.any(
+    (row) => row['assessment_type']?.toString() == 'pretest',
+  );
+  final hasClassPosttest = classRows.any(
+    (row) => row['assessment_type']?.toString() == 'posttest',
+  );
+
+  if (hasClassPretest && hasClassPosttest) {
+    return classRows;
+  }
+
+  final globalRows = await _fetchPublishedReminderQuizzes(isNullClass: true);
+  return mergeClassWithMissingCoreQuizzes(classRows, globalRows);
+}
+
 List<ReminderItem> buildStudentDeadlineReminders(
   List<Map<String, dynamic>> quizRows,
   Set<String> completedQuizIds,
   DateTime now, {
   Duration upcomingWindow = const Duration(days: 1),
+  String? className,
+  bool pretestEnabled = true,
+  bool posttestEnabled = true,
+  bool pretestCompleted = false,
+  bool posttestCompleted = false,
 }) {
   final notCompleted = <ReminderItem>[];
   final deadlineItems = <ReminderItem>[];
   final seenQuizIds = <String>{};
+  final seenCoreTypes = <String>{};
+  final seenTaskKeys = <String>{};
+
+  final completedCoreTypes = <String>{
+    if (pretestCompleted) 'pretest',
+    if (posttestCompleted) 'posttest',
+    for (final row in quizRows)
+      if (completedQuizIds.contains(row['id']?.toString()) &&
+          (row['assessment_type']?.toString() == 'pretest' ||
+              row['assessment_type']?.toString() == 'posttest'))
+        row['assessment_type']!.toString(),
+  };
 
   for (final row in quizRows) {
     final quizId = row['id'].toString();
@@ -183,11 +286,22 @@ List<ReminderItem> buildStudentDeadlineReminders(
     final isCore =
         assessmentType == 'pretest' || assessmentType == 'posttest';
 
-    if (isCore && !completedQuizIds.contains(quizId)) {
+    if (isCore) {
+      final enabled =
+          assessmentType == 'pretest' ? pretestEnabled : posttestEnabled;
+      if (!enabled || completedCoreTypes.contains(assessmentType)) {
+        seenQuizIds.add(quizId);
+        continue;
+      }
+      if (!seenCoreTypes.add(assessmentType)) {
+        seenQuizIds.add(quizId);
+        continue;
+      }
       notCompleted.add(_reminderFromQuizRow(
         row,
         quizId,
         reason: ReminderReason.notCompleted,
+        className: className,
       ));
       seenQuizIds.add(quizId);
       continue;
@@ -210,10 +324,18 @@ List<ReminderItem> buildStudentDeadlineReminders(
     if (deadline == null || deadline.isBefore(now)) continue;
     if (deadline.isAfter(now.add(upcomingWindow))) continue;
 
+    final taskKey =
+        '$assessmentType|${(row['title'] ?? '').toString().trim().toLowerCase()}|$deadlineStr';
+    if (!seenTaskKeys.add(taskKey)) {
+      seenQuizIds.add(quizId);
+      continue;
+    }
+
     deadlineItems.add(_reminderFromQuizRow(
       row,
       quizId,
       reason: ReminderReason.deadline,
+      className: className,
     ));
     seenQuizIds.add(quizId);
   }
@@ -225,6 +347,7 @@ ReminderItem _reminderFromQuizRow(
   Map<String, dynamic> row,
   String quizId, {
   required ReminderReason reason,
+  String? className,
 }) {
   final material = row['materials'];
   String? subject;
@@ -246,28 +369,68 @@ ReminderItem _reminderFromQuizRow(
     deadline: deadline,
     assessmentType: row['assessment_type']?.toString() ?? 'pretest',
     reason: reason,
+    className: className,
   );
 }
 
-/// Provides deadline reminders for students: assessment yang belum dikerjakan,
-/// lalu deadline 24 jam. Nama provider dipertahankan agar ketiga call site
-/// lama (dashboard pratinjau, halaman notifikasi mahasiswa, panel lonceng)
-/// tidak berubah.
+/// Provides deadline reminders for students: assessment yang belum dikerjakan
+/// di kelas aktif, lalu deadline 24 jam. Nama provider dipertahankan agar ketiga
+/// call site lama (dashboard pratinjau, halaman notifikasi mahasiswa, panel
+/// lonceng) tidak berubah.
 ///
 /// Query TANPA filter deadline: kuis inti yang belum disentuh sama sekali
 /// tidak punya deadline yang mendekat, tapi justru itulah yang harus
 /// diingatkan. Sumber kebenaran "sudah dikerjakan" adalah `quiz_attempts`
-/// milik sendiri (RLS mengizinkan baca baris sendiri), bukan
-/// `learning_progress` — barisnya satu per materi dan terduplikasi.
+/// milik sendiri dan `classLearningFlowStatusProvider` per kelas aktif.
 final studentDeadlineRemindersProvider = FutureProvider.autoDispose
     .family<List<ReminderItem>, String>((ref, userId) async {
   final now = DateTime.now();
 
-  final quizRows = await supabase
-      .from('quizzes')
-      .select(_quizzesReminderColumns)
-      .eq('status', 'published')
-      .order('deadline');
+  ref.watch(activeStudentClassIdProvider);
+  final activeClass = await resolveActiveStudentClass(ref);
+  final validClass = activeClass != null && !activeClass.isLegacyFallback;
+
+  var pretestEnabled = true;
+  var posttestEnabled = true;
+  var pretestCompleted = false;
+  var posttestCompleted = false;
+
+  if (validClass) {
+    ClassLearningFlowStatus? classFlow;
+    try {
+      classFlow = await ref.watch(
+        classLearningFlowStatusProvider(activeClass.id).future,
+      );
+    } catch (_) {}
+
+    if (classFlow != null) {
+      pretestEnabled = classFlow.pretestEnabled;
+      posttestEnabled = classFlow.posttestEnabled;
+      pretestCompleted = classFlow.pretestCompleted;
+      posttestCompleted = classFlow.posttestCompleted;
+    }
+  } else {
+    try {
+      final flowResponse = await supabase.rpc(
+        'get_learning_flow_status',
+        params: {'p_user': userId},
+      );
+      if (flowResponse is Map) {
+        pretestCompleted = flowResponse['pretest_completed'] == true;
+        posttestCompleted = flowResponse['posttest_completed'] == true;
+      } else if (flowResponse is List && flowResponse.isNotEmpty) {
+        final first = flowResponse.first;
+        if (first is Map) {
+          pretestCompleted = first['pretest_completed'] == true;
+          posttestCompleted = first['posttest_completed'] == true;
+        }
+      }
+    } catch (_) {}
+  }
+
+  final quizRows = await _loadClassScopedQuizRows(
+    activeClassId: validClass ? activeClass.id : null,
+  );
 
   // Get completed quiz attempts for this student
   final attemptRows = await supabase
@@ -280,12 +443,20 @@ final studentDeadlineRemindersProvider = FutureProvider.autoDispose
       .map((row) => row['quiz_id'].toString())
       .toSet();
 
+  final trimmedClassName =
+      validClass && activeClass.name.trim().isNotEmpty
+          ? activeClass.name.trim()
+          : null;
+
   return buildStudentDeadlineReminders(
-    [
-      for (final row in quizRows) Map<String, dynamic>.from(row as Map),
-    ],
+    quizRows,
     completedQuizIds,
     now,
+    className: trimmedClassName,
+    pretestEnabled: pretestEnabled,
+    posttestEnabled: posttestEnabled,
+    pretestCompleted: pretestCompleted,
+    posttestCompleted: posttestCompleted,
   );
 });
 
@@ -295,13 +466,14 @@ final studentDeadlineRemindersProvider = FutureProvider.autoDispose
 /// mahasiswa dalam urutan daftar (RPC sudah urut nama). Murni agar bisa diuji
 /// tanpa Supabase.
 ///
-/// `publishedTypes` hanya asesmen yang benar-benar punya kuis published —
-/// tanpa ini semua mahasiswa akan mendapat pengingat Posttest meski kuisnya
-/// belum ada.
+/// `publishedTypes` hanya asesmen yang benar-benar punya kuis published di
+/// kelas aktif — tanpa ini semua mahasiswa akan mendapat pengingat Posttest
+/// meski kuisnya belum ada atau dinonaktifkan.
 List<ReminderItem> buildLecturerMissingAssessmentReminders(
   List<StudentModel> students,
-  Set<String> publishedTypes,
-) {
+  Set<String> publishedTypes, {
+  String? className,
+}) {
   final items = <ReminderItem>[];
 
   for (final student in students) {
@@ -326,6 +498,7 @@ List<ReminderItem> buildLecturerMissingAssessmentReminders(
       assessmentTypes: missing,
       reason: ReminderReason.notCompleted,
       studentId: student.id,
+      className: className,
     ));
   }
 
@@ -333,7 +506,7 @@ List<ReminderItem> buildLecturerMissingAssessmentReminders(
 }
 
 /// Tab Pengingat di halaman/panel notifikasi DOSEN: mahasiswa mana yang belum
-/// mengerjakan Pretest/Posttest.
+/// mengerjakan Pretest/Posttest pada kelas aktif dosen.
 ///
 /// Kenapa bukan query `quiz_attempts`: RLS mengizinkan dosen membaca attempt
 /// mahasiswa lain hanya lewat `lecturer_teaches_student(user_id)`, yang false
@@ -344,19 +517,39 @@ List<ReminderItem> buildLecturerMissingAssessmentReminders(
 /// [ReminderItem] null-safe untuk semua format waktunya.
 final lecturerMissingAssessmentRemindersProvider = FutureProvider.autoDispose
     <List<ReminderItem>>((ref) async {
-  // Hanya jenis asesmen yang benar-benar punya kuis published. Tanpa ini,
-  // semua mahasiswa akan mendapat pengingat Posttest meski kuisnya belum ada.
-  final quizRows = await supabase
-      .from('quizzes')
-      .select('assessment_type')
-      .eq('status', 'published')
-      .inFilter('assessment_type', ['pretest', 'posttest']);
+  ref.watch(activeLecturerClassIdProvider);
+  final activeClass = await resolveActiveLecturerClass(ref);
+  final validClass = activeClass != null && !activeClass.isLegacyFallback;
 
+  final quizRows = await _loadClassScopedQuizRows(
+    activeClassId: validClass ? activeClass.id : null,
+  );
   final types = quizRows
-      .map((row) => row['assessment_type'].toString())
+      .map((row) => row['assessment_type']?.toString() ?? '')
+      .where((type) => type == 'pretest' || type == 'posttest')
       .toSet();
 
-  final students = await ref.watch(lecturerStudentsProvider(null).future);
+  if (validClass) {
+    try {
+      final settings = await ref.watch(
+        classSettingsProvider(activeClass.id).future,
+      );
+      if (settings != null) {
+        if (!settings.pretestEnabled) types.remove('pretest');
+        if (!settings.posttestEnabled) types.remove('posttest');
+      }
+    } catch (_) {}
+  }
 
-  return buildLecturerMissingAssessmentReminders(students, types);
+  final students = await ref.watch(lecturerStudentsProvider(null).future);
+  final trimmedClassName =
+      validClass && activeClass.name.trim().isNotEmpty
+          ? activeClass.name.trim()
+          : null;
+
+  return buildLecturerMissingAssessmentReminders(
+    students,
+    types,
+    className: trimmedClassName,
+  );
 });
