@@ -39,6 +39,24 @@ extension AboutDownloadResourceFiles on AboutDownloadResource {
       };
 }
 
+/// Menghasilkan nama berkas unduhan berversi hash isi agar pembaruan aset PDF
+/// di aplikasi tidak tertimpa atau terbaca dari cache penampil PDF lama.
+String versionedDownloadFileName(String baseFileName, Uint8List bytes) {
+  var hash = 0x811c9dc5;
+  for (final byte in bytes) {
+    hash ^= byte;
+    hash = (hash * 0x01000193) & 0xffffffff;
+  }
+  final tag = hash.toRadixString(16).padLeft(8, '0');
+  final dotIndex = baseFileName.lastIndexOf('.');
+  if (dotIndex <= 0) {
+    return '${baseFileName}_$tag';
+  }
+  final stem = baseFileName.substring(0, dotIndex);
+  final ext = baseFileName.substring(dotIndex);
+  return '${stem}_$tag$ext';
+}
+
 /// Membaca PDF yang dibundel lalu menyerahkannya ke [saveAndOpenPdf].
 ///
 /// [bundle] dan [saveAndOpen] bisa diganti di test supaya tidak menyentuh
@@ -48,11 +66,16 @@ Future<void> openAboutDownload(
   AssetBundle? bundle,
   Future<void> Function(Uint8List bytes, String fileName)? saveAndOpen,
 }) async {
-  final data = await (bundle ?? rootBundle).load(resource.assetPath);
+  final activeBundle = bundle ?? rootBundle;
+  if (bundle == null) {
+    activeBundle.evict(resource.assetPath);
+  }
+  final data = await activeBundle.load(resource.assetPath);
   final bytes = data.buffer.asUint8List(
     data.offsetInBytes,
     data.lengthInBytes,
   );
 
-  await (saveAndOpen ?? saveAndOpenPdf)(bytes, resource.fileName);
+  final outputFileName = versionedDownloadFileName(resource.fileName, bytes);
+  await (saveAndOpen ?? saveAndOpenPdf)(bytes, outputFileName);
 }

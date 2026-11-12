@@ -14,6 +14,8 @@ import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
 import '../../shared/widgets/student_bottom_navbar.dart';
+import '../classes/class_controller.dart';
+import '../classes/student_my_classes_bar.dart';
 import '../profile/student_assessment_history_page.dart';
 import 'assessment_completed_dialog.dart';
 import 'assessment_controller.dart';
@@ -44,6 +46,8 @@ class _AssessmentListPageState extends ConsumerState<AssessmentListPage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final classes = ref.watch(studentClassesProvider).value;
+    final activeClass = ref.watch(activeStudentClassProvider).value;
 
     return Scaffold(
       backgroundColor: context.background,
@@ -61,6 +65,22 @@ class _AssessmentListPageState extends ConsumerState<AssessmentListPage> {
       body: SafeArea(
         child: Column(
           children: [
+            if (classes != null &&
+                activeClass != null &&
+                !activeClass.isLegacyFallback) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  NetLearnSpace.s20,
+                  NetLearnSpace.s12,
+                  NetLearnSpace.s20,
+                  0,
+                ),
+                child: StudentMyClassesBar(
+                  classes: classes,
+                  activeClass: activeClass,
+                ),
+              ),
+            ],
             // `.tabs` dari desain — pola yang sama dengan tab Daftar
             // Mahasiswa dosen: track abu, pill putih untuk tab terpilih.
             Padding(
@@ -251,47 +271,49 @@ class _AssessmentListPageState extends ConsumerState<AssessmentListPage> {
                           ],
 
                           // 2. Bagian Evaluasi Kurikulum (Pretest & Posttest)
-                          Row(
-                            children: [
-                              const Icon(Icons.school_rounded, size: 20, color: Color(0xFF8C52FF)),
-                              const SizedBox(width: 8),
-                              // `Expanded`, bukan `Text` polos: judul bagian ini
-                              // melebar 5.1 px di 360dp (lebar terkecil yang
-                              // didukung) dengan judul bahasa Inggris, dan
-                              // RenderFlex melaporkannya sebagai overflow.
-                              Expanded(
-                                child: Text(
-                                  isId ? 'Evaluasi Kurikulum' : 'Curriculum Evaluation',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    fontWeight: FontWeight.w800,
+                          if (coreAssessments.isNotEmpty) ...[
+                            Row(
+                              children: [
+                                const Icon(Icons.school_rounded, size: 20, color: Color(0xFF8C52FF)),
+                                const SizedBox(width: 8),
+                                // `Expanded`, bukan `Text` polos: judul bagian ini
+                                // melebar 5.1 px di 360dp (lebar terkecil yang
+                                // didukung) dengan judul bahasa Inggris, dan
+                                // RenderFlex melaporkannya sebagai overflow.
+                                Expanded(
+                                  child: Text(
+                                    isId ? 'Evaluasi Kurikulum' : 'Curriculum Evaluation',
+                                    style: theme.textTheme.titleMedium?.copyWith(
+                                      fontWeight: FontWeight.w800,
+                                    ),
                                   ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: NetLearnSpace.s12),
-                          for (final assessment in coreAssessments)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: NetLearnSpace.s16),
-                              child: _AssessmentCard(
-                                assessment: assessment,
-                                onTap: () {
-                                  _openAssessment(
-                                    context,
-                                    assessment,
-                                    l10n,
-                                  );
-                                },
-                                onInstructionTap: () {
-                                  final routeParam = assessment.isPretest
-                                      ? 'pretest'
-                                      : 'posttest';
-                                  context.push(
-                                    '/student/assessment-instructions/$routeParam',
-                                  );
-                                },
-                              ),
+                              ],
                             ),
+                            const SizedBox(height: NetLearnSpace.s12),
+                            for (final assessment in coreAssessments)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: NetLearnSpace.s16),
+                                child: _AssessmentCard(
+                                  assessment: assessment,
+                                  onTap: () {
+                                    _openAssessment(
+                                      context,
+                                      assessment,
+                                      l10n,
+                                    );
+                                  },
+                                  onInstructionTap: () {
+                                    final routeParam = assessment.isPretest
+                                        ? 'pretest'
+                                        : 'posttest';
+                                    context.push(
+                                      '/student/assessment-instructions/$routeParam',
+                                    );
+                                  },
+                                ),
+                              ),
+                          ],
                         ],
                       ),
                     ),

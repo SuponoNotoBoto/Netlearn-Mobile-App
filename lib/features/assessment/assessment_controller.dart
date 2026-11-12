@@ -6,8 +6,71 @@ import '../../core/localization/language_controller.dart';
 import '../../core/supabase/supabase_client.dart';
 import '../classes/class_controller.dart';
 import '../classes/class_models.dart';
+import '../dashboard_lecturer/notification_controller.dart';
 import '../dashboard_student/student_dashboard_controller.dart';
 import '../materials/student_materials_controller.dart';
+import '../profile/student_assessment_history_page.dart';
+
+/// Returns true when a raw `quizzes` row represents a custom task or module
+/// quiz rather than a core curriculum Pretest/Posttest gate — including tasks
+/// persisted with a `posttest` schema fallback and `<!--type:task-->` marker.
+bool isTaskAssessmentRow(Map<String, dynamic> map) {
+  final rawType = map['assessment_type']?.toString().trim() ?? '';
+  final instructions = map['instructions']?.toString() ?? '';
+  if (rawType == 'task' ||
+      rawType == 'class_assessment' ||
+      rawType == 'module_assessment') {
+    return true;
+  }
+  if (instructions.contains('<!--type:task-->')) {
+    return true;
+  }
+  if (rawType != 'pretest' &&
+      (map['module'] != null ||
+          map['module_id'] != null ||
+          instructions.contains('<!--meta:module='))) {
+    return true;
+  }
+  return false;
+}
+
+/// Resolves raw `quizzes` rows for a student's active class space so
+/// assessments from other classes (and global templates inside a real class)
+/// never mix into the active class.
+List<Map<String, dynamic>> resolveScopedClassAssessments({
+  required List<dynamic> quizzes,
+  required String? activeClassId,
+  required bool isLegacyFallback,
+  bool pretestEnabled = true,
+  bool posttestEnabled = true,
+}) {
+  final result = <Map<String, dynamic>>[];
+  for (final raw in quizzes) {
+    final map = Map<String, dynamic>.from(raw as Map);
+    final quizClassId = map['class_id']?.toString();
+
+    if (!isLegacyFallback) {
+      if (activeClassId == null ||
+          activeClassId.isEmpty ||
+          quizClassId != activeClassId) {
+        continue;
+      }
+      final isTask = isTaskAssessmentRow(map);
+      final rawType = map['assessment_type']?.toString() ?? '';
+      if (!isTask) {
+        if (rawType == 'pretest' && !pretestEnabled) continue;
+        if (rawType == 'posttest' && !posttestEnabled) continue;
+      }
+    } else {
+      if (quizClassId != null && quizClassId.isNotEmpty) {
+        continue;
+      }
+    }
+
+    result.add(map);
+  }
+  return result;
+}
 
 class AssessmentListItem {
   final String id;
@@ -428,6 +491,7 @@ class AssessmentController
       Future<List<dynamic>> fetchQuizzesSafely({String? classId, bool isNullClass = false}) async {
         const selectFull = '''
           id,
+          class_id,
           title,
           title_en,
           title_id,
@@ -447,6 +511,7 @@ class AssessmentController
 
         const selectCompact = '''
           id,
+          class_id,
           title,
           title_en,
           title_id,
@@ -460,6 +525,7 @@ class AssessmentController
 
         const selectMinimal = '''
           id,
+          class_id,
           title,
           title_en,
           title_id,
@@ -495,39 +561,18 @@ class AssessmentController
       }
 
       if (validClass) {
-        final List<dynamic> classQuizzes = await fetchQuizzesSafely(classId: activeClass.id);
+        final List<dynamic> classQuizzes =
+            await fetchQuizzesSafely(classId: activeClass.id);
 
-        final hasClassPretest = classQuizzes.any(
-          (dynamic q) => (q as Map)['assessment_type']?.toString() == 'pretest',
+        // Keep strictly within the active class's own assessment space so
+        // global templates or another class's quizzes never leak in.
+        resolvedAssessments = resolveScopedClassAssessments(
+          quizzes: classQuizzes,
+          activeClassId: activeClass.id,
+          isLegacyFallback: false,
+          pretestEnabled: classFlow?.pretestEnabled ?? true,
+          posttestEnabled: classFlow?.posttestEnabled ?? true,
         );
-        final hasClassPosttest = classQuizzes.any(
-          (dynamic q) => (q as Map)['assessment_type']?.toString() == 'posttest',
-        );
-
-        final List<dynamic> combined = List.from(classQuizzes);
-
-        // Fallback to global pretest/posttest templates if class has none
-        if (!hasClassPretest || !hasClassPosttest) {
-          final globalQuizzes = await fetchQuizzesSafely(isNullClass: true);
-
-          for (final dynamic gq in globalQuizzes) {
-            final t = (gq as Map)['assessment_type']?.toString();
-            if (t == 'pretest' && !hasClassPretest) {
-              combined.add(gq);
-            } else if (t == 'posttest' && !hasClassPosttest) {
-              combined.add(gq);
-            }
-          }
-        }
-
-        // Keep custom quizzes and curriculum evaluations accessible
-        resolvedAssessments = combined.where((raw) {
-          final t = (raw as Map)['assessment_type']?.toString() ?? '';
-          if (t == 'pretest' && classFlow != null && !classFlow.pretestEnabled) {
-            return false;
-          }
-          return true;
-        }).toList();
 
         resolvedPretestCompleted = classFlow?.pretestCompleted ?? false;
         resolvedPosttestUnlocked = classFlow?.posttestUnlocked ?? false;
@@ -551,7 +596,11 @@ class AssessmentController
             flow['posttest_unlocked'] == true;
         resolvedPosttestCompleted =
             flow['posttest_completed'] == true;
-        resolvedAssessments = assessments;
+        resolvedAssessments = resolveScopedClassAssessments(
+          quizzes: assessments,
+          activeClassId: activeClass?.id,
+          isLegacyFallback: true,
+        );
       }
       final attemptRows = await supabase
           .from('quiz_attempts')
@@ -588,11 +637,20 @@ class AssessmentController
 
       final Map<String, int> questionCounts = {};
       try {
-        final qRows = await supabase.from('questions').select('quiz_id');
-        for (final raw in qRows as List) {
-          final qId = (raw as Map)['quiz_id']?.toString();
-          if (qId != null) {
-            questionCounts[qId] = (questionCounts[qId] ?? 0) + 1;
+        final quizIds = resolvedAssessments
+            .map((raw) => (raw as Map)['id']?.toString() ?? '')
+            .where((id) => id.isNotEmpty)
+            .toList();
+        if (quizIds.isNotEmpty) {
+          final qRows = await supabase
+              .from('questions')
+              .select('quiz_id')
+              .inFilter('quiz_id', quizIds);
+          for (final raw in qRows as List) {
+            final qId = (raw as Map)['quiz_id']?.toString();
+            if (qId != null) {
+              questionCounts[qId] = (questionCounts[qId] ?? 0) + 1;
+            }
           }
         }
       } catch (_) {}
@@ -608,7 +666,12 @@ class AssessmentController
         final Map<String, dynamic> map = Map<String, dynamic>.from(raw as Map);
         final String id = map['id'].toString();
         final Map<String, dynamic>? latestAttempt = latestAttempts[id];
-        final String type = map['assessment_type']?.toString() ?? 'pretest';
+        final bool isTask = isTaskAssessmentRow(map);
+        final String rawType = map['assessment_type']?.toString() ?? 'pretest';
+        final String type =
+            isTask && (rawType == 'pretest' || rawType == 'posttest')
+                ? 'task'
+                : rawType;
 
         final String? instructions = map['instructions']?.toString();
         int? modNum = (map['module'] as num?)?.toInt();
@@ -697,15 +760,35 @@ class AssessmentController
       }
     }
 
-    // Direct fallback if not present in the current class list
+    // Direct fallback if not present in the current class list, strictly
+    // scoped to the active class so other classes' quizzes are never returned.
     try {
+      final activeClass = await readActiveStudentClass(ref);
+      final validClass = activeClass != null && !activeClass.isLegacyFallback;
+      if (validClass &&
+          (assessmentType == 'pretest' || assessmentType == 'posttest')) {
+        final classFlow =
+            ref.read(classLearningFlowStatusProvider(activeClass.id)).value;
+        if (assessmentType == 'pretest' &&
+            classFlow != null &&
+            !classFlow.pretestEnabled) {
+          return null;
+        }
+        if (assessmentType == 'posttest' &&
+            classFlow != null &&
+            !classFlow.posttestEnabled) {
+          return null;
+        }
+      }
+
       final isUuid = RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(assessmentType);
       dynamic raw;
       try {
-        final query = supabase
+        var query = supabase
             .from('quizzes')
             .select('''
               id,
+              class_id,
               title,
               title_en,
               title_id,
@@ -714,19 +797,31 @@ class AssessmentController
               status,
               assessment_type,
               module,
+              instructions,
               created_at
             ''')
             .eq('status', 'published');
+
+        if (validClass) {
+          query = query.eq('class_id', activeClass.id);
+        } else {
+          query = query.isFilter('class_id', null);
+        }
 
         if (isUuid) {
           raw = await query.eq('id', assessmentType).maybeSingle();
         } else {
           final list = await query
               .eq('assessment_type', assessmentType)
-              .order('created_at', ascending: false)
-              .limit(1);
-          if ((list as List).isNotEmpty) {
-            raw = list.first;
+              .order('created_at', ascending: false);
+          for (final item in list as List) {
+            final rowMap = Map<String, dynamic>.from(item as Map);
+            if ((assessmentType == 'pretest' || assessmentType == 'posttest') &&
+                isTaskAssessmentRow(rowMap)) {
+              continue;
+            }
+            raw = rowMap;
+            break;
           }
         }
       } on PostgrestException catch (e) {
@@ -734,29 +829,43 @@ class AssessmentController
             e.code == 'PGRST204' ||
             e.message.toLowerCase().contains('column');
         if (isColError) {
-          final fallbackQuery = supabase
+          var fallbackQuery = supabase
               .from('quizzes')
               .select('''
                 id,
+                class_id,
                 title,
                 title_en,
                 title_id,
                 duration_minutes,
                 status,
                 assessment_type,
+                instructions,
                 created_at
               ''')
               .eq('status', 'published');
+
+          if (validClass) {
+            fallbackQuery = fallbackQuery.eq('class_id', activeClass.id);
+          } else {
+            fallbackQuery = fallbackQuery.isFilter('class_id', null);
+          }
 
           if (isUuid) {
             raw = await fallbackQuery.eq('id', assessmentType).maybeSingle();
           } else {
             final list = await fallbackQuery
                 .eq('assessment_type', assessmentType)
-                .order('created_at', ascending: false)
-                .limit(1);
-            if ((list as List).isNotEmpty) {
-              raw = list.first;
+                .order('created_at', ascending: false);
+            for (final item in list as List) {
+              final rowMap = Map<String, dynamic>.from(item as Map);
+              if ((assessmentType == 'pretest' ||
+                      assessmentType == 'posttest') &&
+                  isTaskAssessmentRow(rowMap)) {
+                continue;
+              }
+              raw = rowMap;
+              break;
             }
           }
         } else {
@@ -766,10 +875,15 @@ class AssessmentController
 
       if (raw != null) {
         final map = Map<String, dynamic>.from(raw as Map);
+        final rawType = map['assessment_type']?.toString() ?? assessmentType;
+        final resolvedType = isTaskAssessmentRow(map) &&
+                (rawType == 'pretest' || rawType == 'posttest')
+            ? 'task'
+            : rawType;
         return AssessmentListItem(
           id: map['id'].toString(),
           title: _localizedTitle(map),
-          assessmentType: map['assessment_type']?.toString() ?? assessmentType,
+          assessmentType: resolvedType,
           durationMinutes: (map['duration_minutes'] as num?)?.toInt() ?? 0,
           deadline: map['deadline'] == null ? null : DateTime.tryParse(map['deadline'].toString()),
           status: map['status']?.toString() ?? 'published',
@@ -834,6 +948,9 @@ class AssessmentController
         );
       }
 
+      final activeClass = await readActiveStudentClass(ref);
+      final validClass = activeClass != null && !activeClass.isLegacyFallback;
+
       final assessmentResponse =
       await supabase
           .from('quizzes')
@@ -846,7 +963,8 @@ class AssessmentController
               duration_minutes,
               status,
               assessment_type,
-              class_id
+              class_id,
+              instructions
             ''',
       )
           .eq('id', assessmentId)
@@ -863,13 +981,27 @@ class AssessmentController
         assessmentResponse,
       );
 
+      final String? quizClassId = assessment['class_id']?.toString();
+      if (validClass) {
+        if (quizClassId != activeClass.id) {
+          throw Exception('ASSESSMENT_WRONG_CLASS');
+        }
+      } else if (quizClassId != null && quizClassId.isNotEmpty) {
+        throw Exception('ASSESSMENT_WRONG_CLASS');
+      }
+
       final String assessmentTitle =
       _localizedTitle(assessment);
 
-      final String assessmentType =
+      final String rawType =
           assessment['assessment_type']
               ?.toString() ??
               'task';
+      final bool isTaskRow = isTaskAssessmentRow(assessment);
+      final String assessmentType =
+          isTaskRow && (rawType == 'pretest' || rawType == 'posttest')
+              ? 'task'
+              : rawType;
 
       final String status =
           assessment['status']?.toString() ??
@@ -1309,6 +1441,12 @@ class AssessmentController
       ref.invalidate(
         assessmentListProvider,
       );
+      ref.invalidate(
+        assessmentHistoryProvider,
+      );
+      ref.invalidate(
+        studentDeadlineRemindersProvider,
+      );
       // v7 class scope: the pretest gate and module unlocks are read from
       // the class flow snapshot. Without this, Module 1 stays "locked by the
       // pretest" on every mounted screen right after the pretest is passed.
@@ -1679,6 +1817,7 @@ final assessmentListProvider =
     FutureProvider.autoDispose<List<AssessmentListItem>>((ref) async {
       // Watched (not read) so the list rebuilds when the student switches
       // class or the class flow status (pretest done, modules done) changes.
+      ref.watch(activeStudentClassIdProvider);
       final activeClass = await resolveActiveStudentClass(ref);
       if (activeClass != null && !activeClass.isLegacyFallback) {
         ref.watch(classLearningFlowStatusProvider(activeClass.id));

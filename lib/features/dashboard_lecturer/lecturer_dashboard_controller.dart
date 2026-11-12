@@ -211,11 +211,13 @@ final lecturerDashboardStatsProvider =
 
       final materialsResponse = await supabase
           .from('materials')
-          .select('id, published');
+          .select('id, published')
+          .isFilter('class_id', null);
 
       final quizzesResponse = await supabase
           .from('quizzes')
-          .select('id, status');
+          .select('id, status')
+          .isFilter('class_id', null);
 
       int publishedMaterials = 0;
 

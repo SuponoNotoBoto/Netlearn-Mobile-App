@@ -5,12 +5,14 @@ import '../../features/achievements/achievement_service.dart';
 import '../../features/assessment/assessment_controller.dart';
 import '../../features/classes/class_controller.dart';
 import '../../features/dashboard_lecturer/announcement_controller.dart';
+import '../../features/dashboard_lecturer/lecturer_assessments_controller.dart';
 import '../../features/dashboard_lecturer/lecturer_dashboard_controller.dart';
 import '../../features/dashboard_lecturer/notification_controller.dart';
 import '../../features/dashboard_student/student_dashboard_controller.dart';
 import '../../features/dashboard_student/student_walkthrough.dart';
 import '../../features/discussions/discussion_controller.dart';
 import '../../features/materials/student_materials_controller.dart';
+import '../../features/profile/student_assessment_history_page.dart';
 import '../../features/profile/student_profile_controller.dart';
 import '../../features/virtual_lab/virtual_lab_controller.dart';
 import '../../features/netbot/netbot_controller.dart';
@@ -35,6 +37,9 @@ void resetUserSession(Ref ref) {
   StudentWalkthroughManager.instance.dismiss();
   ref.invalidate(assessmentListProvider);
   ref.invalidate(assessmentControllerProvider);
+  ref.invalidate(assessmentHistoryProvider);
+  ref.invalidate(lecturerAssessmentsProvider);
+  ref.invalidate(lecturerTasksProvider);
 
   // The auto-disposed ones are invalidated too because the sign-in and
   // sign-out transitions can happen faster than a listener is dropped.

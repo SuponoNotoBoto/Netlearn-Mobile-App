@@ -87,6 +87,89 @@ int _assessmentRank(LecturerAssessment assessment) {
 
 /// Every assessment, published or not.
 ///
+/// Filters `quizzes` rows to core curriculum gate assessments (`pretest` /
+/// `posttest`) scoped strictly to the lecturer's active class space, excluding
+/// custom tasks that may have fallen back to `assessment_type = 'posttest'`.
+List<Map<String, dynamic>> filterLecturerCoreQuizzes({
+  required Iterable<dynamic> quizzes,
+  required String? activeClassId,
+  required bool isLegacyFallback,
+}) {
+  final result = <Map<String, dynamic>>[];
+  for (final item in quizzes) {
+    final map = Map<String, dynamic>.from(item as Map);
+    final quizClassId = map['class_id']?.toString();
+    if (!isLegacyFallback) {
+      if (activeClassId == null ||
+          activeClassId.isEmpty ||
+          quizClassId != activeClassId) {
+        continue;
+      }
+    } else if (quizClassId != null && quizClassId.isNotEmpty) {
+      continue;
+    }
+
+    final type = map['assessment_type']?.toString() ?? '';
+    if (type != 'pretest' && type != 'posttest') {
+      continue;
+    }
+
+    final instructions = map['instructions']?.toString() ?? '';
+    final description = map['description']?.toString() ?? '';
+    if (instructions.contains('<!--type:task-->') ||
+        description.contains('<!--type:task-->') ||
+        map['module'] != null ||
+        map['module_id'] != null ||
+        instructions.contains('<!--meta:module=')) {
+      continue;
+    }
+
+    result.add(map);
+  }
+  return result;
+}
+
+/// Filters `quizzes` rows to custom tasks and module quizzes scoped strictly
+/// to the lecturer's active class space.
+List<Map<String, dynamic>> filterLecturerTaskQuizzes({
+  required Iterable<dynamic> quizzes,
+  required String? activeClassId,
+  required bool isLegacyFallback,
+}) {
+  final result = <Map<String, dynamic>>[];
+  for (final item in quizzes) {
+    final map = Map<String, dynamic>.from(item as Map);
+    final quizClassId = map['class_id']?.toString();
+    if (!isLegacyFallback) {
+      if (activeClassId == null ||
+          activeClassId.isEmpty ||
+          quizClassId != activeClassId) {
+        continue;
+      }
+    } else if (quizClassId != null && quizClassId.isNotEmpty) {
+      continue;
+    }
+
+    final type = map['assessment_type']?.toString() ?? '';
+    final instructions = map['instructions']?.toString() ?? '';
+    final description = map['description']?.toString() ?? '';
+    final isTask = type == 'task' ||
+        type == 'class_assessment' ||
+        type == 'module_assessment' ||
+        instructions.contains('<!--type:task-->') ||
+        description.contains('<!--type:task-->') ||
+        map['module'] != null ||
+        map['module_id'] != null ||
+        instructions.contains('<!--meta:module=');
+    if (!isTask) {
+      continue;
+    }
+
+    result.add(map);
+  }
+  return result;
+}
+
 /// The two assessments are global to the course rather than per module, so this
 /// is a fixed, very small list. `question_keys` is fetched alongside the
 /// questions in one round trip because PostgREST cannot count rows on an
@@ -94,6 +177,7 @@ int _assessmentRank(LecturerAssessment assessment) {
 final lecturerAssessmentsProvider =
     FutureProvider.autoDispose<List<LecturerAssessment>>((ref) async {
       final languageCode = ref.watch(languageProvider).languageCode;
+      ref.watch(activeLecturerClassIdProvider);
       final activeClass = await resolveActiveLecturerClass(ref);
       final validClass = activeClass != null &&
           activeClass.id.isNotEmpty &&
@@ -102,33 +186,59 @@ final lecturerAssessmentsProvider =
         await ensureClassGateAssessmentsExist(activeClass.id);
       }
 
-      final response = await supabase.from('quizzes').select('''
-            class_id,
-            id,
-            title,
-            title_en,
-            title_id,
-            assessment_type,
-            duration_minutes,
-            status
-          ''')
-          .order('assessment_type')
-          .order('created_at');
+      List<dynamic> response;
+      try {
+        var query = supabase.from('quizzes').select('''
+              class_id,
+              id,
+              title,
+              title_en,
+              title_id,
+              assessment_type,
+              duration_minutes,
+              status,
+              module,
+              description,
+              instructions
+            ''');
+        if (validClass) {
+          query = query.eq('class_id', activeClass.id);
+        } else {
+          query = query.isFilter('class_id', null);
+        }
+        response = await query
+            .order('assessment_type')
+            .order('created_at') as List<dynamic>;
+      } on PostgrestException catch (e) {
+        final isColError = e.code == '42703' ||
+            e.code == 'PGRST204' ||
+            e.message.toLowerCase().contains('column');
+        if (!isColError) rethrow;
+        var compactQuery = supabase.from('quizzes').select('''
+              class_id,
+              id,
+              title,
+              title_en,
+              title_id,
+              assessment_type,
+              duration_minutes,
+              status
+            ''');
+        if (validClass) {
+          compactQuery = compactQuery.eq('class_id', activeClass.id);
+        } else {
+          compactQuery = compactQuery.isFilter('class_id', null);
+        }
+        response = await compactQuery
+            .order('assessment_type')
+            .order('created_at') as List<dynamic>;
+      }
 
-      final rawQuizzes = (response as List)
-          .map(
-            (item) => Map<String, dynamic>.from(item as Map),
-          )
-          .toList();
-
-      final classQuizzes = validClass
-          ? rawQuizzes
-              .where((q) => q['class_id']?.toString() == activeClass.id)
-              .toList()
-          : const <Map<String, dynamic>>[];
-      final quizzes = validClass
-          ? classQuizzes
-          : rawQuizzes.where((q) => q['class_id'] == null).toList();
+      final quizzes = filterLecturerCoreQuizzes(
+        quizzes: response,
+        activeClassId: activeClass?.id,
+        isLegacyFallback: !validClass,
+      );
       if (quizzes.isEmpty) {
         return [];
       }
@@ -877,6 +987,7 @@ String? _cleanInstructions(String? raw) {
 final lecturerTasksProvider = FutureProvider.autoDispose<List<LecturerTask>>((ref) async {
   try {
     final languageCode = ref.watch(languageProvider).languageCode;
+    ref.watch(activeLecturerClassIdProvider);
     final activeClass = await resolveActiveLecturerClass(ref);
     final validClass = activeClass != null &&
         activeClass.id.isNotEmpty &&
@@ -911,6 +1022,8 @@ final lecturerTasksProvider = FutureProvider.autoDispose<List<LecturerTask>>((re
 
       if (validClass) {
         query = query.eq('class_id', activeClass.id);
+      } else {
+        query = query.isFilter('class_id', null);
       }
 
       response = await query.order('created_at');
@@ -931,6 +1044,8 @@ final lecturerTasksProvider = FutureProvider.autoDispose<List<LecturerTask>>((re
 
         if (validClass) {
           fallbackQuery = fallbackQuery.eq('class_id', activeClass.id);
+        } else {
+          fallbackQuery = fallbackQuery.isFilter('class_id', null);
         }
 
         response = await fallbackQuery.order('created_at');
@@ -940,26 +1055,11 @@ final lecturerTasksProvider = FutureProvider.autoDispose<List<LecturerTask>>((re
       }
     }
 
-    final rawQuizzes = response
-        .map((item) => Map<String, dynamic>.from(item as Map))
-        .toList();
-
-    // A quiz belongs in Custom Tasks & Quizzes if:
-    // 1. assessment_type == 'task'
-    // 2. OR instructions / description has tag <!--type:task-->
-    // 3. OR module is not null (module checkpoint quiz)
-    // 4. In a class context, any quiz that is not a pretest/posttest gate
-    final quizzes = rawQuizzes.where((quiz) {
-      final type = quiz['assessment_type']?.toString();
-      final instructions = quiz['instructions']?.toString() ?? '';
-      final description = quiz['description']?.toString() ?? '';
-      if (type == 'task') return true;
-      if (instructions.contains('<!--type:task-->') || description.contains('<!--type:task-->')) {
-        return true;
-      }
-      if (quiz['module'] != null) return true;
-      return false;
-    }).toList();
+    final quizzes = filterLecturerTaskQuizzes(
+      quizzes: response,
+      activeClassId: activeClass?.id,
+      isLegacyFallback: !validClass,
+    );
 
     if (quizzes.isEmpty) {
       return const <LecturerTask>[];
@@ -1191,7 +1291,6 @@ Future<Map<String, dynamic>> _tryInsertTask(Map<String, dynamic> initialPayload)
     'module',
     'instructions',
     'description',
-    'class_id',
   ];
 
   for (var i = 0; i <= optionalColumns.length + 3; i++) {
@@ -1219,14 +1318,8 @@ Future<Map<String, dynamic>> _tryInsertTask(Map<String, dynamic> initialPayload)
         continue;
       }
 
-      // 2. Check for RLS failure on class_id
-      if (e.code == '42501' && payload.containsKey('class_id')) {
-        debugPrint('RLS failure on class_id, retrying without class_id');
-        payload.remove('class_id');
-        continue;
-      }
-
-      // 3. Check for missing column error
+      // 2. Check for missing column error (never strip `class_id` so a class
+      // task cannot silently leak into the global assessment space).
       final isColError = e.code == '42703' ||
           e.code == 'PGRST204' ||
           e.message.toLowerCase().contains('column');
@@ -1281,7 +1374,6 @@ Future<void> _tryUpdateTask(String id, Map<String, dynamic> initialPayload) asyn
     'module',
     'instructions',
     'description',
-    'class_id',
   ];
 
   for (var i = 0; i <= optionalColumns.length + 3; i++) {
@@ -1303,11 +1395,6 @@ Future<void> _tryUpdateTask(String id, Map<String, dynamic> initialPayload) asyn
         if (!inst.contains('<!--type:task-->')) {
           payload['instructions'] = inst.isEmpty ? '<!--type:task-->' : '<!--type:task-->\n$inst';
         }
-        continue;
-      }
-
-      if (e.code == '42501' && payload.containsKey('class_id')) {
-        payload.remove('class_id');
         continue;
       }
 

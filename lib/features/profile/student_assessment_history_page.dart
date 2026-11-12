@@ -13,6 +13,7 @@ import '../../shared/widgets/nl_skeleton.dart';
 import '../../shared/widgets/nl_stats_strip.dart';
 import '../../shared/widgets/nl_topbar.dart';
 import '../../shared/widgets/status_badge.dart';
+import '../classes/class_controller.dart';
 import 'student_profile_controller.dart';
 
 /// One submitted attempt listed on the assessment history page.
@@ -38,6 +39,34 @@ class AssessmentHistoryRecord {
   bool get isPretest => assessmentType == 'pretest';
 }
 
+/// Filters quiz metadata rows so attempt history stays strictly inside the
+/// student's active class space (`class_id == activeClassId`, or global
+/// `class_id == null` only during legacy offline/v6 fallback).
+Map<String, Map<String, dynamic>> filterHistoryQuizzesByClass({
+  required Iterable<dynamic> quizzes,
+  required String? activeClassId,
+  required bool isLegacyFallback,
+}) {
+  final result = <String, Map<String, dynamic>>{};
+  for (final raw in quizzes) {
+    final quiz = Map<String, dynamic>.from(raw as Map);
+    final quizId = quiz['id']?.toString() ?? '';
+    if (quizId.isEmpty) continue;
+    final quizClassId = quiz['class_id']?.toString();
+    if (!isLegacyFallback) {
+      if (activeClassId == null ||
+          activeClassId.isEmpty ||
+          quizClassId != activeClassId) {
+        continue;
+      }
+    } else if (quizClassId != null && quizClassId.isNotEmpty) {
+      continue;
+    }
+    result[quizId] = quiz;
+  }
+  return result;
+}
+
 // The history relies on the same `quiz_attempts` read the assessment
 // controller performs for the list, so RLS already lets the student fetch
 // their own attempts. The quiz titles keep the same locale preference order
@@ -52,6 +81,9 @@ final assessmentHistoryProvider =
   }
 
   final languageCode = ref.watch(languageProvider).languageCode;
+  ref.watch(activeStudentClassIdProvider);
+  final activeClass = await resolveActiveStudentClass(ref);
+  final validClass = activeClass != null && !activeClass.isLegacyFallback;
 
   final attempts = await supabase
       .from('quiz_attempts')
@@ -69,15 +101,25 @@ final assessmentHistoryProvider =
     quizIds.add((raw as Map)['quiz_id'].toString());
   }
 
-  final quizzes = await supabase
+  var quizQuery = supabase
       .from('quizzes')
-      .select('id, title, title_en, title_id, assessment_type')
+      .select('id, class_id, title, title_en, title_id, assessment_type, instructions')
       .inFilter('id', quizIds.toList());
+  if (validClass) {
+    quizQuery = quizQuery.eq('class_id', activeClass.id);
+  } else {
+    quizQuery = quizQuery.isFilter('class_id', null);
+  }
+  final quizzes = await quizQuery;
 
-  final quizById = <String, Map<String, dynamic>>{};
-  for (final raw in quizzes) {
-    final quiz = Map<String, dynamic>.from(raw as Map);
-    quizById[quiz['id'].toString()] = quiz;
+  final quizById = filterHistoryQuizzesByClass(
+    quizzes: quizzes,
+    activeClassId: activeClass?.id,
+    isLegacyFallback: !validClass,
+  );
+
+  if (quizById.isEmpty) {
+    return const [];
   }
 
   String localizedTitle(Map<String, dynamic> quiz) {
@@ -92,25 +134,36 @@ final assessmentHistoryProvider =
     return quiz['title']?.toString().trim() ?? '';
   }
 
-  return [
-    for (final raw in attempts)
-      () {
-        final attempt = Map<String, dynamic>.from(raw as Map);
-        final quiz = quizById[attempt['quiz_id'].toString()] ?? const {};
+  final records = <AssessmentHistoryRecord>[];
+  for (final raw in attempts) {
+    final attempt = Map<String, dynamic>.from(raw as Map);
+    final quizId = attempt['quiz_id'].toString();
+    final quiz = quizById[quizId];
+    if (quiz == null) continue;
 
-        return AssessmentHistoryRecord(
-          attemptId: attempt['id'].toString(),
-          quizId: attempt['quiz_id'].toString(),
-          title: localizedTitle(quiz),
-          assessmentType: quiz['assessment_type']?.toString() ?? 'pretest',
-          score: (attempt['score'] as num?)?.toDouble(),
-          passed: attempt['passed'] as bool?,
-          submittedAt: attempt['submitted_at'] == null
-              ? null
-              : DateTime.tryParse(attempt['submitted_at'].toString()),
-        );
-      }(),
-  ];
+    final rawType = quiz['assessment_type']?.toString() ?? 'task';
+    final instructions = quiz['instructions']?.toString() ?? '';
+    final normalizedType =
+        (rawType == 'pretest' || rawType == 'posttest') &&
+                instructions.contains('<!--type:task-->')
+            ? 'task'
+            : rawType;
+
+    records.add(
+      AssessmentHistoryRecord(
+        attemptId: attempt['id'].toString(),
+        quizId: quizId,
+        title: localizedTitle(quiz),
+        assessmentType: normalizedType,
+        score: (attempt['score'] as num?)?.toDouble(),
+        passed: attempt['passed'] as bool?,
+        submittedAt: attempt['submitted_at'] == null
+            ? null
+            : DateTime.tryParse(attempt['submitted_at'].toString()),
+      ),
+    );
+  }
+  return records;
 });
 
 /// Status dua assessment inti (Pretest & Post Test) untuk halaman riwayat,

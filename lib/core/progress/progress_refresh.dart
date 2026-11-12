@@ -5,6 +5,7 @@ import '../../features/classes/class_controller.dart';
 import '../../features/dashboard_lecturer/notification_controller.dart';
 import '../../features/dashboard_student/student_dashboard_controller.dart';
 import '../../features/materials/student_materials_controller.dart';
+import '../../features/profile/student_assessment_history_page.dart';
 
 /// Invalidates every provider whose value is derived from a student's
 /// learning progress.
@@ -30,6 +31,7 @@ void invalidateStudentProgress(WidgetRef ref) {
   ref.invalidate(studentModulesProvider);
   ref.invalidate(studentDashboardProvider);
   ref.invalidate(assessmentListProvider);
+  ref.invalidate(assessmentHistoryProvider);
   // Pengingat mahasiswa memasang "belum dikerjakan" dari quiz_attempts;
   // setelah submit asesmen, kartu pengingatnya harus hilang segera. Invalidate
   // di level provider (bukan instans user) karena tidak ada userId di sini.

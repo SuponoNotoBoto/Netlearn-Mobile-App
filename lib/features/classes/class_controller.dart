@@ -201,17 +201,25 @@ void selectLecturerActiveClass(dynamic ref, String? classId) {
       ref.invalidate(lecturerStudentsProvider);
       ref.invalidate(lecturerMaterialsProvider);
       ref.invalidate(lecturerAssessmentsProvider);
+      ref.invalidate(lecturerTasksProvider);
       ref.invalidate(lecturerDashboardStatsProvider);
       ref.invalidate(lecturerAnnouncementsProvider);
       ref.invalidate(userAnnouncementsProvider);
+      ref.invalidate(lecturerMissingAssessmentRemindersProvider);
+      ref.invalidate(classGateAssessmentsProvider);
+      ref.invalidate(classLeaderboardQuizzesProvider);
     } else {
       final r = ref as Ref;
       r.invalidate(lecturerStudentsProvider);
       r.invalidate(lecturerMaterialsProvider);
       r.invalidate(lecturerAssessmentsProvider);
+      r.invalidate(lecturerTasksProvider);
       r.invalidate(lecturerDashboardStatsProvider);
       r.invalidate(lecturerAnnouncementsProvider);
       r.invalidate(userAnnouncementsProvider);
+      r.invalidate(lecturerMissingAssessmentRemindersProvider);
+      r.invalidate(classGateAssessmentsProvider);
+      r.invalidate(classLeaderboardQuizzesProvider);
     }
   }
 }
@@ -292,10 +300,10 @@ Future<StudentClass?> resolveActiveStudentClass(dynamic ref) async {
   try {
     final classes = await (ref is WidgetRef
         ? ref.read(studentClassesProvider.future)
-        : (ref as Ref).read(studentClassesProvider.future));
+        : (ref as Ref).watch(studentClassesProvider.future));
     final selectedId = ref is WidgetRef
         ? ref.read(activeStudentClassIdProvider)
-        : (ref as Ref).read(activeStudentClassIdProvider);
+        : (ref as Ref).watch(activeStudentClassIdProvider);
     if (classes.isEmpty) return null;
     if (selectedId != null) {
       for (final item in classes) {
@@ -716,14 +724,15 @@ final classLeaderboardQuizzesProvider = FutureProvider.autoDispose
     return const <ClassGateAssessment>[];
   }
 
-  // 1. Fetch class quizzes and global template fallbacks
+  // Fetch quizzes strictly scoped to this class so each class keeps its own
+  // leaderboard and per-assessment inspection space.
   final quizRows = await client
       .from('quizzes')
       .select(
         'id, title, title_en, title_id, assessment_type, '
         'duration_minutes, status, leaderboard_enabled, class_id',
       )
-      .or('class_id.eq.$classId,class_id.is.null')
+      .eq('class_id', classId)
       .order('assessment_type')
       .order('created_at');
 
@@ -731,28 +740,10 @@ final classLeaderboardQuizzesProvider = FutureProvider.autoDispose
       .map((row) => Map<String, dynamic>.from(row as Map))
       .toList();
 
-  // Deduplicate gate quizzes: prefer class-scoped copy over global template
-  final classGateTypes = <String>{
-    for (final q in rawQuizzes)
-      if (q['class_id']?.toString() == classId)
-        q['assessment_type']?.toString() ?? '',
-  };
-
   final quizzes = <Map<String, dynamic>>[];
   for (final q in rawQuizzes) {
     final type = q['assessment_type']?.toString() ?? '';
-    final qClassId = q['class_id']?.toString();
     final isGate = type == 'pretest' || type == 'posttest';
-
-    // If global gate quiz exists but class has its own copy, skip global
-    if (isGate && qClassId == null && classGateTypes.contains(type)) {
-      continue;
-    }
-
-    // For non-gates, only include quizzes scoped to this class
-    if (!isGate && qClassId != classId) {
-      continue;
-    }
 
     // Leaderboard inclusion rule:
     // - Pretest & Posttest are ALWAYS included for inspection
@@ -1425,6 +1416,9 @@ void _invalidateLecturerClassReads(WidgetRef ref, [String? classId]) {
   ref.invalidate(lecturerClassesProvider);
   ref.invalidate(lecturerArchivedClassesProvider);
   ref.invalidate(lecturerDashboardStatsProvider);
+  ref.invalidate(lecturerAssessmentsProvider);
+  ref.invalidate(lecturerTasksProvider);
+  ref.invalidate(lecturerMissingAssessmentRemindersProvider);
   if (classId != null && classId.isNotEmpty) {
     ref.invalidate(classSettingsProvider(classId));
     ref.invalidate(classInviteProvider(classId));
@@ -1432,6 +1426,7 @@ void _invalidateLecturerClassReads(WidgetRef ref, [String? classId]) {
     ref.invalidate(classGateAssessmentsProvider(classId));
     ref.invalidate(classRosterProvider(classId));
     ref.invalidate(classLeaderboardProvider(classId));
+    ref.invalidate(classLeaderboardQuizzesProvider(classId));
   }
 }
 
@@ -1523,13 +1518,28 @@ Future<void> ensureClassGateAssessmentsExist(String classId) async {
         .eq('class_id', classId)
         .inFilter('assessment_type', ['pretest', 'posttest']);
 
-    final existingTypes = <String>{
-      for (final raw in existingRows as List)
-        (raw as Map)['assessment_type']?.toString() ?? '',
-    };
+    final existingQuizByType = <String, String>{};
+    for (final raw in existingRows as List) {
+      final map = raw as Map;
+      final type = map['assessment_type']?.toString() ?? '';
+      final id = map['id']?.toString() ?? '';
+      if (type.isNotEmpty && id.isNotEmpty && !existingQuizByType.containsKey(type)) {
+        existingQuizByType[type] = id;
+      }
+    }
 
     for (final gateType in const ['pretest', 'posttest']) {
-      if (existingTypes.contains(gateType)) continue;
+      var targetQuizId = existingQuizByType[gateType] ?? '';
+      if (targetQuizId.isNotEmpty) {
+        final existingQuestions = await client
+            .from('questions')
+            .select('id')
+            .eq('quiz_id', targetQuizId)
+            .limit(1);
+        if ((existingQuestions as List).isNotEmpty) {
+          continue;
+        }
+      }
 
       final tplQuiz = await client
           .from('quizzes')
@@ -1548,33 +1558,35 @@ Future<void> ensureClassGateAssessmentsExist(String classId) async {
       final tplQuizId = tplMap['id']?.toString() ?? '';
       if (tplQuizId.isEmpty) continue;
 
-      final insertedQuiz = await client
-          .from('quizzes')
-          .insert({
-            'class_id': classId,
-            'module_id': null,
-            'material_id': null,
-            'title': tplMap['title'],
-            'title_en': tplMap['title_en'],
-            'title_id': tplMap['title_id'],
-            'description': tplMap['description'],
-            'description_en': tplMap['description_en'],
-            'description_id': tplMap['description_id'],
-            'duration_minutes': tplMap['duration_minutes'] ?? 30,
-            'assessment_type': gateType,
-            'status': 'draft',
-            'required': true,
-            'attempts_allowed': 1,
-            'weight': 1,
-            'leaderboard_enabled': true,
-            'sort_order': gateType == 'pretest' ? 1 : 99,
-            'created_by': userId,
-          })
-          .select('id')
-          .single();
+      if (targetQuizId.isEmpty) {
+        final insertedQuiz = await client
+            .from('quizzes')
+            .insert({
+              'class_id': classId,
+              'module_id': null,
+              'material_id': null,
+              'title': tplMap['title'],
+              'title_en': tplMap['title_en'],
+              'title_id': tplMap['title_id'],
+              'description': tplMap['description'],
+              'description_en': tplMap['description_en'],
+              'description_id': tplMap['description_id'],
+              'duration_minutes': tplMap['duration_minutes'] ?? 30,
+              'assessment_type': gateType,
+              'status': 'draft',
+              'required': true,
+              'attempts_allowed': 1,
+              'weight': 1,
+              'leaderboard_enabled': true,
+              'sort_order': gateType == 'pretest' ? 1 : 99,
+              'created_by': userId,
+            })
+            .select('id')
+            .single();
 
-      final newQuizId = insertedQuiz['id']?.toString() ?? '';
-      if (newQuizId.isEmpty) continue;
+        targetQuizId = insertedQuiz['id']?.toString() ?? '';
+      }
+      if (targetQuizId.isEmpty) continue;
 
       final tplQuestions = await client
           .from('questions')
@@ -1595,12 +1607,12 @@ Future<void> ensureClassGateAssessmentsExist(String classId) async {
       final tplQIds = qList.map((q) => q['id'].toString()).toList();
       final keyRows = await client
           .from('question_keys')
-          .select('question_id, correct_option')
+          .select('question_id, correct_answer')
           .inFilter('question_id', tplQIds);
       final keyByOldQId = <String, String>{
         for (final k in keyRows as List)
           (k as Map)['question_id'].toString():
-              k['correct_option']?.toString() ?? '',
+              k['correct_answer']?.toString() ?? '',
       };
 
       for (final q in qList) {
@@ -1608,7 +1620,7 @@ Future<void> ensureClassGateAssessmentsExist(String classId) async {
         final newQ = await client
             .from('questions')
             .insert({
-              'quiz_id': newQuizId,
+              'quiz_id': targetQuizId,
               'order_index': q['order_index'],
               'question_text': q['question_text'],
               'question_text_en': q['question_text_en'],
@@ -1630,13 +1642,13 @@ Future<void> ensureClassGateAssessmentsExist(String classId) async {
             .select('id')
             .single();
         final newQId = newQ['id']?.toString() ?? '';
-        final correctOpt = keyByOldQId[oldQId];
+        final correctAns = keyByOldQId[oldQId];
         if (newQId.isNotEmpty &&
-            correctOpt != null &&
-            correctOpt.isNotEmpty) {
+            correctAns != null &&
+            correctAns.isNotEmpty) {
           await client.from('question_keys').insert({
             'question_id': newQId,
-            'correct_option': correctOpt,
+            'correct_answer': correctAns,
           });
         }
       }
