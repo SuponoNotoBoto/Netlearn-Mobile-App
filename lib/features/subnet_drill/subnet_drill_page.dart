@@ -53,9 +53,12 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
 
   Future<void> _loadHighScore() async {
     final user = supabase.auth.currentUser;
+    final activeClass = await resolveActiveStudentClass(ref);
+    final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
+
     final userKey = user != null
-        ? 'subnet_drill_high_score_${user.id}'
-        : 'subnet_drill_high_score_guest';
+        ? 'subnet_drill_high_score_${user.id}_${classId ?? "global"}'
+        : 'subnet_drill_high_score_guest_${classId ?? "global"}';
     final prefs = await SharedPreferences.getInstance();
     var hs = prefs.getInt(userKey) ?? 0;
 
@@ -67,10 +70,18 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
 
     if (user != null) {
       try {
-        final row = await supabase
+        var query = supabase
             .from('subnet_drill_scores')
             .select('score')
-            .eq('user_id', user.id)
+            .eq('user_id', user.id);
+
+        if (classId != null && classId.isNotEmpty) {
+          query = query.eq('class_id', classId);
+        } else {
+          query = query.isFilter('class_id', null);
+        }
+
+        final row = await query
             .order('score', ascending: false)
             .limit(1)
             .maybeSingle();
@@ -85,8 +96,8 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
             });
           }
         } else {
-          // Account has no records in database yet: ensure highscore is 0,
-          // strictly isolated from any previous user's score on this device.
+          // Kelas ini belum memiliki skor tersimpan untuk user ini:
+          // Pastikan highscore adalah 0 (reset untuk kelas ini).
           await prefs.setInt(userKey, 0);
           if (mounted) {
             setState(() {
@@ -98,12 +109,12 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
     }
   }
 
-  Future<void> _saveHighScore(int score) async {
+  Future<void> _saveHighScore(int score, {String? classId}) async {
     if (score > _highScore) {
       final user = supabase.auth.currentUser;
       final userKey = user != null
-          ? 'subnet_drill_high_score_${user.id}'
-          : 'subnet_drill_high_score_guest';
+          ? 'subnet_drill_high_score_${user.id}_${classId ?? "global"}'
+          : 'subnet_drill_high_score_guest_${classId ?? "global"}';
       final prefs = await SharedPreferences.getInstance();
       await prefs.setInt(userKey, score);
       if (mounted) {
@@ -194,7 +205,10 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
     _timer?.cancel();
     setState(() => _isPlaying = false);
 
-    _saveHighScore(_score);
+    final activeClass = await resolveActiveStudentClass(ref);
+    final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
+
+    await _saveHighScore(_score, classId: classId);
 
     // Resolve real student name from profiles / studentDashboardProvider
     final user = supabase.auth.currentUser;
@@ -218,9 +232,6 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
         } catch (_) {}
       }
     }
-
-    final activeClass = ref.read(activeStudentClassProvider).value;
-    final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
 
     // Save to class-scoped leaderboard
     await SubnetDrillLeaderboardService.saveScore(
@@ -429,6 +440,12 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
     final activeClass = ref.watch(activeStudentClassProvider).value;
     final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
 
+    ref.listen(activeStudentClassProvider, (prev, next) {
+      if (prev?.value?.id != next.value?.id) {
+        _loadHighScore();
+      }
+    });
+
     return Scaffold(
       backgroundColor: context.background,
       appBar: NlTopBar(
@@ -521,9 +538,25 @@ class _SubnetDrillPageState extends ConsumerState<SubnetDrillPage> {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      isId ? 'SKOR TERTINGGI' : 'HIGH SCORE',
-                      style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8E8B9D)),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          isId ? 'SKOR TERTINGGI' : 'HIGH SCORE',
+                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Color(0xFF8E8B9D)),
+                        ),
+                        if (className != null && className.trim().isNotEmpty) ...[
+                          const SizedBox(width: 4),
+                          Text(
+                            '($className)',
+                            style: TextStyle(
+                              fontSize: 9.5,
+                              fontWeight: FontWeight.w700,
+                              color: context.accent,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     Text(
                       '$_highScore Poin',
