@@ -179,6 +179,14 @@ class _AvatarCustomizerSheetState extends State<_AvatarCustomizerSheet> {
                 .eq('user_id', user.id);
           } catch (_) {}
 
+          // Best-effort sync onto virtual_lab_scores so Virtual Lab Leaderboard reflects new avatar
+          try {
+            await supabase
+                .from('virtual_lab_scores')
+                .update({'avatar_config': _draft.toMap()})
+                .eq('user_id', user.id);
+          } catch (_) {}
+
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString(
             'cached_avatar_config_${user.id}',
@@ -231,7 +239,7 @@ class _AvatarCustomizerSheetState extends State<_AvatarCustomizerSheet> {
     final categories = [
       (icon: Icons.pets_rounded, label: isId ? 'Karakter' : 'Character'),
       (icon: Icons.palette_rounded, label: isId ? 'Warna' : 'Colors'),
-      (icon: Icons.auto_awesome_rounded, label: isId ? 'Topi' : 'Headwear'),
+      (icon: Icons.school_rounded, label: isId ? 'Topi' : 'Headwear'),
       (icon: Icons.visibility_rounded, label: isId ? 'Kacamata' : 'Eyewear'),
       (icon: Icons.headphones_rounded, label: isId ? 'Ekstra' : 'Extra'),
       (icon: Icons.edit_note_rounded, label: isId ? 'Status' : 'Status'),

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -8,6 +9,7 @@ import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/nl_skeleton.dart';
 import '../achievements/achievement_service.dart';
+import '../notifications/cheer_notification_service.dart';
 
 class PublicMemberProfile {
   final String userId;
@@ -200,6 +202,45 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
         row = Map<String, dynamic>.from(res);
       }
 
+      // Pastikan avatar selalu paling mutakhir dari tabel `profiles` langsung
+      // agar perubahan kustomisasi avatar tidak tertinggal oleh RPC atau cache.
+      try {
+        final profileRow = await supabase
+            .from('profiles')
+            .select('avatar_config, name, role, bio, identity_number, program, unlocked_badges')
+            .eq('id', widget.userId)
+            .maybeSingle();
+
+        if (profileRow != null) {
+          final pMap = Map<String, dynamic>.from(profileRow);
+          if (row != null) {
+            row['avatar_config'] = pMap['avatar_config'] ?? row['avatar_config'];
+            if (pMap['name'] != null && pMap['name'].toString().trim().isNotEmpty) {
+              row['display_name'] = pMap['name'].toString().trim();
+            }
+            if (pMap['bio'] != null) {
+              row['bio'] = pMap['bio'];
+            }
+          } else {
+            row = {
+              'user_id': widget.userId,
+              'display_name': pMap['name']?.toString() ?? widget.fallbackName ?? 'Mahasiswa',
+              'role': pMap['role']?.toString() ?? widget.fallbackRole ?? 'student',
+              'program': pMap['program'],
+              'identity_number': pMap['identity_number'],
+              'bio': pMap['bio'],
+              'avatar_config': pMap['avatar_config'],
+              'unlocked_badges': pMap['unlocked_badges'],
+              'total_points': widget.fallbackPoints ?? 0,
+              'cheers_count': 0,
+              'cheered_today': false,
+            };
+          }
+        }
+      } catch (profileErr) {
+        debugPrint('Direct profile fetch notice: $profileErr');
+      }
+
       if (!mounted) return;
       if (row != null) {
         setState(() {
@@ -274,6 +315,12 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
         final m = Map<String, dynamic>.from(res.first as Map);
         nextCount = (m['cheers_count'] as num?)?.toInt() ?? nextCount;
       }
+
+      // Catat notifikasi pengirim cheer ke penerima
+      unawaited(CheerNotificationService.recordCheer(
+        receiverId: current.userId,
+        classId: validClassUuid,
+      ));
 
       SfxService.instance.playSuccess();
       if (!mounted) return;

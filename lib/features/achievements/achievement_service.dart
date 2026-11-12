@@ -12,6 +12,8 @@ class BadgeItem {
   final String titleEn;
   final String descriptionId;
   final String descriptionEn;
+  final String requirementId;
+  final String requirementEn;
   final IconData icon;
   final Color color;
 
@@ -21,6 +23,8 @@ class BadgeItem {
     required this.titleEn,
     required this.descriptionId,
     required this.descriptionEn,
+    required this.requirementId,
+    required this.requirementEn,
     required this.icon,
     required this.color,
   });
@@ -34,6 +38,8 @@ class AchievementService {
       titleEn: 'Subnet Master',
       descriptionId: 'Mencapai skor 100+ dalam Speed Subnetting Drill.',
       descriptionEn: 'Scored 100+ in Speed Subnetting Drill.',
+      requirementId: 'Mainkan Speed Subnetting Drill di menu Latihan Jaringan dan raih skor 100 poin atau lebih.',
+      requirementEn: 'Play Speed Subnetting Drill under Network Practice and reach 100+ points.',
       icon: Icons.flash_on_rounded,
       color: Color(0xFFFF9800),
     ),
@@ -43,6 +49,8 @@ class AchievementService {
       titleEn: 'Packet Slinger',
       descriptionId: 'Berhasil menghubungkan perangkat dan tes ping sukses di Virtual Lab.',
       descriptionEn: 'Successfully wired devices and pinged in Virtual Lab.',
+      requirementId: 'Buka Virtual Lab Simulasi di kelas mana saja, hubungkan perangkat menggunakan kabel, lalu lakukan uji Ping yang berhasil.',
+      requirementEn: 'Open Virtual Lab in any class, connect devices with cables, and achieve a successful Ping test.',
       icon: Icons.cable_rounded,
       color: Color(0xFF2196F3),
     ),
@@ -52,6 +60,8 @@ class AchievementService {
       titleEn: 'AR Pioneer',
       descriptionId: 'Berhasil memindai marker AR 3D perangkat jaringan.',
       descriptionEn: 'Successfully scanned a 3D AR network marker.',
+      requirementId: 'Buka fitur AR Scanner di menu Beranda dan arahkan kamera ke kartu marker AR perangkat keras jaringan 3D.',
+      requirementEn: 'Open the AR Scanner on the Home screen and scan any 3D network hardware AR marker card.',
       icon: Icons.view_in_ar_rounded,
       color: Color(0xFF9C27B0),
     ),
@@ -61,6 +71,8 @@ class AchievementService {
       titleEn: 'Fast Learner',
       descriptionId: 'Menyelesaikan modul pembelajaran dan tes kompetensi.',
       descriptionEn: 'Completed a learning module and competency test.',
+      requirementId: 'Selesaikan dan kumpulkan (submit) tes kompetensi (Pretest, Kuis Modul, atau Posttest) di kelas mana saja.',
+      requirementEn: 'Complete and submit any competency assessment (Pretest, Module Quiz, or Posttest) in any class.',
       icon: Icons.workspace_premium_rounded,
       color: Color(0xFF4CAF50),
     ),
@@ -70,6 +82,8 @@ class AchievementService {
       titleEn: 'Network Scholar',
       descriptionId: 'Membaca dan menuntaskan materi literasi jaringan.',
       descriptionEn: 'Read and finished network literacy materials.',
+      requirementId: 'Buka materi modul pembelajaran di kelas mana saja, pelajari hingga selesai, lalu tekan tombol "Tandai Selesai Dibaca".',
+      requirementEn: 'Open any module learning material in any class, read through, and tap the "Mark as Read" button.',
       icon: Icons.menu_book_rounded,
       color: Color(0xFF009688),
     ),
@@ -166,7 +180,7 @@ class AchievementService {
         }
       }
 
-      // Verify legitimacy of network_scholar: must have completed reading
+      // Verify legitimacy of network_scholar: must have completed reading in any class
       if (set.contains('network_scholar')) {
         final localReading = prefs.getBool('has_completed_reading_$uid') ?? false;
         if (!localReading) {
@@ -179,7 +193,17 @@ class AchievementService {
                 .limit(1)
                 .maybeSingle();
             if (reading == null) {
-              set.remove('network_scholar');
+              // Juga periksa progres materi kelas mana saja di tabel material_progress
+              final classReading = await supabase
+                  .from('material_progress')
+                  .select('id')
+                  .eq('student_id', uid)
+                  .eq('reading_completed', true)
+                  .limit(1)
+                  .maybeSingle();
+              if (classReading == null) {
+                set.remove('network_scholar');
+              }
             }
           } catch (_) {}
         }
@@ -216,7 +240,7 @@ class AchievementService {
               .from('quiz_attempts')
               .select('id')
               .eq('user_id', uid)
-              .eq('status', 'submitted')
+              .or('status.eq.submitted,status.eq.completed')
               .limit(1)
               .maybeSingle();
           if (submitted != null) {
@@ -225,7 +249,7 @@ class AchievementService {
         } catch (_) {}
       }
 
-      // c) Network Scholar:
+      // c) Network Scholar (berlaku untuk materi di kelas mana saja):
       if (!set.contains('network_scholar')) {
         final localReading = prefs.getBool('has_completed_reading_$uid') ?? false;
         if (localReading) {
@@ -241,6 +265,37 @@ class AchievementService {
                 .maybeSingle();
             if (reading != null) {
               set.add('network_scholar');
+            } else {
+              final classReading = await supabase
+                  .from('material_progress')
+                  .select('id')
+                  .eq('student_id', uid)
+                  .eq('reading_completed', true)
+                  .limit(1)
+                  .maybeSingle();
+              if (classReading != null) {
+                set.add('network_scholar');
+              }
+            }
+          } catch (_) {}
+        }
+      }
+
+      // d) Packet Slinger (berlaku untuk Virtual Lab di kelas mana saja):
+      if (!set.contains('packet_slinger')) {
+        final localPing = prefs.getBool('has_completed_vlab_ping_$uid') ?? false;
+        if (localPing) {
+          set.add('packet_slinger');
+        } else {
+          try {
+            final vlabRow = await supabase
+                .from('virtual_lab_scores')
+                .select('id')
+                .eq('user_id', uid)
+                .limit(1)
+                .maybeSingle();
+            if (vlabRow != null) {
+              set.add('packet_slinger');
             }
           } catch (_) {}
         }
