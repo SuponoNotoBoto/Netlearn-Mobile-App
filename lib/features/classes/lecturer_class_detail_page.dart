@@ -18,6 +18,7 @@ import '../profile/public_profile_sheet.dart';
 import 'class_action_messages.dart';
 import 'class_controller.dart';
 import 'class_models.dart';
+import 'class_module_dialog.dart';
 
 class LecturerClassDetailPage extends ConsumerStatefulWidget {
   const LecturerClassDetailPage({
@@ -530,117 +531,6 @@ class _ModulesTab extends ConsumerWidget {
   final String classId;
   final GlobalKey? headerKey;
 
-  Future<void> _showModuleDialog(
-    BuildContext context,
-    WidgetRef ref, {
-    ClassModule? editing,
-  }) async {
-    final l10n = AppLocalizations.of(context)!;
-    final titleIdCtrl =
-        TextEditingController(text: editing?.titleId ?? editing?.title ?? '');
-    final titleEnCtrl = TextEditingController(text: editing?.titleEn ?? '');
-    final descIdCtrl = TextEditingController(
-        text: editing?.descriptionId ?? editing?.description ?? '');
-    final descEnCtrl =
-        TextEditingController(text: editing?.descriptionEn ?? '');
-
-    final saved = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(
-          editing == null
-              ? l10n.classAddModuleAction
-              : l10n.classEditModuleAction,
-        ),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                key: const Key('module_dialog_title_id'),
-                controller: titleIdCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.classModuleTitleIdLabel,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s10),
-              TextField(
-                key: const Key('module_dialog_title_en'),
-                controller: titleEnCtrl,
-                decoration: InputDecoration(
-                  labelText: l10n.classModuleTitleEnLabel,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s10),
-              TextField(
-                key: const Key('module_dialog_desc_id'),
-                controller: descIdCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: l10n.classModuleDescIdLabel,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.s10),
-              TextField(
-                key: const Key('module_dialog_desc_en'),
-                controller: descEnCtrl,
-                maxLines: 2,
-                decoration: InputDecoration(
-                  labelText: l10n.classModuleDescEnLabel,
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(false),
-            child: Text(l10n.cancel),
-          ),
-          FilledButton(
-            key: const Key('module_dialog_save_button'),
-            onPressed: () => Navigator.of(dialogContext).pop(true),
-            child: Text(l10n.save),
-          ),
-        ],
-      ),
-    );
-
-    if (saved == true && context.mounted) {
-      await runClassAction(
-        context,
-        () async {
-          if (editing == null) {
-            await createClassModuleAction(
-              ref,
-              classId: classId,
-              titleId: titleIdCtrl.text,
-              titleEn: titleEnCtrl.text,
-              descriptionId: descIdCtrl.text,
-              descriptionEn: descEnCtrl.text,
-            );
-          } else {
-            await updateClassModuleAction(
-              ref,
-              classId: classId,
-              moduleId: editing.id,
-              titleId: titleIdCtrl.text,
-              titleEn: titleEnCtrl.text,
-              descriptionId: descIdCtrl.text,
-              descriptionEn: descEnCtrl.text,
-            );
-          }
-        },
-        successMessage: l10n.classUpdatedSuccess,
-      );
-    }
-
-    titleIdCtrl.dispose();
-    titleEnCtrl.dispose();
-    descIdCtrl.dispose();
-    descEnCtrl.dispose();
-  }
-
   Future<void> _moveModule(
     BuildContext context,
     WidgetRef ref,
@@ -790,7 +680,11 @@ class _ModulesTab extends ConsumerWidget {
             const SizedBox(width: 8),
             FilledButton.icon(
               key: const Key('class_add_module_button'),
-              onPressed: () => _showModuleDialog(context, ref),
+              onPressed: () => showClassModuleDialog(
+                context,
+                ref,
+                classId: classId,
+              ),
               icon: const Icon(Icons.add_rounded, size: 18),
               label: Text(l10n.classAddModuleAction),
             ),
@@ -826,8 +720,12 @@ class _ModulesTab extends ConsumerWidget {
               canMoveDown: i < modules.length - 1,
               onMoveUp: () => _moveModule(context, ref, modules, i, -1),
               onMoveDown: () => _moveModule(context, ref, modules, i, 1),
-              onEdit: () =>
-                  _showModuleDialog(context, ref, editing: modules[i]),
+              onEdit: () => showClassModuleDialog(
+                context,
+                ref,
+                classId: classId,
+                editing: modules[i],
+              ),
             ),
             const SizedBox(height: AppSpacing.s12),
           ],

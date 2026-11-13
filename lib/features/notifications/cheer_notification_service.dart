@@ -36,10 +36,11 @@ class CheerNotificationItem {
       };
 
   factory CheerNotificationItem.fromMap(Map<String, dynamic> map) {
+    final rawSenderName = map['sender_name']?.toString().trim() ?? '';
     return CheerNotificationItem(
       id: map['id']?.toString() ?? '',
       senderId: map['sender_id']?.toString() ?? '',
-      senderName: map['sender_name']?.toString() ?? 'Mahasiswa',
+      senderName: rawSenderName.isNotEmpty ? rawSenderName : 'Mahasiswa',
       classId: map['class_id']?.toString(),
       className: map['class_name']?.toString(),
       createdAt: DateTime.tryParse(map['created_at']?.toString() ?? '') ??
@@ -55,6 +56,119 @@ class CheerNotificationService {
           ? 'v2_received_cheers_${receiverId}_$classId'
           : 'v2_received_cheers_$receiverId';
 
+  /// Mengembalikan `true` jika [name] kosong, label generik, atau fallback kode
+  /// `Mahasiswa (...)` sehingga perlu dicari nama aslinya.
+  static bool isGenericSenderName(String? name) {
+    if (name == null) return true;
+    final trimmed = name.trim();
+    if (trimmed.isEmpty) return true;
+    final lower = trimmed.toLowerCase();
+    return lower == 'teman sekelas' ||
+        lower == 'mahasiswa' ||
+        trimmed.startsWith('Mahasiswa (');
+  }
+
+  /// Mencari nama asli daftar [senderIds] secara berlapis:
+  /// 1. Tabel `profiles` (`name`, `email`) — tanpa kolom non-eksisten `full_name`.
+  /// 2. RPC `class_roster` pada kelas terkait.
+  /// 3. RPC `get_public_member_profile` (bypass RLS jika query langsung dibatasi).
+  static Future<Map<String, String>> _resolveSenderNames(
+    Set<String> senderIds, {
+    String? classId,
+    Iterable<String> extraClassIds = const [],
+  }) async {
+    final names = <String, String>{};
+    if (senderIds.isEmpty) return names;
+
+    try {
+      final pRows = await supabase
+          .from('profiles')
+          .select('id, name, email')
+          .inFilter('id', senderIds.toList());
+      for (final pr in pRows) {
+        final pm = Map<String, dynamic>.from(pr as Map);
+        final pId = pm['id']?.toString() ?? '';
+        if (pId.isEmpty) continue;
+        final n = pm['name']?.toString().trim();
+        if (n != null && n.isNotEmpty) {
+          names[pId] = n;
+        } else {
+          final email = pm['email']?.toString().trim();
+          if (email != null && email.isNotEmpty) {
+            names[pId] = email.split('@').first;
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Failed to query profiles for sender names: $e');
+    }
+
+    // Fallback kedua: RPC class_roster jika masih ada ID yang belum ter-resolve.
+    var stillMissing = senderIds
+        .where((id) => !names.containsKey(id) || names[id]!.trim().isEmpty)
+        .toList();
+    if (stillMissing.isNotEmpty) {
+      final candidateClassIds = <String>{
+        if (classId != null && classId.isNotEmpty) classId,
+        ...extraClassIds.where((c) => c.isNotEmpty),
+      };
+      for (final cId in candidateClassIds) {
+        if (stillMissing.isEmpty) break;
+        try {
+          final roster =
+              await supabase.rpc('class_roster', params: {'p_class': cId});
+          if (roster is List) {
+            for (final item in roster) {
+              final map = Map<String, dynamic>.from(item as Map);
+              final stId = map['student_id']?.toString();
+              final stName = map['name']?.toString().trim();
+              if (stId != null && stName != null && stName.isNotEmpty) {
+                names[stId] = stName;
+              }
+            }
+          }
+        } catch (_) {}
+        stillMissing = senderIds
+            .where((id) => !names.containsKey(id) || names[id]!.trim().isEmpty)
+            .toList();
+      }
+    }
+
+    // Fallback ketiga: RPC get_public_member_profile per user yang masih kosong.
+    if (stillMissing.isNotEmpty) {
+      final validClassUuid = (classId != null &&
+              RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(classId))
+          ? classId
+          : null;
+      for (final sId in stillMissing) {
+        try {
+          final res = await supabase.rpc(
+            'get_public_member_profile',
+            params: {
+              'p_user': sId,
+              'p_class': validClassUuid,
+            },
+          );
+          Map<String, dynamic>? row;
+          if (res is List && res.isNotEmpty) {
+            row = Map<String, dynamic>.from(res.first as Map);
+          } else if (res is Map) {
+            row = Map<String, dynamic>.from(res);
+          }
+          final disp =
+              (row?['display_name'] ?? row?['name'])?.toString().trim();
+          if (disp != null &&
+              disp.isNotEmpty &&
+              !isGenericSenderName(disp)) {
+            names[sId] = disp;
+          }
+        } catch (_) {}
+      }
+    }
+
+    return names;
+  }
+
   /// Mencatat saat seorang user mengirim semangat ke [receiverId].
   static Future<void> recordCheer({
     required String receiverId,
@@ -65,29 +179,31 @@ class CheerNotificationService {
     if (sender == null || receiverId.isEmpty || receiverId == sender.id) return;
 
     String resolvedSenderName = senderName?.trim() ?? '';
-    final isGeneric = resolvedSenderName.isEmpty ||
-        resolvedSenderName.toLowerCase() == 'teman sekelas' ||
-        resolvedSenderName.toLowerCase() == 'mahasiswa';
-
-    if (isGeneric) {
+    if (isGenericSenderName(resolvedSenderName)) {
+      resolvedSenderName = '';
       try {
         final profile = await supabase
             .from('profiles')
-            .select('name, full_name, email')
+            .select('name, email')
             .eq('id', sender.id)
             .maybeSingle();
-        final pName = (profile?['name'] ?? profile?['full_name'])?.toString().trim();
+        final pName = profile?['name']?.toString().trim();
         if (pName != null && pName.isNotEmpty) {
           resolvedSenderName = pName;
         } else {
           final meta = sender.userMetadata;
-          final metaName = (meta?['name'] ?? meta?['full_name'] ?? meta?['display_name'])
+          final metaName = (meta?['name'] ??
+                  meta?['full_name'] ??
+                  meta?['display_name'])
               ?.toString()
               .trim();
           if (metaName != null && metaName.isNotEmpty) {
             resolvedSenderName = metaName;
-          } else if (sender.email != null && sender.email!.isNotEmpty) {
-            resolvedSenderName = sender.email!.split('@').first;
+          } else {
+            final pEmail = profile?['email']?.toString().trim() ?? sender.email;
+            if (pEmail != null && pEmail.isNotEmpty) {
+              resolvedSenderName = pEmail.split('@').first;
+            }
           }
         }
       } catch (_) {}
@@ -192,74 +308,36 @@ class CheerNotificationService {
 
       if (rows.isNotEmpty) {
         final missingSenderNameIds = <String>{};
+        final extraClassIds = <String>{};
         for (final r in rows) {
           final m = Map<String, dynamic>.from(r as Map);
-          final sName = m['sender_name']?.toString().trim();
+          final sName = m['sender_name']?.toString();
           final sId = m['sender_id']?.toString() ?? '';
-          final isGeneric = sName == null ||
-              sName.isEmpty ||
-              sName.toLowerCase() == 'teman sekelas' ||
-              sName.toLowerCase() == 'mahasiswa';
-          if (isGeneric && sId.isNotEmpty) {
+          final rowClassId = m['class_id']?.toString() ?? '';
+          if (isGenericSenderName(sName) && sId.isNotEmpty) {
             missingSenderNameIds.add(sId);
+            if (rowClassId.isNotEmpty) extraClassIds.add(rowClassId);
           }
         }
 
-        final senderNamesMap = <String, String>{};
-        if (missingSenderNameIds.isNotEmpty) {
-          try {
-            final pRows = await supabase
-                .from('profiles')
-                .select('id, name, full_name, email')
-                .inFilter('id', missingSenderNameIds.toList());
-            for (final pr in pRows) {
-              final pm = Map<String, dynamic>.from(pr as Map);
-              final n = (pm['name'] ?? pm['full_name'])?.toString().trim();
-              final pId = pm['id']?.toString() ?? '';
-              if (n != null && n.isNotEmpty) {
-                senderNamesMap[pId] = n;
-              } else if (pm['email'] != null && pm['email'].toString().isNotEmpty) {
-                senderNamesMap[pId] = pm['email'].toString().split('@').first;
-              }
-            }
-          } catch (e) {
-            debugPrint('Failed to query profiles for sender names: $e');
-          }
-
-          // Fallback kedua: class_roster jika ada ID yang belum ada di senderNamesMap
-          final stillMissing = missingSenderNameIds
-              .where((id) => !senderNamesMap.containsKey(id) || senderNamesMap[id]!.trim().isEmpty);
-          if (stillMissing.isNotEmpty && classId != null && classId.isNotEmpty) {
-            try {
-              final roster = await supabase.rpc('class_roster', params: {'p_class': classId});
-              if (roster is List) {
-                for (final item in roster) {
-                  final map = Map<String, dynamic>.from(item as Map);
-                  final stId = map['student_id']?.toString();
-                  final stName = map['name']?.toString().trim();
-                  if (stId != null && stName != null && stName.isNotEmpty) {
-                    senderNamesMap[stId] = stName;
-                  }
-                }
-              }
-            } catch (_) {}
-          }
-        }
+        final senderNamesMap = await _resolveSenderNames(
+          missingSenderNameIds,
+          classId: classId,
+          extraClassIds: extraClassIds,
+        );
 
         for (final r in rows) {
           final m = Map<String, dynamic>.from(r as Map);
           final sId = m['sender_id']?.toString() ?? '';
-          final currentSenderName = m['sender_name']?.toString().trim();
-          final isGeneric = currentSenderName == null ||
-              currentSenderName.isEmpty ||
-              currentSenderName.toLowerCase() == 'teman sekelas' ||
-              currentSenderName.toLowerCase() == 'mahasiswa';
+          final currentSenderName = m['sender_name']?.toString();
 
-          if (isGeneric) {
-            if (senderNamesMap.containsKey(sId) && senderNamesMap[sId]!.isNotEmpty) {
+          if (isGenericSenderName(currentSenderName)) {
+            if (senderNamesMap.containsKey(sId) &&
+                senderNamesMap[sId]!.isNotEmpty) {
               m['sender_name'] = senderNamesMap[sId]!;
             } else if (sId.isNotEmpty) {
-              m['sender_name'] = 'Mahasiswa (${sId.length > 5 ? sId.substring(0, 5) : sId})';
+              m['sender_name'] =
+                  'Mahasiswa (${sId.length > 5 ? sId.substring(0, 5) : sId})';
             } else {
               m['sender_name'] = 'Mahasiswa';
             }
@@ -299,47 +377,47 @@ class CheerNotificationService {
         }
       }
 
-      // Perbaiki nama generic pada item cache lokal jika ada
+      // Perbaiki nama generic / "Mahasiswa (kode)" pada cache lokal jika ada.
       final genericLocalItems = result
           .where((it) =>
-              it.senderId.isNotEmpty &&
-              (it.senderName.isEmpty ||
-                  it.senderName.toLowerCase() == 'teman sekelas' ||
-                  it.senderName.toLowerCase() == 'mahasiswa'))
+              it.senderId.isNotEmpty && isGenericSenderName(it.senderName))
           .toList();
       if (genericLocalItems.isNotEmpty) {
-        final localMissingIds = genericLocalItems.map((e) => e.senderId).toSet().toList();
-        try {
-          final pRows = await supabase
-              .from('profiles')
-              .select('id, name, full_name, email')
-              .inFilter('id', localMissingIds);
-          final localNames = <String, String>{};
-          for (final pr in pRows) {
-            final pm = Map<String, dynamic>.from(pr as Map);
-            final n = (pm['name'] ?? pm['full_name'])?.toString().trim();
-            if (n != null && n.isNotEmpty) {
-              localNames[pm['id'].toString()] = n;
-            } else if (pm['email'] != null && pm['email'].toString().isNotEmpty) {
-              localNames[pm['id'].toString()] = pm['email'].toString().split('@').first;
+        final localMissingIds =
+            genericLocalItems.map((e) => e.senderId).toSet();
+        final extraClassIds = genericLocalItems
+            .map((e) => e.classId ?? '')
+            .where((c) => c.isNotEmpty)
+            .toSet();
+        final localNames = await _resolveSenderNames(
+          localMissingIds,
+          classId: classId,
+          extraClassIds: extraClassIds,
+        );
+        if (localNames.isNotEmpty) {
+          var updated = false;
+          for (int i = 0; i < result.length; i++) {
+            final it = result[i];
+            final resolved = localNames[it.senderId];
+            if (resolved != null && resolved.isNotEmpty) {
+              result[i] = CheerNotificationItem(
+                id: it.id,
+                senderId: it.senderId,
+                senderName: resolved,
+                classId: it.classId,
+                className: it.className,
+                createdAt: it.createdAt,
+              );
+              updated = true;
             }
           }
-            if (localNames.isNotEmpty) {
-              for (int i = 0; i < result.length; i++) {
-                final it = result[i];
-                if (localNames.containsKey(it.senderId) && localNames[it.senderId]!.isNotEmpty) {
-                  result[i] = CheerNotificationItem(
-                    id: it.id,
-                    senderId: it.senderId,
-                    senderName: localNames[it.senderId]!,
-                    classId: it.classId,
-                    className: it.className,
-                    createdAt: it.createdAt,
-                  );
-                }
-              }
-            }
-        } catch (_) {}
+          if (updated) {
+            await prefs.setString(
+              key,
+              jsonEncode(result.take(30).map((e) => e.toMap()).toList()),
+            );
+          }
+        }
       }
     } catch (_) {}
 

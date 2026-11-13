@@ -16,6 +16,7 @@ import 'lecturer_bottom_navbar.dart';
 import 'lecturer_materials_controller.dart';
 import '../classes/class_controller.dart';
 import '../classes/class_models.dart';
+import '../classes/class_module_dialog.dart';
 import '../classes/lecturer_manage_class_section.dart';
 
 class LecturerMaterialsPage extends ConsumerStatefulWidget {
@@ -33,6 +34,50 @@ class _LecturerMaterialsPageState
   /// null means "every module". A material with no module number still shows
   /// under the unfiltered list, which is why this is not just module 0.
   int? _moduleFilter;
+  bool _fabExpanded = false;
+
+  void _toggleFab() {
+    setState(() {
+      _fabExpanded = !_fabExpanded;
+    });
+  }
+
+  void _closeFab() {
+    if (!_fabExpanded) return;
+    setState(() {
+      _fabExpanded = false;
+    });
+  }
+
+  Future<void> _handleAddModule(LecturerClass? activeClass) async {
+    _closeFab();
+    final l10n = AppLocalizations.of(context)!;
+    if (activeClass == null ||
+        activeClass.id.isEmpty ||
+        activeClass.id == kLegacyFallbackClassId) {
+      NlSnackBar.show(
+        context,
+        l10n.noClassesLecturerTitle,
+        tone: NlSnackTone.warning,
+      );
+      return;
+    }
+
+    final created = await showClassModuleDialog(
+      context,
+      ref,
+      classId: activeClass.id,
+    );
+    if (created && mounted) {
+      ref.invalidate(classModulesProvider(activeClass.id));
+      ref.invalidate(lecturerMaterialsProvider);
+    }
+  }
+
+  void _handleAddMaterial() {
+    _closeFab();
+    context.push('/lecturer/materials/create');
+  }
 
   @override
   void dispose() {
@@ -178,13 +223,19 @@ class _LecturerMaterialsPageState
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
     final languageCode =
         ref.watch(languageProvider).languageCode;
 
     final materialsAsync = ref.watch(lecturerMaterialsProvider);
     final activeClass = ref.watch(activeLecturerClassProvider).value;
     final classes = ref.watch(lecturerClassesProvider).value;
+    final hasActiveClass =
+        activeClass != null &&
+        activeClass.id.isNotEmpty &&
+        activeClass.id != kLegacyFallbackClassId;
+    final classModules = hasActiveClass
+        ? ref.watch(classModulesProvider(activeClass.id)).value
+        : null;
 
     return Scaffold(
       backgroundColor: context.background,
@@ -197,7 +248,10 @@ class _LecturerMaterialsPageState
         onBack: () => context.go('/lecturer'),
       ),
 
-      body: materialsAsync.when(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: materialsAsync.when(
         loading: () => ListView(
           padding: const EdgeInsets.fromLTRB(
             NetLearnSpace.s20,
@@ -239,9 +293,11 @@ class _LecturerMaterialsPageState
         data: (materials) {
           final visible = _filter(materials);
 
-          final moduleNumbers =
-              materials.map((m) => m.moduleNumber).whereType<int>().toSet().toList()
-                ..sort();
+          final moduleNumbers = <int>{
+            ...materials.map((m) => m.moduleNumber).whereType<int>(),
+            if (classModules != null) ...classModules.map((m) => m.position),
+          }.toList()
+            ..sort();
           // moduleNumber null (materi pendukung) tidak masuk daftar chip:
           // tanpa chip "tanpa modul", dan `.sort()` pada List<int?> yang
           // berisi null melempar "Null is not a subtype of Comparable".
@@ -256,42 +312,16 @@ class _LecturerMaterialsPageState
                 NetLearnSpace.s20,
                 NetLearnSpace.s20,
                 NetLearnSpace.s20,
-                NetLearnSpace.s20 + 80, // Space for bottom nav
+                NetLearnSpace.s20 + 80, // Space for floating action & navbar
               ),
               children: [
-                if (classes != null &&
-                    activeClass != null &&
-                    activeClass.id != kLegacyFallbackClassId) ...[
+                if (classes != null && hasActiveClass) ...[
                   LecturerActiveClassBar(
                     classes: classes,
                     activeClass: activeClass,
                   ),
                   const SizedBox(height: NetLearnSpace.s16),
                 ],
-                // Add Material Button - Full width, matches Figma design
-                SizedBox(
-                  width: double.infinity,
-                  height: 48,
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      context.push('/lecturer/materials/create');
-                    },
-                    icon: const Icon(Icons.add, size: 20),
-                    label: Text(l10n.addMaterial),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: context.accent,
-                      foregroundColor: theme.colorScheme.onPrimary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(NetLearnRadius.button),
-                      ),
-                      textStyle: theme.textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: NetLearnSpace.s16),
 
                 // Search Field - Matches Figma design
                 TextField(
@@ -399,6 +429,39 @@ class _LecturerMaterialsPageState
             ),
           );
         },
+            ),
+          ),
+          Positioned.fill(
+            child: IgnorePointer(
+              ignoring: !_fabExpanded,
+              child: GestureDetector(
+                key: const Key('lecturer_materials_fab_backdrop'),
+                behavior: HitTestBehavior.opaque,
+                onTap: _closeFab,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 180),
+                  opacity: _fabExpanded ? 1 : 0,
+                  child: ColoredBox(
+                    color: Colors.black.withValues(alpha: 0.28),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          Positioned(
+            right: NetLearnSpace.s16,
+            bottom: NetLearnSpace.s16,
+            child: _MaterialsFabSpeedDial(
+              expanded: _fabExpanded,
+              addModuleLabel: l10n.classAddModuleAction,
+              addMaterialLabel: l10n.addMaterial,
+              closeTooltip: l10n.close,
+              onToggle: _toggleFab,
+              onAddModule: () => _handleAddModule(activeClass),
+              onAddMaterial: _handleAddMaterial,
+            ),
+          ),
+        ],
       ),
 
       bottomNavigationBar: const LecturerBottomNavbar(
@@ -677,6 +740,139 @@ class _MaterialCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MaterialsFabSpeedDial extends StatelessWidget {
+  const _MaterialsFabSpeedDial({
+    required this.expanded,
+    required this.addModuleLabel,
+    required this.addMaterialLabel,
+    required this.closeTooltip,
+    required this.onToggle,
+    required this.onAddModule,
+    required this.onAddMaterial,
+  });
+
+  final bool expanded;
+  final String addModuleLabel;
+  final String addMaterialLabel;
+  final String closeTooltip;
+  final VoidCallback onToggle;
+  final VoidCallback onAddModule;
+  final VoidCallback onAddMaterial;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (expanded) ...[
+          _SpeedDialOption(
+            key: const Key('lecturer_materials_fab_add_module'),
+            icon: Icons.create_new_folder_outlined,
+            label: addModuleLabel,
+            onTap: onAddModule,
+          ),
+          const SizedBox(height: NetLearnSpace.s12),
+          _SpeedDialOption(
+            key: const Key('lecturer_materials_fab_add_material'),
+            icon: Icons.note_add_outlined,
+            label: addMaterialLabel,
+            onTap: onAddMaterial,
+          ),
+          const SizedBox(height: NetLearnSpace.s12),
+        ],
+        FloatingActionButton(
+          key: const Key('lecturer_materials_fab'),
+          onPressed: onToggle,
+          tooltip: expanded ? closeTooltip : '$addModuleLabel / $addMaterialLabel',
+          backgroundColor: context.accent,
+          foregroundColor: theme.colorScheme.onPrimary,
+          shape: const CircleBorder(),
+          child: AnimatedRotation(
+            turns: expanded ? 0.125 : 0,
+            duration: const Duration(milliseconds: 180),
+            child: const Icon(Icons.add, size: 28),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SpeedDialOption extends StatelessWidget {
+  const _SpeedDialOption({
+    super.key,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Material(
+          color: context.surface,
+          elevation: 4,
+          shadowColor: Colors.black.withValues(alpha: 0.18),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(NetLearnRadius.button),
+            side: BorderSide(color: context.border),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(NetLearnRadius.button),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: NetLearnSpace.s16,
+                vertical: NetLearnSpace.s12,
+              ),
+              child: Text(
+                label,
+                style: theme.textTheme.labelLarge?.copyWith(
+                  color: context.onSurface,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: NetLearnSpace.s12),
+        Material(
+          color: context.surface,
+          elevation: 4,
+          shadowColor: Colors.black.withValues(alpha: 0.18),
+          shape: CircleBorder(
+            side: BorderSide(color: context.border),
+          ),
+          child: InkWell(
+            onTap: onTap,
+            customBorder: const CircleBorder(),
+            child: SizedBox(
+              width: 44,
+              height: 44,
+              child: Icon(
+                icon,
+                size: 20,
+                color: context.accent,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

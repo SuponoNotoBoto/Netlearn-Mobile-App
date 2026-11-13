@@ -151,7 +151,7 @@ graph TD
 ## Menggunakan Flutter run:
 1. **Clone Repositori**:
    ```bash
-   git clone [https://github.com/SuponoNotoBoto/Netlearn-Mobile-App]
+   git clone https://github.com/SuponoNotoBoto/Netlearn-Mobile-App
    cd Netlearn-Mobile-App
    ```
 
@@ -177,13 +177,10 @@ graph TD
 
 ## Download melalui APK di Google Drive 
 1. Download apk:
-   ```
    https://drive.google.com/drive/folders/12NiKwvon71Nd-3GMC3kWYz6JOoPffi-8
-   ```
+
 2. Install apk:
-   ```
    Install APK dan jalankan pada perangkat android.
-   ```
    
 ---
 

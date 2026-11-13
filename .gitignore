@@ -40,6 +40,7 @@ app.*.map.json
 /android/app/release
 
 # Android local build & caches
+/android/build/
 /android/.gradle/
 /android/.kotlin/
 /android/local.properties

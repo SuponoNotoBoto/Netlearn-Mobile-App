@@ -87,6 +87,25 @@ void main() {
         'sender_id': 'u2',
       });
       expect(emptyItem.senderName, 'Mahasiswa');
+
+      final blankItem = CheerNotificationItem.fromMap({
+        'id': 'c101',
+        'sender_id': 'u3',
+        'sender_name': '   ',
+      });
+      expect(blankItem.senderName, 'Mahasiswa');
+    });
+
+    test('isGenericSenderName detects fallback codes and generic labels', () {
+      expect(CheerNotificationService.isGenericSenderName(null), isTrue);
+      expect(CheerNotificationService.isGenericSenderName(''), isTrue);
+      expect(CheerNotificationService.isGenericSenderName('   '), isTrue);
+      expect(CheerNotificationService.isGenericSenderName('Mahasiswa'), isTrue);
+      expect(CheerNotificationService.isGenericSenderName('Teman sekelas'), isTrue);
+      expect(CheerNotificationService.isGenericSenderName('Mahasiswa (e3f7a)'), isTrue);
+
+      expect(CheerNotificationService.isGenericSenderName('Budi Santoso'), isFalse);
+      expect(CheerNotificationService.isGenericSenderName('Rendy Aditya'), isFalse);
     });
   });
 }

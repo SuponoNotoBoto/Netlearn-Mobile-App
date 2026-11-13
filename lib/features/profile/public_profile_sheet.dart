@@ -330,14 +330,28 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
       String? currentSenderName;
       final senderUser = supabase.auth.currentUser;
       if (senderUser != null) {
-        final meta = senderUser.userMetadata;
-        final candidate = (meta?['name'] ??
-                meta?['full_name'] ??
-                meta?['display_name'])
-            ?.toString()
-            .trim();
-        if (candidate != null && candidate.isNotEmpty) {
-          currentSenderName = candidate;
+        try {
+          final prof = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', senderUser.id)
+              .maybeSingle();
+          final pName = prof?['name']?.toString().trim();
+          if (pName != null && pName.isNotEmpty) {
+            currentSenderName = pName;
+          }
+        } catch (_) {}
+
+        if (currentSenderName == null || currentSenderName.isEmpty) {
+          final meta = senderUser.userMetadata;
+          final candidate = (meta?['name'] ??
+                  meta?['full_name'] ??
+                  meta?['display_name'])
+              ?.toString()
+              .trim();
+          if (candidate != null && candidate.isNotEmpty) {
+            currentSenderName = candidate;
+          }
         }
       }
 
