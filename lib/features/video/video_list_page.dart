@@ -52,7 +52,7 @@ final videoListProvider = FutureProvider.autoDispose<List<VideoListItem>>((ref) 
     } catch (_) {}
   }
 
-  final isLecturer = role == 'lecturer';
+  final isLecturer = role == 'lecturer' || role == 'admin';
   final String? activeClassId;
   final bool isLegacyFallback;
 

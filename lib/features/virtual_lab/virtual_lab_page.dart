@@ -17,6 +17,7 @@ import 'virtual_lab_terminal.dart';
 import 'virtual_lab_export.dart';
 import 'virtual_lab_saved_topology.dart';
 import 'virtual_lab_storage_service.dart';
+import 'virtual_lab_leaderboard_service.dart';
 import 'virtual_lab_mission_service.dart';
 import 'widgets/virtual_lab_mission_sheet.dart';
 import 'widgets/virtual_lab_leaderboard_sheet.dart';
@@ -79,8 +80,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   bool _labGuideCollapsed = false;
   bool _hasCheckedInitialLabLoad = false;
 
-  /// 0 = Configuration, 1 = Ping Test.
+  /// 0 = Configuration, 1 = Ping Test, 2 = Terminal.
   int _panelTab = 0;
+  bool _isPanelExpanded = false;
   String? _pingSourceId;
   String? _pingTargetId;
 
@@ -644,11 +646,19 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
               color: Color(0xFFD97706),
             ),
             onPressed: () {
-              final classId = ref.read(activeStudentClassProvider).value?.id;
+              final activeClass = ref.read(activeStudentClassProvider).value;
+              final classId =
+                  (activeClass != null && !activeClass.isLegacyFallback)
+                      ? activeClass.id
+                      : null;
               VirtualLabLeaderboardSheet.show(
                 context,
                 classId: classId,
-                initialMissionId: widget.labBinding?.referencePreset ?? widget.labBinding?.preset,
+                initialMissionId:
+                    VirtualLabLeaderboardService.normalizeMissionKey(
+                  widget.labBinding?.referencePreset ??
+                      widget.labBinding?.preset,
+                ),
               );
             },
           ),
@@ -689,59 +699,155 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       ),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            const SizedBox(height: 8),
-            _buildToolbar(l10n, accent, session, controller),
-            if (widget.labBinding != null && _showLabGuideBanner)
-              _buildLabGuideBanner(session, controller, accent),
-            const SizedBox(height: 6),
-            Expanded(
-              flex: 6,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _buildCanvas(session, controller, accent, l10n),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
-              child: Text(
-                l10n.virtualLabCanvasHint,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 10.5, color: _labMuted),
-              ),
-            ),
-            Expanded(
-              flex: 5,
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
-                  border: Border(top: BorderSide(color: _labCardBorder)),
-                ),
-                clipBehavior: Clip.antiAlias,
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      _buildPanelTabs(l10n, accent),
-                      const SizedBox(height: 14),
-                      if (_panelTab == 0)
-                        _buildConfigurationTab(session, controller, l10n, accent)
-                      else if (_panelTab == 1)
-                        _buildPingTab(session, l10n, accent)
-                      else
-                        _buildTerminalTab(session, l10n, accent),
-                      const SizedBox(height: 18),
-                      _buildFooter(l10n, accent),
-                    ],
+        child: Builder(
+          builder: (context) {
+            final keyboardOpen = MediaQuery.viewInsetsOf(context).bottom > 0;
+            final panelFocused = _isPanelExpanded || keyboardOpen;
+            return Column(
+              children: [
+                const SizedBox(height: 8),
+                _buildToolbar(l10n, accent, session, controller),
+                if (!panelFocused) ...[
+                  if (widget.labBinding != null && _showLabGuideBanner)
+                    _buildLabGuideBanner(session, controller, accent),
+                  const SizedBox(height: 6),
+                  Expanded(
+                    flex: 5,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: _buildCanvas(session, controller, accent, l10n),
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 6, 20, 6),
+                    child: Text(
+                      l10n.virtualLabCanvasHint,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontSize: 10.5, color: _labMuted),
+                    ),
+                  ),
+                ] else
+                  const SizedBox(height: 8),
+                Expanded(
+                  flex: panelFocused ? 1 : 6,
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                          BorderRadius.vertical(top: Radius.circular(22)),
+                      border: Border(top: BorderSide(color: _labCardBorder)),
+                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onVerticalDragEnd: (details) {
+                            final v = details.primaryVelocity ?? 0;
+                            if (v < -120 && !_isPanelExpanded) {
+                              setState(() => _isPanelExpanded = true);
+                            } else if (v > 120 && _isPanelExpanded) {
+                              setState(() => _isPanelExpanded = false);
+                            }
+                          },
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 10, 20, 8),
+                            child: Column(
+                              children: [
+                                Container(
+                                  width: 36,
+                                  height: 4,
+                                  decoration: BoxDecoration(
+                                    color: _labDot,
+                                    borderRadius: BorderRadius.circular(999),
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: _buildPanelTabs(l10n, accent),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Tooltip(
+                                      message: _isPanelExpanded
+                                          ? (isEn
+                                              ? 'Collapse Panel'
+                                              : 'Perkecil Panel')
+                                          : (isEn
+                                              ? 'Expand Panel'
+                                              : 'Perluas Panel'),
+                                      child: InkWell(
+                                        key: const Key('vlab_panel_expand_btn'),
+                                        onTap: () {
+                                          if (keyboardOpen) {
+                                            FocusScope.of(context).unfocus();
+                                          }
+                                          setState(() => _isPanelExpanded =
+                                              !_isPanelExpanded);
+                                        },
+                                        borderRadius: BorderRadius.circular(12),
+                                        child: Container(
+                                          padding: const EdgeInsets.all(9),
+                                          decoration: BoxDecoration(
+                                            color: _isPanelExpanded
+                                                ? accent.withValues(alpha: 0.12)
+                                                : _labPanelTrack,
+                                            borderRadius:
+                                                BorderRadius.circular(12),
+                                          ),
+                                          child: Icon(
+                                            _isPanelExpanded
+                                                ? Icons.close_fullscreen_rounded
+                                                : Icons.open_in_full_rounded,
+                                            size: 18,
+                                            color: _isPanelExpanded
+                                                ? accent
+                                                : _labMuted,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: SingleChildScrollView(
+                            keyboardDismissBehavior:
+                                ScrollViewKeyboardDismissBehavior.onDrag,
+                            padding: const EdgeInsets.fromLTRB(20, 6, 20, 24),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                if (_panelTab == 0)
+                                  _buildConfigurationTab(
+                                      session, controller, l10n, accent)
+                                else if (_panelTab == 1)
+                                  _buildPingTab(session, l10n, accent)
+                                else
+                                  _buildTerminalTab(
+                                    session,
+                                    l10n,
+                                    accent,
+                                    outputHeight: panelFocused ? 340 : 240,
+                                  ),
+                                const SizedBox(height: 18),
+                                _buildFooter(l10n, accent),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
     );
@@ -2578,8 +2684,9 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
   Widget _buildTerminalTab(
     VirtualLabSession session,
     AppLocalizations l10n,
-    Color accent,
-  ) {
+    Color accent, {
+    double outputHeight = 240,
+  }) {
     final id = session.selectedDeviceId;
     final device = id == null ? null : session.deviceById(id);
 
@@ -2593,6 +2700,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
           device: firstPc,
           session: session,
           accent: accent,
+          outputHeight: outputHeight,
           onPingResult: (result) {
             setState(() => _lastTest = result);
             if (result.success) _startPacketAnimation();
@@ -2630,6 +2738,7 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
       device: device,
       session: session,
       accent: accent,
+      outputHeight: outputHeight,
       onPingResult: (result) {
         setState(() => _lastTest = result);
         if (result.success) _startPacketAnimation();
@@ -3272,7 +3381,10 @@ class _VirtualLabPageState extends ConsumerState<VirtualLabPage>
     return InputDecoration(
       isDense: true,
       hintText: hint.isEmpty ? null : hint,
-      hintStyle: const TextStyle(fontSize: 12.5, color: _labStatusGray),
+      hintStyle: TextStyle(
+        fontSize: 12.5,
+        color: _labMuted.withValues(alpha: 0.40),
+      ),
       filled: true,
       fillColor: _labFieldFill,
       contentPadding:
@@ -4346,7 +4458,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               hintText: isEn
                   ? 'e.g.: Star LAN Subnetting Lab'
                   : 'Misal: Praktikum Subnetting Star LAN',
-              hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: _labMuted.withValues(alpha: 0.40),
+              ),
               filled: true,
               fillColor: const Color(0xFFF9FAFC),
               contentPadding:
@@ -4380,7 +4495,10 @@ class _SavedTopologiesSheetState extends ConsumerState<_SavedTopologiesSheet> {
               hintText: isEn
                   ? 'Add lab notes, IP subnets used, or assignment notes...'
                   : 'Tambahkan catatan praktikum, subnet IP yang dipakai, atau tugas dosen...',
-              hintStyle: const TextStyle(fontSize: 12, color: _labMuted),
+              hintStyle: TextStyle(
+                fontSize: 12,
+                color: _labMuted.withValues(alpha: 0.40),
+              ),
               filled: true,
               fillColor: const Color(0xFFF9FAFC),
               contentPadding:

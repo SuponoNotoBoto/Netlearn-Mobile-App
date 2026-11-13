@@ -1,9 +1,12 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/router/app_router.dart';
+import '../../core/supabase/supabase_client.dart';
 import '../../shared/widgets/nl_walkthrough_overlay.dart';
 import '../profile/student_profile_controller.dart';
 
@@ -33,6 +36,9 @@ class StudentWalkthroughManager {
 
   bool get isActive => _entry != null;
 
+  static const String metadataWalkthroughKey =
+      'netlearn_student_walkthrough_seen';
+
   /// Launches the walkthrough automatically once per user account on first
   /// arrival at the student dashboard after enrolling in a class.
   Future<void> maybeStartFirstTime(
@@ -46,13 +52,26 @@ class StudentWalkthroughManager {
     try {
       final prefs = await SharedPreferences.getInstance();
       final seenKey = 'student_walkthrough_seen_$userId';
-      final alreadySeen = prefs.getBool(seenKey) ?? false;
-      if (alreadySeen) {
+      final localSeen = prefs.getBool(seenKey) ?? false;
+      final remoteSeen = supabase.auth.currentUser
+              ?.userMetadata?[metadataWalkthroughKey] ==
+          true;
+
+      if (localSeen || remoteSeen) {
+        if (!localSeen) {
+          await prefs.setBool(seenKey, true);
+        }
         _pendingStart = false;
         return;
       }
 
       await prefs.setBool(seenKey, true);
+      try {
+        await supabase.auth.updateUser(
+          UserAttributes(data: {metadataWalkthroughKey: true}),
+        );
+      } catch (_) {}
+
       if (!context.mounted) {
         _pendingStart = false;
         return;
@@ -226,6 +245,20 @@ class StudentWalkthroughManager {
         isIndonesian: isId,
         onFinish: ({required bool completed}) {
           dismiss();
+          final uid = supabase.auth.currentUser?.id;
+          if (uid != null) {
+            unawaited(() async {
+              try {
+                final p = await SharedPreferences.getInstance();
+                await p.setBool('student_walkthrough_seen_$uid', true);
+              } catch (_) {}
+              try {
+                await supabase.auth.updateUser(
+                  UserAttributes(data: {metadataWalkthroughKey: true}),
+                );
+              } catch (_) {}
+            }());
+          }
           if (completed) {
             ensureRoute('/student');
           }

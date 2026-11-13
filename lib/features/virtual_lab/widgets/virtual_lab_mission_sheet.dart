@@ -172,8 +172,12 @@ class _VirtualLabMissionSheetState
           }
         }
 
-        final activeClass = ref.read(activeStudentClassProvider).value;
-        final classId = (activeClass != null && !activeClass.isLegacyFallback) ? activeClass.id : null;
+        final activeClass = ref.read(activeStudentClassProvider).value ??
+            await resolveActiveStudentClass(ref);
+        final classId =
+            (activeClass != null && !activeClass.isLegacyFallback)
+                ? activeClass.id
+                : null;
 
         await VirtualLabLeaderboardService.saveScore(
           classId: classId,
@@ -329,10 +333,20 @@ class _VirtualLabMissionSheetState
                       ),
                     ),
                     onPressed: () {
+                      final activeClass =
+                          ref.read(activeStudentClassProvider).value;
+                      final classId =
+                          (activeClass != null && !activeClass.isLegacyFallback)
+                              ? activeClass.id
+                              : null;
                       Navigator.pop(ctx);
                       VirtualLabLeaderboardSheet.show(
                         context,
-                        initialMissionId: sub.preset.isNotEmpty ? sub.preset : sub.materialId,
+                        classId: classId,
+                        initialMissionId:
+                            VirtualLabLeaderboardService.normalizeMissionKey(
+                          sub.preset.isNotEmpty ? sub.preset : sub.materialId,
+                        ),
                       );
                     },
                     label: Text(
@@ -484,9 +498,19 @@ class _VirtualLabMissionSheetState
                 IconButton(
                   tooltip: isEn ? 'Leaderboard' : 'Papan Peringkat',
                   onPressed: () {
+                    final activeClass =
+                        ref.read(activeStudentClassProvider).value;
+                    final classId =
+                        (activeClass != null && !activeClass.isLegacyFallback)
+                            ? activeClass.id
+                            : null;
                     VirtualLabLeaderboardSheet.show(
                       context,
-                      initialMissionId: widget.binding.referencePreset ?? widget.binding.preset,
+                      classId: classId,
+                      initialMissionId:
+                          VirtualLabLeaderboardService.normalizeMissionKey(
+                        widget.binding.referencePreset ?? widget.binding.preset,
+                      ),
                     );
                   },
                   icon: const Icon(

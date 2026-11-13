@@ -56,18 +56,40 @@ Future<void> showAssessmentCompletedDialog(
   AppLocalizations l10n,
 ) {
   final isId = Localizations.localeOf(context).languageCode == 'id';
+  final quizTitle = assessment.title.trim();
+  final isCustomQuiz = !assessment.isPretest && !assessment.isPosttest;
+
+  final hasQuizPrefix = quizTitle.toLowerCase().startsWith('kuis') ||
+      quizTitle.toLowerCase().startsWith('quiz');
+  final quizLabel = hasQuizPrefix
+      ? quizTitle
+      : (isId ? 'Kuis $quizTitle' : 'Quiz $quizTitle');
+
+  final dialogTitle = isCustomQuiz && quizTitle.isNotEmpty
+      ? quizTitle
+      : (assessment.isPretest
+          ? l10n.pretest
+          : (assessment.isPosttest ? l10n.posttest : l10n.assessmentCompletedTitle));
+
+  final String dialogBody;
+  if (assessment.canAttemptAgain) {
+    dialogBody = isId
+        ? 'Anda sudah pernah mengerjakan ${isCustomQuiz && quizTitle.isNotEmpty ? quizLabel : 'asesmen ini'}, namun masih memiliki kesempatan percobaan lagi.'
+        : 'You have submitted ${isCustomQuiz && quizTitle.isNotEmpty ? quizLabel : 'this assessment'} before, but you still have attempts remaining.';
+  } else if (isCustomQuiz && quizTitle.isNotEmpty) {
+    dialogBody = isId
+        ? '$quizLabel sudah Anda selesaikan.'
+        : 'You have already completed $quizLabel.';
+  } else {
+    dialogBody = l10n.assessmentCompletedBody;
+  }
+
   return showDialog<void>(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        title: Text(l10n.assessmentCompletedTitle),
-        content: Text(
-          assessment.canAttemptAgain
-              ? (isId
-                  ? 'Anda sudah pernah mengerjakan asesmen ini, namun masih memiliki kesempatan percobaan lagi.'
-                  : 'You have submitted this assessment before, but you still have attempts remaining.')
-              : l10n.assessmentCompletedBody,
-        ),
+        title: Text(dialogTitle),
+        content: Text(dialogBody),
         actions: [
           if (assessment.canAttemptAgain)
             TextButton(
@@ -117,20 +139,42 @@ Future<void> showAssessmentLockedDialog(
   AppLocalizations l10n,
 ) {
   final isId = Localizations.localeOf(context).languageCode == 'id';
+  final quizTitle = assessment.title.trim();
+  final isCustomQuiz = !assessment.isPretest && !assessment.isPosttest;
+
+  final hasQuizPrefix = quizTitle.toLowerCase().startsWith('kuis') ||
+      quizTitle.toLowerCase().startsWith('quiz');
+  final quizLabel = hasQuizPrefix
+      ? quizTitle
+      : (isId ? 'Kuis $quizTitle' : 'Quiz $quizTitle');
+
+  final dialogTitle = isCustomQuiz && quizTitle.isNotEmpty
+      ? quizTitle
+      : (assessment.isPretest
+          ? l10n.pretest
+          : (assessment.isPosttest ? l10n.posttest : l10n.assessmentLockedTitle));
+
+  final String dialogBody;
+  if (assessment.module != null) {
+    dialogBody = isId
+        ? '${isCustomQuiz && quizTitle.isNotEmpty ? quizLabel : 'Kuis ini'} terkunci. Harap selesaikan seluruh materi bacaan dan video pada Modul ${assessment.module} terlebih dahulu.'
+        : '${isCustomQuiz && quizTitle.isNotEmpty ? quizLabel : 'This quiz'} is locked. Please complete all reading and video materials in Module ${assessment.module} first.';
+  } else if (assessment.isPosttest) {
+    dialogBody = l10n.assessmentLockedPosttest;
+  } else if (isCustomQuiz && quizTitle.isNotEmpty) {
+    dialogBody = isId
+        ? '$quizLabel saat ini masih terkunci.'
+        : '$quizLabel is currently locked.';
+  } else {
+    dialogBody = l10n.assessmentLockedGeneric;
+  }
+
   return showDialog<void>(
     context: context,
     builder: (dialogContext) {
       return AlertDialog(
-        title: Text(l10n.assessmentLockedTitle),
-        content: Text(
-          assessment.module != null
-              ? (isId
-                  ? 'Kuis ini terkunci. Harap selesaikan seluruh materi bacaan dan video pada Modul ${assessment.module} terlebih dahulu.'
-                  : 'This quiz is locked. Please complete all reading and video materials in Module ${assessment.module} first.')
-              : (assessment.isPosttest
-                  ? l10n.assessmentLockedPosttest
-                  : l10n.assessmentLockedGeneric),
-        ),
+        title: Text(dialogTitle),
+        content: Text(dialogBody),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(dialogContext).pop(),

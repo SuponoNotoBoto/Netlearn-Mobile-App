@@ -78,11 +78,19 @@ class _LoginPageState extends ConsumerState<LoginPage> {
       return;
     }
 
+    final actualRole = ref.read(authControllerProvider).signedInRole;
+    if (actualRole == AppUserRole.admin.value ||
+        actualRole == AppUserRole.lecturer.value) {
+      context.go('/lecturer');
+      return;
+    }
+
     switch (_role) {
       case AppUserRole.student:
         context.go('/student');
         break;
       case AppUserRole.lecturer:
+      case AppUserRole.admin:
         context.go('/lecturer');
         break;
     }

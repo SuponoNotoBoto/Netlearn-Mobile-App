@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/audio/sfx_service.dart';
 import '../../core/avatar/nl_avatar_models.dart';
@@ -8,6 +10,7 @@ import '../../core/supabase/supabase_client.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/nl_skeleton.dart';
 import '../achievements/achievement_service.dart';
+import '../notifications/cheer_notification_service.dart';
 
 class PublicMemberProfile {
   final String userId;
@@ -42,7 +45,7 @@ class PublicMemberProfile {
     this.isMe = false,
   });
 
-  bool get isLecturer => role == 'lecturer';
+  bool get isLecturer => role == 'lecturer' || role == 'admin';
 
   PublicMemberProfile copyWith({
     int? cheersCount,
@@ -180,9 +183,20 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
 
   Future<void> _fetchProfile() async {
     try {
-      final validClassUuid = (widget.classId != null &&
-              RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(widget.classId!))
-          ? widget.classId
+      String? effectiveClassId = widget.classId;
+      if (effectiveClassId == null || effectiveClassId.isEmpty) {
+        try {
+          final uid = supabase.auth.currentUser?.id;
+          if (uid != null) {
+            final prefs = await SharedPreferences.getInstance();
+            effectiveClassId = prefs.getString('active_student_class_id_$uid');
+          }
+        } catch (_) {}
+      }
+
+      final validClassUuid = (effectiveClassId != null &&
+              RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(effectiveClassId))
+          ? effectiveClassId
           : null;
 
       final dynamic res = await supabase.rpc(
@@ -198,6 +212,45 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
         row = Map<String, dynamic>.from(res.first as Map);
       } else if (res is Map) {
         row = Map<String, dynamic>.from(res);
+      }
+
+      // Pastikan avatar selalu paling mutakhir dari tabel `profiles` langsung
+      // agar perubahan kustomisasi avatar tidak tertinggal oleh RPC atau cache.
+      try {
+        final profileRow = await supabase
+            .from('profiles')
+            .select('avatar_config, name, role, bio, identity_number, program, unlocked_badges')
+            .eq('id', widget.userId)
+            .maybeSingle();
+
+        if (profileRow != null) {
+          final pMap = Map<String, dynamic>.from(profileRow);
+          if (row != null) {
+            row['avatar_config'] = pMap['avatar_config'] ?? row['avatar_config'];
+            if (pMap['name'] != null && pMap['name'].toString().trim().isNotEmpty) {
+              row['display_name'] = pMap['name'].toString().trim();
+            }
+            if (pMap['bio'] != null) {
+              row['bio'] = pMap['bio'];
+            }
+          } else {
+            row = {
+              'user_id': widget.userId,
+              'display_name': pMap['name']?.toString() ?? widget.fallbackName ?? 'Mahasiswa',
+              'role': pMap['role']?.toString() ?? widget.fallbackRole ?? 'student',
+              'program': pMap['program'],
+              'identity_number': pMap['identity_number'],
+              'bio': pMap['bio'],
+              'avatar_config': pMap['avatar_config'],
+              'unlocked_badges': pMap['unlocked_badges'],
+              'total_points': widget.fallbackPoints ?? 0,
+              'cheers_count': 0,
+              'cheered_today': false,
+            };
+          }
+        }
+      } catch (profileErr) {
+        debugPrint('Direct profile fetch notice: $profileErr');
       }
 
       if (!mounted) return;
@@ -256,23 +309,65 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
         return;
       }
 
-      final validClassUuid = (widget.classId != null &&
-              RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(widget.classId!))
-          ? widget.classId
+      String? effectiveClassId = widget.classId;
+      if (effectiveClassId == null || effectiveClassId.isEmpty) {
+        try {
+          final uid = supabase.auth.currentUser?.id;
+          if (uid != null) {
+            final prefs = await SharedPreferences.getInstance();
+            effectiveClassId = prefs.getString('active_student_class_id_$uid');
+          }
+        } catch (_) {}
+      }
+
+      final validClassUuid = (effectiveClassId != null &&
+              RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(effectiveClassId))
+          ? effectiveClassId
           : null;
 
-      final dynamic res = await supabase.rpc(
-        'send_profile_cheer',
-        params: {
-          'p_receiver': current.userId,
-          'p_class': validClassUuid,
-        },
+      int nextCount = current.cheersCount + 1;
+
+      String? currentSenderName;
+      final senderUser = supabase.auth.currentUser;
+      if (senderUser != null) {
+        final meta = senderUser.userMetadata;
+        final candidate = (meta?['name'] ??
+                meta?['full_name'] ??
+                meta?['display_name'])
+            ?.toString()
+            .trim();
+        if (candidate != null && candidate.isNotEmpty) {
+          currentSenderName = candidate;
+        }
+      }
+
+      // 1. Selalu catat notifikasi pengirim cheer ke penerima
+      await CheerNotificationService.recordCheer(
+        receiverId: current.userId,
+        classId: validClassUuid,
+        senderName: currentSenderName,
       );
 
-      int nextCount = current.cheersCount + 1;
-      if (res is List && res.isNotEmpty) {
-        final m = Map<String, dynamic>.from(res.first as Map);
-        nextCount = (m['cheers_count'] as num?)?.toInt() ?? nextCount;
+      // 2. Kirim update ke backend RPC Supabase
+      try {
+        final dynamic res = await supabase.rpc(
+          'send_profile_cheer',
+          params: {
+            'p_receiver': current.userId,
+            'p_class': validClassUuid,
+          },
+        );
+
+        if (res is List && res.isNotEmpty) {
+          final m = Map<String, dynamic>.from(res.first as Map);
+          nextCount = (m['cheers_count'] as num?)?.toInt() ?? nextCount;
+        } else if (res is Map) {
+          nextCount = (res['cheers_count'] as num?)?.toInt() ?? nextCount;
+        } else if (res is num) {
+          nextCount = res.toInt();
+        }
+      } catch (rpcErr) {
+        debugPrint('send_profile_cheer RPC note: $rpcErr');
       }
 
       SfxService.instance.playSuccess();

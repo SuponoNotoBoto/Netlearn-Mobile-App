@@ -269,7 +269,8 @@ class AssessmentResultView extends StatelessWidget {
       return l10n.posttest;
     }
 
-    return l10n.assessment;
+    final isId = l10n.localeName == 'id';
+    return isId ? 'Kuis Dosen' : 'Quiz';
   }
 
   String _completedMessage(AppLocalizations l10n) {
@@ -277,7 +278,31 @@ class AssessmentResultView extends StatelessWidget {
       return l10n.pretestCompletedMessage;
     }
 
-    return l10n.posttestCompletedMessage;
+    if (assessmentType == 'posttest') {
+      return l10n.posttestCompletedMessage;
+    }
+
+    final cleanTitle = title.trim();
+    final isId = l10n.localeName == 'id';
+    final hasQuizPrefix = cleanTitle.toLowerCase().startsWith('kuis') ||
+        cleanTitle.toLowerCase().startsWith('quiz');
+    final quizLabel = hasQuizPrefix
+        ? cleanTitle
+        : (isId ? 'Kuis $cleanTitle' : 'Quiz $cleanTitle');
+
+    if (cleanTitle.isNotEmpty) {
+      return passed
+          ? (isId
+              ? '$quizLabel telah berhasil diselesaikan.'
+              : '$quizLabel has been successfully completed.')
+          : (isId
+              ? '$quizLabel telah diselesaikan, namun nilai belum mencapai batas kelulusan.'
+              : '$quizLabel has been completed, but the passing score was not reached.');
+    }
+
+    return isId
+        ? 'Kuis telah berhasil diselesaikan.'
+        : 'Quiz has been successfully completed.';
   }
 
   @override

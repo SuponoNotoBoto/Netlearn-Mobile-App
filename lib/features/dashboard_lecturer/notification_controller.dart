@@ -30,7 +30,7 @@ final userAnnouncementsProvider = FutureProvider.autoDispose
 
   if (role == 'student') {
     return _loadStudentAnnouncements(ref);
-  } else if (role == 'lecturer') {
+  } else if (role == 'lecturer' || role == 'admin') {
     return _loadLecturerAnnouncements(ref, userId);
   }
 

@@ -179,14 +179,23 @@ class _LecturerMaterialFormPageState
     _titleEn.text = material.titleEn ?? '';
     _titleId.text = material.titleId ?? material.title;
 
-    _descriptionEn.text = material.descriptionEn ?? '';
-    _descriptionId.text = material.descriptionId ?? '';
+    final strippedContentEn =
+        MaterialLabBinding.stripLabTag(material.contentEn ?? '');
+    final strippedContentId =
+        MaterialLabBinding.stripLabTag(material.contentId ?? '');
+
+    _contentEn.text = strippedContentEn;
+    _contentId.text = strippedContentId;
+
+    _descriptionEn.text = material.descriptionEn?.isNotEmpty == true
+        ? material.descriptionEn!
+        : strippedContentEn;
+    _descriptionId.text = material.descriptionId?.isNotEmpty == true
+        ? material.descriptionId!
+        : strippedContentId;
 
     _summaryEn.text = material.summaryEn ?? '';
     _summaryId.text = material.summaryId ?? '';
-
-    _contentEn.text = MaterialLabBinding.stripLabTag(material.contentEn ?? '');
-    _contentId.text = MaterialLabBinding.stripLabTag(material.contentId ?? '');
 
     final labBinding = MaterialLabBinding.fromMaterial(material);
     if (labBinding != null) {
@@ -318,8 +327,19 @@ class _LecturerMaterialFormPageState
 
     final existing = _editing;
 
+    final summaryIdText = _summaryId.text.trim();
+    final summaryEnText = _summaryEn.text.trim();
+    final descIdText = _descriptionId.text.trim();
+    final descEnText = _descriptionEn.text.trim();
+
     var contentId = _contentId.text.trim();
+    if (contentId.isEmpty) {
+      contentId = descIdText.isNotEmpty ? descIdText : summaryIdText;
+    }
     var contentEn = _contentEn.text.trim();
+    if (contentEn.isEmpty) {
+      contentEn = descEnText.isNotEmpty ? descEnText : summaryEnText;
+    }
 
     if (_labEnabled) {
       final instructions = _labInstructions.text
@@ -368,26 +388,26 @@ class _LecturerMaterialFormPageState
       title: titleId.isNotEmpty ? titleId : titleEn,
 
       description: emptyToNull(
-            titleId.isEmpty ? _descriptionEn.text : _descriptionId.text,
+            titleId.isEmpty ? descEnText : descIdText,
           ),
       content: emptyToNull(
             titleId.isEmpty ? contentEn : contentId,
           ),
       summary: emptyToNull(
-            titleId.isEmpty ? _summaryEn.text : _summaryId.text,
+            titleId.isEmpty ? summaryEnText : summaryIdText,
           ),
 
       titleEn: emptyToNull(titleEn),
       titleId: emptyToNull(titleId),
 
-      descriptionEn: emptyToNull(_descriptionEn.text),
-      descriptionId: emptyToNull(_descriptionId.text),
+      descriptionEn: emptyToNull(descEnText),
+      descriptionId: emptyToNull(descIdText),
 
       contentEn: emptyToNull(contentEn),
       contentId: emptyToNull(contentId),
 
-      summaryEn: emptyToNull(_summaryEn.text),
-      summaryId: emptyToNull(_summaryId.text),
+      summaryEn: emptyToNull(summaryEnText),
+      summaryId: emptyToNull(summaryIdText),
 
       videoUrl: emptyToNull(_videoUrl.text),
       durationMinutes: int.tryParse(_duration.text.trim()),
@@ -723,6 +743,7 @@ class _LecturerMaterialFormPageState
           }
 
           final langCode = ref.watch(languageProvider).languageCode;
+          final isId = langCode == 'id';
           final activeClass = ref.watch(activeLecturerClassProvider).value;
           final effectiveClassId = widget.classId ??
               (activeClass != null &&
@@ -833,52 +854,6 @@ class _LecturerMaterialFormPageState
                   label: '',
                   placeholder: l10n.titleEnglishHint,
                   controller: _titleEn,
-                ),
-
-                const SizedBox(height: NetLearnSpace.s17),
-
-                // Summary (Indonesian)
-                _FormLabel(text: '${l10n.summary} (ID)'),
-                const SizedBox(height: 7),
-                NlField(
-                  label: '',
-                  placeholder: l10n.summaryHint,
-                  controller: _summaryId,
-                ),
-
-                const SizedBox(height: NetLearnSpace.s17),
-
-                // Summary (English)
-                _FormLabel(text: '${l10n.summary} (EN)'),
-                const SizedBox(height: 7),
-                NlField(
-                  label: '',
-                  placeholder: l10n.summaryHint,
-                  controller: _summaryEn,
-                ),
-
-                const SizedBox(height: NetLearnSpace.s17),
-
-                // Description / Content (ID)
-                _FormLabel(text: '${l10n.description} (ID)'),
-                const SizedBox(height: 7),
-                NlField(
-                  label: '',
-                  placeholder: l10n.descriptionHint,
-                  controller: _descriptionId,
-                  maxLines: 6,
-                ),
-
-                const SizedBox(height: NetLearnSpace.s17),
-
-                // Description / Content (EN)
-                _FormLabel(text: '${l10n.description} (EN)'),
-                const SizedBox(height: 7),
-                NlField(
-                  label: '',
-                  placeholder: l10n.descriptionHint,
-                  controller: _descriptionEn,
-                  maxLines: 6,
                 ),
 
                 const SizedBox(height: NetLearnSpace.s17),
@@ -1046,6 +1021,82 @@ class _LecturerMaterialFormPageState
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.mutedText,
                       ),
+                ),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
+                // Bagian Ringkasan Materi (Tepat di atas Praktikum Virtual Lab)
+                Container(
+                  padding: const EdgeInsets.all(NetLearnSpace.s12),
+                  decoration: BoxDecoration(
+                    color: context.accentTint.withValues(alpha: 0.35),
+                    borderRadius: BorderRadius.circular(NetLearnRadius.card),
+                    border: Border.all(
+                      color: context.accent.withValues(alpha: 0.25),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(Icons.article_outlined, size: 20, color: context.accent),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          isId ? 'Ringkasan Materi' : 'Material Summary',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: context.onSurface,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: NetLearnSpace.s12),
+
+                // Summary (Indonesian)
+                _FormLabel(text: '${l10n.summary} (ID)'),
+                const SizedBox(height: 7),
+                NlField(
+                  label: '',
+                  placeholder: l10n.summaryHint,
+                  controller: _summaryId,
+                  maxLines: 4,
+                ),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
+                // Summary (English)
+                _FormLabel(text: '${l10n.summary} (EN)'),
+                const SizedBox(height: 7),
+                NlField(
+                  label: '',
+                  placeholder: l10n.summaryHint,
+                  controller: _summaryEn,
+                  maxLines: 4,
+                ),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
+                // Description / Content (ID)
+                _FormLabel(text: '${l10n.description} (ID)'),
+                const SizedBox(height: 7),
+                NlField(
+                  label: '',
+                  placeholder: l10n.descriptionHint,
+                  controller: _descriptionId,
+                  maxLines: 6,
+                ),
+
+                const SizedBox(height: NetLearnSpace.s17),
+
+                // Description / Content (EN)
+                _FormLabel(text: '${l10n.description} (EN)'),
+                const SizedBox(height: 7),
+                NlField(
+                  label: '',
+                  placeholder: l10n.descriptionHint,
+                  controller: _descriptionEn,
+                  maxLines: 6,
                 ),
 
                 const SizedBox(height: NetLearnSpace.s17),

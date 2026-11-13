@@ -12,9 +12,11 @@ import '../../../core/theme/app_typography.dart';
 import '../../../shared/widgets/nl_skeleton.dart';
 import '../../../shared/widgets/nl_surface_card.dart';
 import '../../classes/class_controller.dart';
+import '../../dashboard_student/student_dashboard_controller.dart';
 import '../../profile/public_profile_sheet.dart';
 import '../virtual_lab_leaderboard_models.dart';
 import '../virtual_lab_leaderboard_service.dart';
+import '../virtual_lab_mission_service.dart';
 
 /// Modal bottom sheet dan widget tampilan Leaderboard Virtual Lab.
 class VirtualLabLeaderboardSheet extends ConsumerStatefulWidget {
@@ -52,11 +54,54 @@ class _VirtualLabLeaderboardSheetState
     extends ConsumerState<VirtualLabLeaderboardSheet> {
   // 'overall', 'p2p', 'star', 'dual_subnet', 'dhcp_server'
   late String _selectedMission;
+  int _refreshTick = 0;
 
   @override
   void initState() {
     super.initState();
-    _selectedMission = widget.initialMissionId ?? 'overall';
+    _selectedMission =
+        VirtualLabLeaderboardService.normalizeMissionKey(widget.initialMissionId);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncExistingScores());
+  }
+
+  Future<void> _syncExistingScores() async {
+    try {
+      final submissions =
+          await ref.read(virtualLabMissionServiceProvider).getSubmissions();
+      if (submissions.isEmpty) return;
+
+      final activeClass = ref.read(activeStudentClassProvider).value ??
+          await resolveActiveStudentClass(ref);
+      final classId = widget.classId ??
+          ((activeClass != null && !activeClass.isLegacyFallback)
+              ? activeClass.id
+              : null);
+
+      String studentName =
+          ref.read(studentDashboardProvider).value?.userName.trim() ?? '';
+      if (studentName.isEmpty) {
+        final uid = supabase.auth.currentUser?.id;
+        if (uid != null) {
+          try {
+            final prof = await supabase
+                .from('profiles')
+                .select('name')
+                .eq('id', uid)
+                .maybeSingle();
+            studentName = prof?['name']?.toString().trim() ?? '';
+          } catch (_) {}
+        }
+      }
+
+      await VirtualLabLeaderboardService.syncSubmissions(
+        submissions: submissions,
+        classId: classId,
+        studentName: studentName.isEmpty ? 'Mahasiswa' : studentName,
+      );
+      if (mounted) {
+        setState(() => _refreshTick++);
+      }
+    } catch (_) {}
   }
 
   @override
@@ -64,8 +109,15 @@ class _VirtualLabLeaderboardSheetState
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isEn = ref.watch(languageProvider).languageCode == 'en';
-    final resolvedClassId = widget.classId ??
-        ref.watch(activeStudentClassProvider).value?.id;
+    final activeClass = ref.watch(activeStudentClassProvider).value;
+    final fallbackClassId =
+        (activeClass != null && !activeClass.isLegacyFallback)
+            ? activeClass.id
+            : null;
+    final resolvedClassId = (widget.classId != null &&
+            widget.classId!.isNotEmpty)
+        ? widget.classId
+        : fallbackClassId;
 
     final missions = [
       (
@@ -158,6 +210,14 @@ class _VirtualLabLeaderboardSheetState
                   ),
                 ),
                 IconButton(
+                  tooltip: isEn ? 'Refresh' : 'Muat Ulang',
+                  icon: const Icon(Icons.refresh_rounded),
+                  onPressed: () {
+                    setState(() => _refreshTick++);
+                    _syncExistingScores();
+                  },
+                ),
+                IconButton(
                   icon: const Icon(Icons.close_rounded),
                   onPressed: () => Navigator.pop(context),
                 ),
@@ -194,11 +254,13 @@ class _VirtualLabLeaderboardSheetState
           Expanded(
             child: _selectedMission == 'overall'
                 ? _OverallVirtualLabList(
+                    key: ValueKey('overall_${resolvedClassId ?? "global"}_$_refreshTick'),
                     classId: resolvedClassId,
                     isDark: isDark,
                     isEn: isEn,
                   )
                 : _MissionSpecificVirtualLabList(
+                    key: ValueKey('${_selectedMission}_${resolvedClassId ?? "global"}_$_refreshTick'),
                     classId: resolvedClassId,
                     missionKey: _selectedMission,
                     isDark: isDark,
@@ -217,6 +279,7 @@ class _OverallVirtualLabList extends StatelessWidget {
   final bool isEn;
 
   const _OverallVirtualLabList({
+    super.key,
     required this.classId,
     required this.isDark,
     required this.isEn,
@@ -544,6 +607,7 @@ class _MissionSpecificVirtualLabList extends StatelessWidget {
   final bool isEn;
 
   const _MissionSpecificVirtualLabList({
+    super.key,
     required this.classId,
     required this.missionKey,
     required this.isDark,

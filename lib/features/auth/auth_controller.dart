@@ -10,6 +10,7 @@ import 'auth_api.dart';
 enum AppUserRole {
   student,
   lecturer,
+  admin,
 }
 
 extension AppUserRoleX on AppUserRole {
@@ -19,6 +20,8 @@ extension AppUserRoleX on AppUserRole {
         return 'student';
       case AppUserRole.lecturer:
         return 'lecturer';
+      case AppUserRole.admin:
+        return 'admin';
     }
   }
 }
@@ -57,19 +60,23 @@ enum RegisterOutcome {
 class AuthState {
   final bool isLoading;
   final String? errorMessage;
+  final String? signedInRole;
 
   const AuthState({
     this.isLoading = false,
     this.errorMessage,
+    this.signedInRole,
   });
 
   AuthState copyWith({
     bool? isLoading,
     String? errorMessage,
+    String? signedInRole,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
+      signedInRole: signedInRole ?? this.signedInRole,
     );
   }
 }
@@ -159,7 +166,8 @@ class AuthController extends Notifier<AuthState> {
 
       final isSupportedRole =
           profileRole == AppUserRole.student.value ||
-          profileRole == AppUserRole.lecturer.value;
+          profileRole == AppUserRole.lecturer.value ||
+          profileRole == AppUserRole.admin.value;
 
       if (!isSupportedRole) {
         await api.signOut();
@@ -172,7 +180,9 @@ class AuthController extends Notifier<AuthState> {
         return false;
       }
 
-      if (profileRole != role.value) {
+      // Admin diizinkan masuk dari tab mahasiswa maupun tab dosen.
+      if (profileRole != role.value &&
+          profileRole != AppUserRole.admin.value) {
         await api.signOut();
         resetUserSession(ref);
 
@@ -199,6 +209,7 @@ class AuthController extends Notifier<AuthState> {
       state = state.copyWith(
         isLoading: false,
         errorMessage: null,
+        signedInRole: profileRole,
       );
 
       resetUserSession(ref);
@@ -320,6 +331,7 @@ class AuthController extends Notifier<AuthState> {
   Future<void> logout() async {
     await ref.read(authApiProvider).signOut();
     resetUserSession(ref);
+    state = const AuthState();
   }
 
   void clearError() {

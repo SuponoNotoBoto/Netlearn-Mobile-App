@@ -202,7 +202,10 @@ class _StudentNotificationsPageState
         ),
         children: [
           NlSegmentedTabs(
-            labels: [l10n.announcements, l10n.reminders],
+            labels: [
+              l10n.announcements,
+              l10n.reminders,
+            ],
             selectedIndex: _tabIndex,
             semanticLabel: l10n.notificationsTitle,
             onChanged: (index) => setState(() => _tabIndex = index),
@@ -415,3 +418,4 @@ class _NotificationLoading extends StatelessWidget {
     );
   }
 }
+

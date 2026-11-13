@@ -82,10 +82,10 @@ class SubnetDrillLeaderboardService {
         await prefs.setInt('subnet_drill_personal_best', score);
       }
 
-      // Save to class-scoped key and global key so switching context never loses scores
+      // Save strictly to class-scoped key (or global key if outside a class)
+      // to ensure leaderboard and personal high score are fully isolated per class.
       final targetKeys = <String>{
         _storageKey(classId),
-        _storageKey(null),
       };
 
       for (final key in targetKeys) {
@@ -204,8 +204,9 @@ class SubnetDrillLeaderboardService {
 
           if (classId != null && classId.isNotEmpty) {
             await syncRemote(classId);
+          } else {
+            await syncRemote(null);
           }
-          await syncRemote(null);
         }
       } catch (e) {
         debugPrint('SubnetDrill saveScore remote warning: $e');
@@ -225,6 +226,8 @@ class SubnetDrillLeaderboardService {
             .select('id, user_id, student_name, score, max_streak, class_id, avatar_config, updated_at');
         if (classId != null && classId.isNotEmpty) {
           query = query.eq('class_id', classId);
+        } else {
+          query = query.isFilter('class_id', null);
         }
 
         final remoteRows = await query
@@ -259,28 +262,32 @@ class SubnetDrillLeaderboardService {
       final key = _storageKey(classId);
       var raw = prefs.getString(key);
 
-      // Migrate legacy scores from subnet_drill_leaderboard_v1 if present
-      final legacyRaw = prefs.getString('subnet_drill_leaderboard_v1');
-      if (legacyRaw != null && legacyRaw.isNotEmpty) {
-        try {
-          final List decodedLegacy = jsonDecode(legacyRaw) as List;
-          final legacyScores = decodedLegacy
-              .map((item) => SubnetDrillScore.fromMap(Map<String, dynamic>.from(item)))
-              .where((s) => s.score > 0 && !s.studentName.contains('Dummy') && !s.studentName.contains('Seed'))
-              .toList();
-          if (legacyScores.isNotEmpty) {
-            for (final sc in legacyScores) {
-              await saveScore(
-                classId: classId,
-                studentId: sc.studentId,
-                studentName: sc.studentName,
-                score: sc.score,
-                maxStreak: sc.maxStreak,
-              );
+      // Migrate legacy scores from subnet_drill_leaderboard_v1 only for global fallback,
+      // and remove the key so it never leaks or populates other newly opened classes.
+      if (classId == null || classId.isEmpty) {
+        final legacyRaw = prefs.getString('subnet_drill_leaderboard_v1');
+        if (legacyRaw != null && legacyRaw.isNotEmpty) {
+          try {
+            final List decodedLegacy = jsonDecode(legacyRaw) as List;
+            final legacyScores = decodedLegacy
+                .map((item) => SubnetDrillScore.fromMap(Map<String, dynamic>.from(item)))
+                .where((s) => s.score > 0 && !s.studentName.contains('Dummy') && !s.studentName.contains('Seed'))
+                .toList();
+            if (legacyScores.isNotEmpty) {
+              for (final sc in legacyScores) {
+                await saveScore(
+                  classId: null,
+                  studentId: sc.studentId,
+                  studentName: sc.studentName,
+                  score: sc.score,
+                  maxStreak: sc.maxStreak,
+                );
+              }
+              raw = prefs.getString(key);
             }
-            raw = prefs.getString(key);
-          }
-        } catch (_) {}
+          } catch (_) {}
+          await prefs.remove('subnet_drill_leaderboard_v1');
+        }
       }
 
       // If class-specific leaderboard is empty, fallback to global scores

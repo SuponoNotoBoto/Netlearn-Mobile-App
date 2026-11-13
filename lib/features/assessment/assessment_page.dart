@@ -286,6 +286,15 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
     final int unanswered =
         total - answered;
 
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final quizTitle = (state.assessmentTitle ?? '').trim();
+    final isCustomQuiz = widget.assessmentType != 'pretest' &&
+        widget.assessmentType != 'posttest';
+
+    final dialogTitle = isCustomQuiz && quizTitle.isNotEmpty
+        ? (isId ? 'Kumpulkan $quizTitle?' : 'Submit $quizTitle?')
+        : l10n.assessmentSubmitTitle;
+
     if (!mounted) {
       return false;
     }
@@ -295,7 +304,7 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
       builder: (dialogContext) {
         return AlertDialog(
           title: Text(
-            l10n.assessmentSubmitTitle,
+            dialogTitle,
           ),
           content: Text(
             unanswered > 0
@@ -512,7 +521,8 @@ class _AssessmentPageState extends ConsumerState<AssessmentPage> {
     if (widget.assessmentType == 'posttest') {
       return l10n.posttest;
     }
-    return l10n.assessment;
+    final isId = l10n.localeName == 'id';
+    return isId ? 'Kuis Dosen' : 'Quiz';
   }
 
   @override
