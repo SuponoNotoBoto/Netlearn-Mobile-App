@@ -15,11 +15,11 @@
 
 ---
 
-2. Ringkasan Proyek & Produk
+## 2. Ringkasan Proyek & Produk
 * Kategori: Mobile (Android)
 * Nama Aplikasi: NetLearn
 * Target Pengguna: 
-  * Mahasiswa/Siswa yang mempelajari mata kuliah/bidang Jaringan Komputer (Computer Networking).
+  * Mahasiswa yang mempelajari mata kuliah/bidang Jaringan Komputer (Computer Networking).
   * Dosen/Instruktur Jaringan Komputer.
 
 * **Permasalahan yang Diangkat**:
@@ -32,7 +32,7 @@
 
 ---
 
-3. Fitur Utama yang Diimplementasikan
+## 3. Fitur Utama yang Diimplementasikan
 
 ### A. Mahasiswa (Student Experience)
 1. **Virtual Lab Simulator (Layer 2 & Layer 3)**:
@@ -65,9 +65,15 @@
 4. **Manajemen Kelas & Rekap Nilai**:
    * Manajemen modul ajar, penugasan, forum diskusi, serta ekspor rekapitulasi nilai ke format CSV dan PDF.
 
+### C. Fitur AI yang Diimplementasikan di Aplikasi
+1. **NetBot (AI Tutor Interaktif Mahasiswa)**: Pendamping belajar 24 jam yang memahami konteks modul materi dan kondisi topologi kanvas Virtual Lab secara *real-time*, dilengkapi sanitasi teks otomatis agar hasil respon bersih dan nyaman dibaca.
+2. **AI Question Generator (Dosen)**: Pembuat butir soal kuis pilihan ganda otomatis beserta kunci jawaban dan opsi pengecoh adaptif berdasarkan topik/modul tertentu.
+3. **AI Pedagogical Insight & Analytics (Dosen)**: Analisis diagnostik performa kelas berdasarkan komparasi nilai Pretest vs Posttest mahasiswa dengan rekomendasi bimbingan pedagogis otomatis.
+4. **Bilingual Translation Engine**: Penerjemah materi ajar dan paket soal kuis (Indonesia ↔ English) secara akurat dengan mekanisme *resilient failover multi-provider*.
+
 ---
 
-## 🛠️ 4. Teknologi yang Digunakan
+## 4. Teknologi yang Digunakan
 * **Framework**: [Flutter](https://flutter.dev/) (Dart SDK `^3.13.2`)
 * **State Management & Routing**: 
   * `flutter_riverpod` (`^3.4.3`)
@@ -84,9 +90,9 @@
 * **Speech & Audio**:
   * `speech_to_text` (`^7.5.0`)
 * **Artificial Intelligence (Multi-Provider AI Gateway)**:
-  * **Groq LPU API**: Akses model performa tinggi berlatensi sangat rendah (misal `openai/gpt-oss-20b`).
-  * **Google Gemini API**: `google_generative_ai` (`^0.4.7`) untuk penalaran materi edukasi.
-  * **OpenRouter API**: Failover provider pihak ketiga guna menjamin *high availability* (anti rate-limit).
+  * **Groq LPU API**: Akses model inferensi berlatensi sangat rendah (<1 detik) untuk respons interaktif `openai/gpt-oss-20b`, `openai/gpt-oss-120b`, `qwen/qwen3.8-27b`, `allam-2-7b`.
+  * **Google Gemini API**: `google_generative_ai` (`^0.4.7`) untuk penalaran materi edukasi yang mendalam. Model yang digunakan: `gemini-2.5-flash` dan `gemini-2.5-flash-lite`.
+  * **OpenRouter API**: Failover provider pihak ketiga guna menjamin *high availability* (anti rate-limit/429). Model yang digunakan: `nvidia/nemotron-3.5-lightning:free`, `google/gemma-4-31b-it:free`, `nvidia/nemotron-3-nano-omni-30b-a3b-reasoning:free`, `liquid/lfm-2.5-2.6b:free`.
 
 ---
 
@@ -103,7 +109,7 @@ graph TD
     end
 
     subgraph Backend ["Cloud Backend & Database"]
-        SupabaseAuth["Supabase Auth (NIM/NIDN & Password)"]
+        SupabaseAuth["Supabase Auth (NIM/NIP & Password)"]
         Postgres["PostgreSQL Database (RLS Secured)"]
         Storage["Supabase Storage (Materi PDF & Topologi JSON)"]
     end
@@ -142,9 +148,10 @@ graph TD
 * Git terpasang di sistem.
 
 ### B. Langkah Instalasi
+## Menggunakan Flutter run:
 1. **Clone Repositori**:
    ```bash
-   git clone [URL_REPOSITORI_GITHUB_ANDA]
+   git clone [https://github.com/SuponoNotoBoto/Netlearn-Mobile-App]
    cd Netlearn-Mobile-App
    ```
 
@@ -153,26 +160,7 @@ graph TD
    flutter pub get
    ```
 
-3. **Konfigurasi Variabel Lingkungan (`.env`)**:
-   Salin template `.env.example` menjadi `.env` di direktori utama:
-   * Di Windows (PowerShell):
-     ```powershell
-     Copy-Item .env.example .env
-     ```
-   * Di Linux / macOS:
-     ```bash
-     cp .env.example .env
-     ```
-   Buka file `.env` dan lengkapi nilainya:
-   ```env
-   SUPABASE_URL=https://your-project.supabase.co
-   SUPABASE_PUBLISHABLE_KEY=sb_publishable_your_key_here
-   GROQ_API_KEY=gsk_your_groq_api_key_here
-   GEMINI_API_KEY=your_gemini_api_key_here
-   OPENROUTER_API_KEY=sk-or-v1-your_openrouter_api_key_here
-   ```
-
-4. **Jalankan Aplikasi**:
+3. **Jalankan Aplikasi**:
    * Jalankan di perangkat Android / Emulator:
      ```bash
      flutter run
@@ -182,40 +170,50 @@ graph TD
      flutter run -d chrome
      ```
 
-5. **Menjalankan Pengujian Otomatis (Automated Tests)**:
+4. **Menjalankan Pengujian Otomatis (Automated Tests)**:
    ```bash
    flutter test
    ```
 
+## Download melalui APK di Google Drive 
+1. Download apk:
+   ```
+   https://drive.google.com/drive/folders/12NiKwvon71Nd-3GMC3kWYz6JOoPffi-8
+   ```
+2. Install apk:
+   ```
+   Install APK dan jalankan pada perangkat android.
+   ```
+   
 ---
 
 ## 7. Akun Demonstrasi (Demo Accounts)
 
-Untuk mempermudah dewan juri dalam menguji seluruh fungsionalitas aplikasi, berikut akun yang dapat digunakan:
+Berikut akun yang dapat digunakan:
 
-| Peran (Role) | Nomor Identitas (NIM / NIDN) | Password | Keterangan Akses |
+| Peran (Role) | Nomor Identitas (NIM / NIP) | Password | Keterangan Akses |
 | :--- | :--- | :--- | :--- |
 | **Mahasiswa** | `[MASUKKAN NIM MAHASISWA DEMO]` | `[MASUKKAN PASSWORD]` | Akses Virtual Lab, AR, Subnet Drill, Materi, NetBot AI. |
 | **Dosen** | `[MASUKKAN NIP DOSEN DEMO]` | `[MASUKKAN PASSWORD]` | Akses Buat Kuis AI, Analisis Nilai AI, Rekap Nilai, Kelola Kelas. |
 
 ---
 
-## 8. Dokumentasi Penggunaan AI
+## 8. Dokumentasi Penggunaan AI dalam Pengerjaan Proyek
 
-Aplikasi NetLearn memanfaatkan kecerdasan buatan (Artificial Intelligence) pada beberapa komponen inti:
+Dalam proses riset, perancangan arsitektur, penulisan kode, penjaminan kualitas (*testing*), hingga penyusunan dokumentasi proyek NetLearn, tim pengembang memanfaatkan alat bantu kecerdasan buatan (*AI-assisted development tools*) sebagai akselerator:
 
-1. **NetBot (AI Tutor Interaktif Mahasiswa)**:
-   * **Model / Layanan**: Groq LPU (`openai/gpt-oss-20b`), Google Gemini (`gemini-1.5-flash`), dan OpenRouter.
-   * **Implementasi**: Pendamping belajar interaktif yang memahami topik materi yang sedang dibuka dan konfigurasi topologi jaringan pada Virtual Lab. Dilengkapi sistem sanitasi teks otomatis untuk menghilangkan format tebal berlebihan sehingga nyaman dibaca.
-2. **AI Question Generator (Dosen)**:
-   * **Model / Layanan**: Groq Cloud & Google Gemini.
-   * **Implementasi**: Menghasilkan butir soal kuis pilihan ganda beserta kunci jawaban dan opsi pengecoh secara otomatis berdasarkan topik jaringan komputer yang ditentukan dosen.
-3. **AI Pedagogical Insight & Analytics**:
-   * **Model / Layanan**: Groq Cloud & Google Gemini.
-   * **Implementasi**: Menganalisis sebaran nilai Pretest dan Posttest mahasiswa di kelas, lalu merangkum rekomendasi bimbingan pedagogis bagi dosen.
-4. **Bilingual Translation Service**:
-   * **Model / Layanan**: Groq Cloud / Gemini API.
-   * **Implementasi**: Menerjemahkan deskripsi materi dan soal ujian secara akurat antara Bahasa Indonesia dan Bahasa Inggris.
+1. **Google Antigravity**:
+   * **Perancangan Arsitektur & Resilience Engine**: Membantu merancang arsitektur multi-provider AI resilience (mekanisme failover berjenjang Groq → Google Gemini → OpenRouter) serta sistem navigasi berbasis *route guards* pada GoRouter.
+   * **Pengujian & Verifikasi Kualitas Otomatis**: Menjalankan analisis statis (*linter* dan `flutter analyze`), otomatisasi pengujian unit dan widget (`flutter test`), serta refactoring penanganan sanitasi teks NetBot dan migrasi keamanan variabel lingkungan (`.env` via `flutter_dotenv`).
+   * **Standardisasi Kode & Dokumentasi**: Mengotomatisasi penyeragaman dokumentasi komentar kode sumber pada 14 berkas arsitektur inti.
+
+2. **OpenCode**:
+   * **Akselerasi Coding & Prototyping Widget**: Membantu pembuatan *boilerplate* antarmuka (UI/UX) berbasis Flutter Material 3, komponen widget kustom, model data Dart, serta *state controller* Riverpod.
+   * **Penyusunan Logika Algoritma**: Membantu formulasi logika kalkulasi subnetting pada modul Subnet Drill dan struktur parsing perintah terminal simulator di Virtual Lab.
+   * **Efisiensi Debugging**: Mempercepat pelacakan kendala rendering layout dan optimasi performa widget.
+
+3. **Gemini** :
+    * **Pembuatan Marker AR** : Menggunakan gemini generate image untuk membuat marker AR. 
 
 ---
 
@@ -224,6 +222,7 @@ Aplikasi NetLearn memanfaatkan kecerdasan buatan (Artificial Intelligence) pada 
 Seluruh aset, pustaka, dan layanan pihak ketiga yang digunakan dalam pengembangan NetLearn:
 * **Framework & Bahasa**: [Flutter](https://flutter.dev/) & [Dart](https://dart.dev/) oleh Google.
 * **Backend as a Service**: [Supabase](https://supabase.com/) (Open Source Firebase Alternative).
+* **UI/UX Reference**: (https://www.behance.net/gallery/252268691/Education-Management-Mobile-App-Redesign)
 * **Font Typography**:
   * *Plus Jakarta Sans* oleh Tokotype (Google Fonts, Open Font License).
   * *Inter* oleh Rasmus Andersson (SIL Open Font License).
@@ -232,10 +231,19 @@ Seluruh aset, pustaka, dan layanan pihak ketiga yang digunakan dalam pengembanga
   * `CupertinoIcons` & Flutter Material Symbols / Icons.
 * **Efek Suara (Audio SFX)**:
   * Sound effects interaksi (connect, error, pop, success) bersumber dari lisensi bebas royalti (Creative Commons Zero / Freesound).
+  * **Voice Over AR**: 
+    *Menggunakan Voice Over AI di ClipChamp
 * **Model 3D AR & Marker**:
-  * Model 3D perangkat jaringan komputer untuk Augmented Reality bersumber dari lisensi terbuka (Creative Commons Attribution / model mandiri tim).
+  * Switch : (https://skfb.ly/6ZGYp)
+  * PC : (https://skfb.ly/6WKZ9)
+  * Hub : Dibuat 3D menggunakan Meshy AI dari referensi gambar (https://www.uninets.com/blog/hub-in-networking)
+  * Wireless Router : (https://skfb.ly/o6pIQ)
+  * PC full setup : (https://skfb.ly/p8LB8)
+  * Topologi Star : Dibuat menggunakan Blender dengan 3D model dari sketchfab.
+  * Jaringan 2 PC dan 1 Switch : Dibuat menggunakan Blender dengan 3D model dari sketchfab.
+  * Markers : Dibuat menggunakan gemini generate image.
+
 * **Layanan AI**:
   * [Groq Inc.](https://groq.com/) untuk LPU Inference Engine.
   * [Google AI for Developers](https://ai.google.dev/) untuk Gemini API.
   * [OpenRouter](https://openrouter.ai/) untuk Unified LLM Gateway.
-
