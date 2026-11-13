@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: Virtual Lab Canvas State Controller & Topology Presets
+// DESCRIPTION: Controller state Riverpod untuk kanvas Virtual Lab yang mengatur
+//              penambahan/penghapusan perangkat, penarikan kabel, pemuatan preset
+//              topologi standar industri (Star, Routing, DHCP), dan auto-save.
+// ============================================================================
+
 import 'dart:async';
 
 import 'package:flutter/material.dart' show Offset;
@@ -7,23 +14,26 @@ import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
 import 'virtual_lab_repository.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Virtual Lab Canvas State Controller
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabController]
+///
+/// Notifier Riverpod yang memanipulasi topologi aktif pada kanvas 2D,
+/// menangani sinkronisasi penyimpanan cloud/lokal, dan mengevaluasi status perangkat.
 class VirtualLabController extends Notifier<VirtualLabSession> {
   Timer? _saveTimer;
 
-  /// Whether [restore] already ran for this provider instance.
+  /// Menandakan apakah proses pemulihan (restore) kanvas telah dijalankan untuk instance ini.
   bool _restored = false;
 
-  /// Set by the first mutation. A change made while the stored canvas is still
-  /// loading wins over it, because it is newer.
+  /// Menandai adanya mutasi perubahan dari pengguna saat pemulihan kanvas sedang berjalan.
   bool _mutated = false;
 
   @override
   VirtualLabSession build() {
-    // Riverpod 3 memakai ulang instance Notifier ini saat `ref.invalidate`
-    // (elemen provider hanya di-rebuild, notifier-nya di-cache). Flag di bawah
-    // karena itu harus direset di sini: tanpa ini akun kedua yang login tidak
-    // pernah memuat canvas-nya sendiri, karena `restore()` langsung berhenti di
-    // `_restored` dan `_mutated` sisa akun sebelumnya membuatnya batal.
+    // Pengaturan ulang timer dan flag untuk mendukung pergantian akun pengguna.
     _saveTimer?.cancel();
     _saveTimer = null;
     _restored = false;
@@ -33,14 +43,13 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     return VirtualLabController.scenarioOne();
   }
 
-  /// Kondisi awal Skenario 1 — selaras dengan kartu skenario di halaman
-  /// ("Connect PC2 to Switch1, give it an IP in 192.168.1.0/24, then ping from
-  /// PC1 to PC2"): PC1 sudah tersambung ke Switch1 dan ber-IP, PC2 sudah ada
-  /// di kanvas tetapi belum dikabeli dan belum memiliki IP.
-  ///
-  /// Kanvas tidak dimulai kosong karena kartu skenario selalu tampil — kalau
-  /// kanvas kosong, mahasiswa tidak punya titik awal untuk mengerjakan
-  /// instruksi skenario.
+  // ---------------------------------------------------------------------------
+  // SECTION: Preset Topologies for Course Modules
+  // ---------------------------------------------------------------------------
+
+  /// Kondisi awal Skenario 1 (Modul 1: Jaringan Dasar Peer-to-Peer & Switch):
+  /// PC1 sudah tersambung ke Switch1 dan memiliki IP, sedangkan PC2 telah tersedia
+  /// di kanvas tetapi belum dikabeli dan belum ber-IP.
   static VirtualLabSession scenarioOne() {
     final pc1 = VirtualLabDevice(
       id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.pc),
@@ -75,7 +84,7 @@ class VirtualLabController extends Notifier<VirtualLabSession> {
     );
   }
 
-  /// Template 1: Topologi Star (1 Switch + 3 PC satu subnet)
+  /// Preset Topologi Star (Modul 2: 1 Switch + 3 PC dalam subnet 192.168.1.0/24).
   static VirtualLabSession presetStar() {
     final sw = VirtualLabDevice(
       id: VirtualLabSession.nextDeviceId(VirtualLabDeviceKind.switch_),

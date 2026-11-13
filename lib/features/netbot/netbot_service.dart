@@ -1,3 +1,11 @@
+// ============================================================================
+// MODULE: NetBot AI Service & Multi-Provider Failover Gateway
+// DESCRIPTION: Mengelola komunikasi streaming SSE (Server-Sent Events) ke
+//              berbagai penyedia LLM (Groq -> OpenRouter -> Gemini) dengan
+//              mekanisme failover otomatis, kontekstualisasi materi/topologi,
+//              serta sanitasi format teks keluaran AI.
+// ============================================================================
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -7,6 +15,14 @@ import 'package:http/http.dart' as http;
 import 'netbot_models.dart';
 import 'netbot_providers.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Custom AI Exception Model
+// ---------------------------------------------------------------------------
+
+/// [NetBotException]
+///
+/// Representasi kesalahan spesifik layanan AI NetBot, mencakup indikator
+/// ketiadaan API key ([isApiKeyMissing]) atau batas kuota ([isRateLimit]).
 class NetBotException implements Exception {
   final String message;
   final bool isApiKeyMissing;
@@ -22,10 +38,22 @@ class NetBotException implements Exception {
   String toString() => message;
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Prompt Engineering & Text Sanitization
+// ---------------------------------------------------------------------------
+
+/// [NetBotService]
+///
+/// Layanan inti asisten pintar NetBot yang menyusun instruksi sistem (System Prompt)
+/// kontekstual dan mengeksekusi permintaan chat secara streaming dengan ketahanan tinggi.
 class NetBotService {
   NetBotService._();
 
-  /// Creates tailored system instructions based on language and learning context.
+  /// [buildSystemPrompt]
+  ///
+  /// Membangun instruksi sistem (System Prompt) yang disesuaikan dengan bahasa aktif
+  /// pengguna (`id` atau `en`) serta menyuntikkan konteks materi bacaan atau kondisi
+  /// topologi Virtual Lab mahasiswa secara dinamis.
   static String buildSystemPrompt(NetBotContext context) {
     final isId = context.languageCode == 'id';
     final buffer = StringBuffer();
@@ -98,37 +126,39 @@ class NetBotService {
     return buffer.toString();
   }
 
-  /// Cleans AI text for a pleasant, clutter-free reading experience:
-  /// - Strips distracting double-asterisks (**) outside code blocks.
-  /// - Converts bullet markers (* and -) to elegant bullets (•).
-  /// - Strips markdown heading hashes (#, ##, ###).
-  /// - Normalizes excessive whitespace and blank lines.
+  /// [cleanResponseText]
+  ///
+  /// Membersihkan teks keluaran AI agar rapi dan nyaman dibaca pada komponen UI mobile:
+  /// - Menghapus simbol bintang ganda (`**`) di luar blok kode.
+  /// - Mengubah penanda daftar (`* ` atau `- `) menjadi simbol bullet (`• `).
+  /// - Menghapus tanda pagar heading Markdown (`#`, `##`, `###`).
+  /// - Mempertahankan isi blok kode (` ``` ... ``` `) secara utuh tanpa modifikasi.
   static String cleanResponseText(String raw) {
     if (raw.isEmpty) return raw;
 
     String cleanSegment(String segment) {
       var s = segment;
-      // Remove double asterisks **
+      // Hapus tanda bintang ganda **
       s = s.replaceAll('**', '');
-      // Convert leading asterisks or dashes used as bullet points to clean bullets
+      // Konversi daftar bintang/strip di awal baris menjadi bullet elegan (•)
       s = s.replaceAll(RegExp(r'^[*\-]\s+', multiLine: true), '• ');
-      // Strip markdown header hashes (### Heading -> Heading)
+      // Bersihkan tanda pagar heading markdown (### Judul -> Judul)
       s = s.replaceAll(RegExp(r'^#{1,6}\s*', multiLine: true), '');
       return s;
     }
 
-    // Preserve code blocks (``` ... ```) exactly as written
+    // Jaga agar sintaks di dalam blok kode (``` ... ```) tidak ikut terhapus
     if (raw.contains('```')) {
       final parts = raw.split('```');
       final buffer = StringBuffer();
       for (int i = 0; i < parts.length; i++) {
         if (i % 2 == 1) {
-          // Inside code block: preserve exact code
+          // Bagian dalam blok kode: pertahankan apa adanya
           buffer.write('```');
           buffer.write(parts[i]);
           buffer.write('```');
         } else {
-          // Outside code block: clean asterisks and headers
+          // Bagian luar blok kode: bersihkan simbol markdown berlebih
           buffer.write(cleanSegment(parts[i]));
         }
       }
@@ -138,9 +168,16 @@ class NetBotService {
     return cleanSegment(raw).replaceAll(RegExp(r'\n{3,}'), '\n\n').trim();
   }
 
-  /// Sends a chat message with multi-provider failover.
-  /// Automatically tries available providers (Groq -> OpenRouter -> Gemini)
-  /// until one succeeds, ensuring high resilience during concurrent class usage.
+  // -------------------------------------------------------------------------
+  // SECTION: Resilient Multi-Provider Streaming Execution
+  // -------------------------------------------------------------------------
+
+  /// [sendMessageStream]
+  ///
+  /// Mengirim pesan pengguna dan mengalirkan (stream) token jawaban AI secara real-time.
+  /// Menerapkan algoritma **Multi-Provider Failover**: mencoba penyedia secara berurutan
+  /// (Groq LPU -> OpenRouter -> Google Gemini) beserta daftar model kandidatnya hingga
+  /// salah satu berhasil merespons dengan HTTP 200.
   static Stream<String> sendMessageStream({
     required String userMessage,
     required NetBotContext context,
@@ -159,7 +196,7 @@ class NetBotService {
 
     final systemPrompt = buildSystemPrompt(context);
 
-    // Build standard OpenAI-compatible messages array
+    // Susun riwayat percakapan dalam format standar OpenAI Chat Completions API.
     final messages = <Map<String, String>>[
       {'role': 'system', 'content': systemPrompt},
     ];
@@ -181,7 +218,7 @@ class NetBotService {
     Object? lastError;
 
     try {
-      // Loop through available providers in priority order
+      // Iterasi setiap provider berdasarkan urutan prioritas (Priority 1 -> 2 -> 3).
       for (final provider in providers) {
         for (final model in provider.candidateModels) {
           try {
@@ -192,7 +229,7 @@ class NetBotService {
               'User-Agent': 'NetLearn/1.0 (Android)',
             };
 
-            // OpenRouter specific optional headers
+            // Header identifikasi tambahan khusus untuk protokol OpenRouter.
             if (provider.id == 'openrouter') {
               headers['HTTP-Referer'] = 'https://netlearn.app';
               headers['X-Title'] = 'NetLearn AI Tutor';
@@ -216,14 +253,15 @@ class NetBotService {
                 '[NetBot] Provider ${provider.name} ($model) returned ${streamedResponse.statusCode}: $errorBody',
               );
               lastError = 'HTTP ${streamedResponse.statusCode}: $errorBody';
-              // Failover to next model or next provider
+              // Jika terkena rate-limit (429) atau gangguan server, otomatis beralih
+              // ke model kandidat berikutnya atau provider cadangan berikutnya.
               continue;
             }
 
-            // Connection established with this provider!
+            // Koneksi berhasil! Beritahu controller nama provider yang aktif menangani request.
             onProviderConnected?.call(provider.name);
 
-            // Read SSE stream
+            // Baca aliran paket Server-Sent Events (SSE) baris demi baris.
             await for (final line in streamedResponse.stream
                 .transform(utf8.decoder)
                 .transform(const LineSplitter())) {
@@ -247,19 +285,19 @@ class NetBotService {
                     }
                   }
                 } catch (_) {
-                  // Silently ignore malformed SSE lines
+                  // Abaikan potongan baris SSE yang tidak lengkap (malformed chunk).
                 }
               }
             }
 
             if (yieldedAny) {
-              // Successfully delivered full streaming response!
+              // Aliran jawaban telah selesai dikirimkan seluruhnya dari provider ini.
               return;
             }
           } catch (e) {
             debugPrint('[NetBot] Error connecting to ${provider.name} ($model): $e');
             lastError = e;
-            // Continue failover loop
+            // Lanjutkan iterasi ke model/provider cadangan berikutnya.
           }
         }
       }
@@ -269,7 +307,7 @@ class NetBotService {
       }
     }
 
-    // If we reach here and nothing was yielded, all providers failed
+    // Jika seluruh provider dan model cadangan gagal merespons:
     if (!yieldedAny) {
       debugPrint('[NetBot] All AI providers exhausted. Last error: $lastError');
       yield context.languageCode == 'id'
@@ -278,4 +316,5 @@ class NetBotService {
     }
   }
 }
+
 

@@ -1,5 +1,17 @@
+// ============================================================================
+// MODULE: Subnetting Drill Procedural Question Generator
+// DESCRIPTION: Generator soal latihan interaktif untuk perhitungan subnetting
+//              IPv4 (Network Address, Broadcast, Usable Host, dan Subnet Mask)
+//              menggunakan kalkulasi bitwise biner secara real-time.
+// ============================================================================
+
 import 'dart:math';
 
+// ---------------------------------------------------------------------------
+// SECTION: Subnetting Question Types & Data Models
+// ---------------------------------------------------------------------------
+
+/// Jenis-jenis variasi pertanyaan latihan subnetting yang dapat diujikan.
 enum SubnetQuestionType {
   networkAddress,
   broadcastAddress,
@@ -7,6 +19,10 @@ enum SubnetQuestionType {
   subnetMask,
 }
 
+/// [SubnetDrillQuestion]
+///
+/// Model data yang merepresentasikan satu butir soal perhitungan subnet,
+/// pilihan jawaban acak (distractor), jawaban benar, serta langkah pembahasannya.
 class SubnetDrillQuestion {
   final String questionText;
   final String ipWithCidr;
@@ -26,14 +42,19 @@ class SubnetDrillQuestion {
 
   static final Random _rand = Random();
 
+  /// [generate]
+  ///
+  /// Menghasilkan soal subnetting acak pada rentang prefix `/24` sampai `/30`
+  /// beserta 4 pilihan jawaban dan penjelasan rumus perhitungannya.
   static SubnetDrillQuestion generate({bool isIndonesian = true}) {
-    // Prefix between /24 and /30
+    // Memilih panjang prefix secara acak antara /24 hingga /30
     final prefix = 24 + _rand.nextInt(7); // 24..30
     final o1 = 192;
     final o2 = 168;
     final o3 = _rand.nextInt(20);
     final o4 = 1 + _rand.nextInt(253);
 
+    // Operasi bitwise untuk menghitung Network ID dan Broadcast Address
     final ipInt = (o1 << 24) | (o2 << 16) | (o3 << 8) | o4;
     final maskInt = prefix == 0 ? 0 : (~0 << (32 - prefix)) & 0xFFFFFFFF;
     final netInt = (ipInt & maskInt) >>> 0;

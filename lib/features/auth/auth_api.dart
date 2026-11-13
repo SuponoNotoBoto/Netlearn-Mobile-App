@@ -1,19 +1,38 @@
+// ============================================================================
+// MODULE: Authentication API & Service Layer
+// DESCRIPTION: Abstraksi dan implementasi layanan autentikasi pengguna dengan
+//              Supabase Auth, mencakup login multi-identifier, registrasi,
+//              manajemen sesi, serta pemulihan kata sandi berbasis OTP.
+// ============================================================================
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 import '../../core/supabase/supabase_client.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Authentication Contract & Data Models
+// ---------------------------------------------------------------------------
+
+/// [AuthApi]
+///
+/// Kontrak antarmuka (interface) untuk seluruh operasi autentikasi.
+/// Dipisahkan dari implementasi konkret agar mudah di-mock pada pengujian unit.
 abstract class AuthApi {
+  /// Memverifikasi kredensial login menggunakan email atau nomor identitas (NIM/NIP)
+  /// melalui fungsi RPC di sisi server. Mengembalikan alamat email jika valid.
   Future<String?> verifyLoginCredentials({
     required String identifier,
     required String password,
   });
 
+  /// Melakukan proses sign-in ke sesi Supabase Auth menggunakan email dan password.
   Future<void> signInWithPassword({
     required String email,
     required String password,
   });
 
+  /// Mendaftarkan akun pengguna baru beserta metadata profil (nama, peran, NIM/NIP).
   Future<RegisterResult> register({
     required String name,
     required String email,
@@ -22,22 +41,32 @@ abstract class AuthApi {
     String role = 'student',
   });
 
+  /// Mengambil ID pengguna yang sedang aktif pada sesi saat ini (`null` jika belum login).
   String? get currentUserId;
 
+  /// Mengambil data profil dasar (`id`, `role`, `is_active`) dari tabel `profiles`.
   Future<Map<String, dynamic>?> fetchProfile(String userId);
 
+  /// Mengakhiri sesi pengguna saat ini dari perangkat lokal dan server.
   Future<void> signOut();
 
+  /// Mengirimkan email berisi kode OTP pemulihan kata sandi ke alamat email pengguna.
   Future<void> sendPasswordReset(String email);
 
+  /// Memverifikasi token OTP 6-digit untuk pemulihan kata sandi.
   Future<void> verifyRecoveryOtp({
     required String email,
     required String token,
   });
 
+  /// Memperbarui kata sandi untuk pengguna yang telah terautentikasi melalui sesi aktif.
   Future<void> updatePassword(String password);
 }
 
+/// [RegisterResult]
+///
+/// Merepresentasikan hasil operasi registrasi akun baru, termasuk status apakah
+/// pengguna harus melakukan konfirmasi email terlebih dahulu.
 class RegisterResult {
   const RegisterResult({
     required this.emailConfirmationRequired,
@@ -48,6 +77,14 @@ class RegisterResult {
   final String? userId;
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Supabase Authentication Implementation
+// ---------------------------------------------------------------------------
+
+/// [SupabaseAuthApi]
+///
+/// Implementasi konkret dari [AuthApi] yang berinteraksi langsung dengan
+/// layanan Supabase Auth dan tabel `profiles` PostgreSQL.
 class SupabaseAuthApi implements AuthApi {
   const SupabaseAuthApi();
 
@@ -56,6 +93,7 @@ class SupabaseAuthApi implements AuthApi {
     required String identifier,
     required String password,
   }) async {
+    // Memanggil fungsi RPC PostgreSQL untuk mencocokkan NIM/NIP atau Email.
     final result = await supabase.rpc(
       'verify_login_credentials',
       params: {'identifier': identifier, 'password': password},
@@ -83,6 +121,8 @@ class SupabaseAuthApi implements AuthApi {
     required String identityNumber,
     String role = 'student',
   }) async {
+    // Metadata yang dikirimkan pada `data` akan ditangkap oleh database trigger
+    // `handle_new_user` di Supabase untuk membuat baris otomatis di tabel `profiles`.
     final response = await supabase.auth.signUp(
       email: email.trim(),
       password: password,
@@ -144,5 +184,7 @@ class SupabaseAuthApi implements AuthApi {
   }
 }
 
+/// Provider Riverpod untuk menyuplai instance [AuthApi] ke seluruh fitur aplikasi.
 final authApiProvider = Provider<AuthApi>((ref) => const SupabaseAuthApi());
+
 

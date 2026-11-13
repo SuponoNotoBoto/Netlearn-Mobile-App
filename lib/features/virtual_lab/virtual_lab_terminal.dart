@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: Virtual Lab Interactive CLI Terminal Emulator
+// DESCRIPTION: Menyediakan parser perintah baris (CLI) untuk perangkat PC
+//              di Virtual Lab (`ipconfig`, `ping`, `tracert`, `curl`, `help`)
+//              beserta widget emulator konsol bergaya Command Prompt.
+// ============================================================================
+
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -6,13 +13,24 @@ import '../../core/audio/sfx_service.dart';
 import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
 
-/// Engine logika eksekusi perintah terminal (CLI) virtual PC.
+// ---------------------------------------------------------------------------
+// SECTION: Command-Line Interpreter (CLI) Engine
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabTerminalEngine]
+///
+/// Mesin pemroses perintah teks (command parser) yang menerjemahkan instruksi
+/// CLI pengguna menjadi pemanggilan ke [VirtualLabConnectivityEngine],
+/// [VirtualLabDhcpEngine], dan [VirtualLabHttpEngine].
 class VirtualLabTerminalEngine {
+  /// Teks header pembuka saat konsol terminal PC pertama kali dinyalakan.
   static const String banner = 
       'NetLearn OS [Version 2.0.1]\n'
       '(c) NetLearn Corporation. All rights reserved.\n'
       'Ketik "help" untuk panduan perintah atau "ipconfig" untuk info jaringan.\n';
 
+  /// Mengeksekusi satu baris perintah [command] dari konteks perangkat [currentDevice]
+  /// pada sesi topologi [session], lalu mengembalikan baris-baris keluaran konsol.
   static List<String> execute({
     required String command,
     required VirtualLabSession session,
@@ -29,6 +47,9 @@ class VirtualLabTerminalEngine {
     final args = parts.sublist(1);
 
     switch (cmd) {
+      // ---------------------------------------------------------------------
+      // COMMAND: help / ? (Menampilkan daftar dokumentasi perintah)
+      // ---------------------------------------------------------------------
       case 'help':
       case '?':
         return [
@@ -43,6 +64,9 @@ class VirtualLabTerminalEngine {
           '  help               Menampilkan panduan perintah ini',
         ];
 
+      // ---------------------------------------------------------------------
+      // COMMAND: ipconfig / ifconfig (Inspeksi & Manajemen Lease DHCP)
+      // ---------------------------------------------------------------------
       case 'ipconfig':
       case 'ifconfig':
         final isRenew = args.any((a) =>
@@ -50,6 +74,7 @@ class VirtualLabTerminalEngine {
         final isRelease = args.any((a) =>
             a.toLowerCase() == '/release' || a.toLowerCase() == '-release');
 
+        // Sub-command: ipconfig /renew (Memicu proses DHCP DORA)
         if (isRenew) {
           final lease =
               VirtualLabDhcpEngine.requestLease(session, currentDevice.id);
@@ -82,6 +107,7 @@ class VirtualLabTerminalEngine {
           }
         }
 
+        // Sub-command: ipconfig /release (Mengosongkan konfigurasi IP pada interface)
         if (isRelease) {
           if (onDhcpRelease != null) {
             onDhcpRelease();
@@ -115,6 +141,9 @@ class VirtualLabTerminalEngine {
             '   DNS Servers . . . . . . . . . . . : $dns',
         ];
 
+      // ---------------------------------------------------------------------
+      // COMMAND: curl / web (Simulasi Klien HTTP GET ke Server)
+      // ---------------------------------------------------------------------
       case 'curl':
       case 'web':
         if (args.isEmpty) {
@@ -153,6 +182,9 @@ class VirtualLabTerminalEngine {
           ];
         }
 
+      // ---------------------------------------------------------------------
+      // COMMAND: ping (Pengujian Konektivitas ICMP Echo Request/Reply)
+      // ---------------------------------------------------------------------
       case 'ping':
         if (args.isEmpty) {
           return [
@@ -185,7 +217,7 @@ class VirtualLabTerminalEngine {
           ];
         }
 
-        // Cari perangkat di kanvas yang memiliki target IP ini
+        // Mencari perangkat tujuan di kanvas yang memiliki alamat IP yang sesuai.
         final targetDevice = session.devices.cast<VirtualLabDevice?>().firstWhere(
               (d) => d != null && d.ipAddress?.trim() == targetIpStr,
               orElse: () => null,
@@ -204,7 +236,7 @@ class VirtualLabTerminalEngine {
           ];
         }
 
-        // Lakukan pengujian konektivitas menggunakan engine yang telah terverifikasi
+        // Menjalankan simulasi pengiriman paket melalui VirtualLabConnectivityEngine.
         final result = VirtualLabConnectivityEngine.ping(
           session,
           sourceId: currentDevice.id,
@@ -238,7 +270,7 @@ class VirtualLabTerminalEngine {
             if (isRouted) 'Note: Paket berhasil diteruskan melalui Router Gateway.',
           ];
         } else {
-          // Gagal
+          // Pemetaan pesan diagnostik kesalahan jaringan yang edukatif bagi mahasiswa.
           final reasonMsg = switch (result.reason) {
             'source_missing_gateway' =>
               'Destination host unreachable: PC sumber butuh Default Gateway untuk subnet lain.',
@@ -266,6 +298,9 @@ class VirtualLabTerminalEngine {
           ];
         }
 
+      // ---------------------------------------------------------------------
+      // COMMAND: tracert / traceroute (Pelacakan Hop Layer 3)
+      // ---------------------------------------------------------------------
       case 'tracert':
       case 'traceroute':
         if (args.isEmpty) {
@@ -303,7 +338,7 @@ class VirtualLabTerminalEngine {
           ];
         }
 
-        // Bangun urutan hop dari result.details
+        // Menyusun daftar hop Layer 3 dari jalur perangkat yang dilalui.
         final lines = <String>[
           'Tracing route to $targetIpStr [${targetDevice.displayName}] over a maximum of 30 hops:',
           '',
@@ -314,7 +349,7 @@ class VirtualLabTerminalEngine {
           final node = session.deviceById(id);
           if (node == null || node.id == currentDevice.id) continue;
           if (node.kind == VirtualLabDeviceKind.switch_) {
-            // Switch beroperasi di Layer 2 dan transparan bagi tracert
+            // Switch bekerja secara transparan di Layer 2 sehingga tidak mengurangi TTL / tidak tercatat sebagai hop.
             continue;
           }
           final ipDisplay = node.ipAddress ?? targetIpStr;
@@ -334,7 +369,14 @@ class VirtualLabTerminalEngine {
   }
 }
 
-/// Widget Tampilan Terminal CLI Gelap ala Windows Command Prompt.
+// ---------------------------------------------------------------------------
+// SECTION: Interactive Terminal Console UI Widget
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabTerminalWidget]
+///
+/// Widget antarmuka konsol CLI interaktif bergaya Windows Command Prompt
+/// yang mendukung pengetikan perintah manual maupun tombol pintas (Quick Command Chips).
 class VirtualLabTerminalWidget extends StatefulWidget {
   const VirtualLabTerminalWidget({
     super.key,
@@ -378,6 +420,8 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
     super.dispose();
   }
 
+  /// Menangani pengiriman perintah CLI, memutar efek suara (SFX), memperbarui
+  /// log riwayat layar, dan menggulir otomatis ke baris paling bawah.
   void _submitCommand(String text) {
     final cmd = text.trim();
     if (cmd.isEmpty) return;
@@ -458,7 +502,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Header Bar Terminal
+          // SUB-COMPONENT: Terminal Window Title Bar
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             color: const Color(0xFF192231),
@@ -516,7 +560,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
             ),
           ),
 
-          // Output Teks Konsol
+          // SUB-COMPONENT: Scrollable Console Output History
           Container(
             height: 200,
             padding: const EdgeInsets.all(12),
@@ -531,11 +575,11 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
 
                 Color textColor = const Color(0xFFE2E8F0);
                 if (isPrompt) {
-                  textColor = const Color(0xFF38BDF8); // Cyan
+                  textColor = const Color(0xFF38BDF8); // Cyan (Baris Prompt)
                 } else if (isSuccess) {
-                  textColor = const Color(0xFF4ADE80); // Green
+                  textColor = const Color(0xFF4ADE80); // Green (Ping Reply Sukses)
                 } else if (isError) {
-                  textColor = const Color(0xFFF87171); // Red
+                  textColor = const Color(0xFFF87171); // Red (Error / Timeout)
                 }
 
                 return Text(
@@ -551,7 +595,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
             ),
           ),
 
-          // Quick Command Chips
+          // SUB-COMPONENT: Quick Command Shortcut Chips
           Container(
             padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
             color: const Color(0xFF141B26),
@@ -594,7 +638,7 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
             ),
           ),
 
-          // Baris Input Perintah
+          // SUB-COMPONENT: Interactive Command Input Line
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: const BoxDecoration(
@@ -695,4 +739,5 @@ class _VirtualLabTerminalWidgetState extends State<VirtualLabTerminalWidget> {
     );
   }
 }
+
 

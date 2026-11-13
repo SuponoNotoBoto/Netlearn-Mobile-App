@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: Application Router & Role-Based Navigation Guard
+// DESCRIPTION: Mengatur seluruh rute navigasi aplikasi menggunakan GoRouter,
+//              dilengkapi dengan Auth Guard (proteksi sesi & peran pengguna),
+//              Onboarding Gate, serta Class Gate (wajib bergabung/membuat kelas).
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -66,6 +73,15 @@ import '../../l10n/app_localizations.dart';
 import 'profile_cache.dart';
 import 'router_error_page.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Router Refresh Stream & Guard Decision Models
+// ---------------------------------------------------------------------------
+
+/// [GoRouterRefreshStream]
+///
+/// Mengonversi stream perubahan status autentikasi (`onAuthStateChange`) menjadi
+/// [ChangeNotifier] agar [GoRouter] mengevaluasi ulang redirect secara otomatis
+/// setiap kali pengguna login atau logout.
 class GoRouterRefreshStream extends ChangeNotifier {
   GoRouterRefreshStream(Stream<dynamic> stream) {
     notifyListeners();
@@ -84,10 +100,12 @@ class GoRouterRefreshStream extends ChangeNotifier {
   }
 }
 
-/// Outcome of the auth guard for a single navigation.
+/// [AuthRedirect]
 ///
-/// [location] is where to redirect (`null` lets the navigation through);
-/// [signOut] tells the caller to drop the current session before honouring it.
+/// Merepresentasikan hasil keputusan dari fungsi evaluasi Auth Guard:
+/// - [location]: Rute tujuan pengalihan (`null` berarti navigasi diizinkan lewat).
+/// - [signOut]: Menandakan apakah sesi pengguna harus dihentikan (misal karena akun
+///   tidak aktif atau peran tidak dikenali) sebelum dialihkan.
 class AuthRedirect {
   const AuthRedirect(this.location, {this.signOut = false});
 
@@ -95,10 +113,15 @@ class AuthRedirect {
   final bool signOut;
 }
 
-/// Routes whose reachability depends on the signed-in user's role.
+// ---------------------------------------------------------------------------
+// SECTION: Pure Role & Session Guard Logic
+// ---------------------------------------------------------------------------
+
+/// [authRedirectNeedsProfile]
 ///
-/// Kept separate from [resolveAuthRedirect] so the redirect can decide whether
-/// a profile read is needed before doing any I/O.
+/// Menentukan apakah suatu rute memerlukan pemeriksaan data profil (`role` & `is_active`).
+/// Dipisahkan dari [resolveAuthRedirect] agar router hanya melakukan pembacaan profil
+/// saat benar-benar dibutuhkan oleh rute tujuan.
 bool authRedirectNeedsProfile(String location) {
   final onStudentRoute =
       location == '/student' || location.startsWith('/student/');
@@ -114,25 +137,21 @@ bool authRedirectNeedsProfile(String location) {
       onLecturerRoute;
 }
 
-/// Pure auth-guard decision, extracted so the deep-link rules can be unit
-/// tested without Supabase.
+/// [resolveAuthRedirect]
 ///
-/// Only `student` and `lecturer` are supported roles. A missing profile, an
-/// inactive account, `admin`, or any unknown role is signed out and sent to
-/// `/login` rather than being mapped onto a student or lecturer screen. A
-/// supported role is bounced to its own area, which also stops a deep link
-/// into the other role's area.
+/// Fungsi murni (pure function) untuk mengevaluasi aturan akses berbasis peran (RBAC):
+/// - Hanya peran `student` dan `lecturer` yang diizinkan.
+/// - Jika profil tidak ditemukan, akun nonaktif (`!isActive`), atau peran tidak valid,
+///   pengguna akan di-sign out dan dikembalikan ke `/login`.
+/// - Mencegah akses silang (cross-role deep-linking) antara `/student` dan `/lecturer`.
 AuthRedirect resolveAuthRedirect({
   required bool hasSession,
   required String location,
   required String? role,
   required bool isActive,
 }) {
-  // '/admin' and '/admin/**' are dead routes: the admin side was removed, so
-  // a legacy admin session (or anyone) deep-linking there must have its session
-  // ended rather than leave a stale privileged session behind. Checked before
-  // anything else so it can never be skipped or swallowed by the error page.
-  // Matched per path segment: '/administrator' is NOT the admin route.
+  // Rute '/admin' sudah dihapus dari sistem: setiap percobaan navigasi ke sana
+  // wajib diakhiri sesinya dan diarahkan kembali ke halaman login.
   final onAdminRoute = location == '/admin' || location.startsWith('/admin/');
 
   if (onAdminRoute) {
@@ -149,10 +168,8 @@ AuthRedirect resolveAuthRedirect({
       location == '/lecturer' || location.startsWith('/lecturer/');
 
   if (!hasSession) {
-    // `/splash` harus tetap terlihat tanpa sesi: ia hanya memutar animasi
-    // lalu menyerahkan keputusan ke funnel `/`. Memantulkannya ke `/login`
-    // di sini berarti splash tak pernah tampil untuk calon pengguna baru —
-    // sudah pernah terjadi ketika semua lokasi tak-knowledge dipantulkan.
+    // Rute `/splash` diizinkan tampil tanpa sesi aktif agar animasi pembuka
+    // tetap berjalan sebelum diarahkan ke `/login`.
     if (location == '/splash') {
       return const AuthRedirect(null);
     }
@@ -164,8 +181,8 @@ AuthRedirect resolveAuthRedirect({
     return const AuthRedirect(null);
   }
 
-  // Authenticated users should not access login/register/forgot-password pages.
-  // Bounce them to their respective role area.
+  // Pengguna yang sudah login tidak boleh kembali ke halaman login/register;
+  // alihkan langsung ke area dashboard sesuai perannya.
   if (loggingIn || registering || resettingPassword) {
     switch (role) {
       case 'student':
@@ -205,18 +222,20 @@ AuthRedirect resolveAuthRedirect({
   }
 }
 
-/// Class gate (Google Classroom style, NETLEARN_PRD v7): a student who has not
-/// joined any class and a lecturer who owns no class cannot reach their role
-/// area. They are held on the class onboarding screen (join by code / create
-/// class) until they have one.
-///
-/// Pure so it can be unit tested. [hasClass] is `null` when membership could
-/// not be determined (e.g. network failure) — the gate then stays open and the
-/// dashboards' own embedded gate still applies, so a flaky link never locks a
-/// user out of the app.
+// ---------------------------------------------------------------------------
+// SECTION: Multi-Class Membership Gate (Google Classroom Style)
+// ---------------------------------------------------------------------------
+
+/// Konstanta rute onboarding kelas untuk Mahasiswa dan Dosen.
 const String kStudentClassOnboardingPath = '/student/class-onboarding';
 const String kLecturerClassOnboardingPath = '/lecturer/class-onboarding';
 
+/// [resolveClassGateRedirect]
+///
+/// Memastikan mahasiswa telah bergabung ke minimal satu kelas dan dosen telah
+/// membuat minimal satu kelas sebelum dapat mengakses fitur utama di dashboard.
+/// Jika [hasClass] bernilai `null` (misal karena gangguan jaringan sementara),
+/// gate dibiarkan terbuka agar aplikasi tidak mengunci pengguna.
 String? resolveClassGateRedirect({
   required String? role,
   required String location,
@@ -256,10 +275,11 @@ String? resolveClassGateRedirect({
   }
 }
 
-/// Remembers, per user, that the account already has a class. Only a positive
-/// answer is cached: once a student joins / a lecturer creates a class the gate
-/// never needs to ask again this session, while a negative answer is re-checked
-/// on every navigation so the user is let through right after joining.
+/// [ClassMembershipCache]
+///
+/// Menyimpan status kepemilikan kelas secara in-memory selama sesi aktif.
+/// Hanya status positif (`true`) yang di-cache agar setelah pengguna bergabung
+/// atau membuat kelas, navigasi berikutnya berlangsung instan tanpa query berulang.
 class ClassMembershipCache {
   String? _userId;
 
@@ -270,15 +290,10 @@ class ClassMembershipCache {
   void clear() => _userId = null;
 }
 
-/// Async orchestration around [resolveAuthRedirect].
+/// [evaluateAuthRedirect]
 ///
-/// The pure decision is unchanged; this only performs the side effects the
-/// decision asks for, with every effect injected so the whole flow can be
-/// tested offline. [loadProfile] runs only when the route actually needs a
-/// profile, mirroring the guard. When the decision asks to sign out, [signOut]
-/// runs first and [resetSession] only after it returns: a failed sign out must
-/// not be reported as a cleaned session, so it propagates instead of being
-/// swallowed.
+/// Orkestrator asinkron di sekitar [resolveAuthRedirect] yang mengeksekusi
+/// pembacaan profil serta efek samping sign-out & pembersihan sesi jika diperlukan.
 Future<AuthRedirect> evaluateAuthRedirect({
   required String? userId,
   required String location,
@@ -307,14 +322,17 @@ Future<AuthRedirect> evaluateAuthRedirect({
   return decision;
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: GoRouter Provider & Route Tree Configuration
+// ---------------------------------------------------------------------------
+
+/// [appRouterProvider]
+///
+/// Provider utama yang membangun instance [GoRouter] beserta mekanisme caching
+/// profil, evaluasi guard berlapis, dan definisi pohon rute (route tree).
 final appRouterProvider = Provider<GoRouter>((ref) {
-  // The guard below needs the account row (`role` + `is_active`) on every
-  // navigation into /student or /lecturer, and `redirect` runs on *every* push
-  // and pop. Reading it from `profiles` each time put a network round-trip in
-  // front of every page transition -- the round-trip is 1-2 s on a slow link
-  // even though the query itself takes ~0.1 ms, which is the delay felt after
-  // tapping a nav item. Cache it per user for a few minutes instead, so
-  // navigation never waits on the network; sign-out clears it.
+  // Menggunakan cache profil in-memory agar setiap perpindahan halaman (push/pop)
+  // tidak terhambat oleh latensi query jaringan ke tabel `profiles`.
   final profileCache = ProfileCache();
 
   Future<Map<String, dynamic>?> loadProfile(String userId) async {
@@ -339,7 +357,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   final classMembershipCache = ClassMembershipCache();
 
-  /// `true`/`false` when known, `null` when the membership read failed.
+  /// Memeriksa apakah pengguna sudah memiliki kelas aktif melalui RPC Supabase.
   Future<bool?> loadHasClass(String userId, String role) async {
     if (classMembershipCache.hasClass(userId)) {
       return true;
@@ -360,66 +378,45 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   }
 
   return GoRouter(
-    // Cold start selalu dibuka splash; di akhir animasinya splash menyerahkan
-    // keputusan ke guard lewat `/` (initialLocation lama). Lihat
-    // [resolveAuthRedirect]: `/splash` tetap terlihat tanpa sesi, dan saat ada
-    // sesi tidak membaca profile sama sekali.
+    // Aplikasi selalu dimulai dari `/splash` saat cold-start, lalu diarahkan
+    // ke `/` setelah animasi selesai untuk dievaluasi oleh Auth Guard.
     initialLocation: '/splash',
     refreshListenable: GoRouterRefreshStream(supabase.auth.onAuthStateChange),
     redirect: (context, state) async {
       final session = supabase.auth.currentSession;
       final location = state.matchedLocation;
 
-      // =========================================================
-      // SUDAH LOGIN
-      // =========================================================
-      //
-      // The guard runs on '/', '/login' and the two role areas. It used to
-      // only run on '/' and '/login', so an admin or an unknown-role session
-      // could deep-link straight into /student or /lecturer; the pages carry
-      // no per-route guard. Role decides which area is reachable: anything
-      // else (admin, empty, malformed) is signed out instead of being mapped
-      // onto a student or lecturer screen. The decision itself lives in
-      // [resolveAuthRedirect] and the effects in [evaluateAuthRedirect] so both
-      // can be tested without Supabase.
-
+      // ---------------------------------------------------------------------
+      // STEP 1: Role & Session Authentication Guard
+      // ---------------------------------------------------------------------
       final decision = await evaluateAuthRedirect(
         userId: session?.user.id,
         location: location,
         loadProfile: loadProfile,
         signOut: () => supabase.auth.signOut(),
         resetSession: () {
-          // A signed-out session must not leave a row behind for the next
-          // account on this device.
+          // Bersihkan seluruh cache sesi agar tidak bocor ke akun berikutnya.
           profileCache.clear();
           classMembershipCache.clear();
           resetUserSession(ref);
         },
       );
 
-      // If the auth guard bounced the user (e.g. to /login), honour that
-      // first — onboarding is irrelevant without a session.
       if (decision.location != null) {
         return decision.location;
       }
 
-      // From here the user is authenticated with a valid role. Check
-      // onboarding: a first-time user who has not picked a language is sent
-      // to /onboarding; a user who has already completed it and is sitting
-      // on /onboarding is pushed onward to their role area. Unauthenticated
-      // users must never be redirected to /onboarding (require session).
       if (session == null) {
         return null;
       }
 
+      // ---------------------------------------------------------------------
+      // STEP 2: First-Time User Onboarding Gate
+      // ---------------------------------------------------------------------
       final onboardingComplete = await _isOnboardingComplete();
 
-      // The recovery completion page is exempt: a user resetting a password on
-      // a device that has never finished onboarding would otherwise lose the new
-      // password they are halfway through choosing to the language picker.
-      // `/splash` is exempt for a different reason: the splash must itself be
-      // shown first, and the hand-off '/' afterwards re-runs this gate so the
-      // first-time logged-in user still lands in the language picker.
+      // Halaman `/reset-password` dan `/splash` dikecualikan dari pencegatan
+      // onboarding agar alur pemulihan sandi dan animasi awal tidak terputus.
       if (!onboardingComplete &&
           location != '/onboarding' &&
           location != '/reset-password' &&
@@ -428,17 +425,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       if (onboardingComplete && location == '/onboarding') {
-        // Same cached row as the guard above: this branch runs while the user
-        // sits on /onboarding, so a second query here was the only other
-        // network read in the navigation path.
         final profile = await loadProfile(session.user.id);
 
         final role = profile?['role']?.toString();
         return role == 'lecturer' ? '/lecturer' : '/student';
       }
 
-      // Class gate: no dashboard (or any other role page) until the student
-      // has joined a class / the lecturer has created one.
+      // ---------------------------------------------------------------------
+      // STEP 3: Active Class Membership Gate
+      // ---------------------------------------------------------------------
       final onRoleArea = location == '/student' ||
           location.startsWith('/student/') ||
           location == '/lecturer' ||
@@ -462,10 +457,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
 
-    // Unknown locations have always fallen through to go_router's built-in
-    // error screen, which is not localised and does not match the app shell.
-    // This renders the same error widget the guarded routes use. It never signs
-    // anyone out: a 404 says nothing about whether the session is valid.
+    // Menampilkan halaman error kustom yang terlokalisasi jika rute tidak ditemukan (404).
     errorBuilder: (context, state) {
       return RouterErrorPage(
         message: AppLocalizations.of(context)!.pageNotFound,
@@ -473,21 +465,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     },
 
     routes: [
-      // =========================================================
-      // ROOT
-      // =========================================================
+      // =====================================================================
+      // SECTION: Root & Splash Routes
+      // =====================================================================
 
       GoRoute(path: '/', redirect: (context, state) => '/login'),
-
-      // =========================================================
-      // SPLASH
-      // =========================================================
-      //
-      // `initialLocation` aplikasi. Splash tidak memutuskan tujuan sendiri:
-      // di akhir animasi ia `context.go('/')` dan funnel `/` di atas (plus
-      // guard di [resolveAuthRedirect]) yang menentukan login, onboarding,
-      // atau dashboard sesuai sesi aktif. `/splash` sendiri lolos guard baik
-      // dengan maupun tanpa sesi — periksanya di [resolveAuthRedirect].
 
       GoRoute(
         path: '/splash',
@@ -496,9 +478,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // =========================================================
-      // AUTH
-      // =========================================================
+      // =====================================================================
+      // SECTION: Public Authentication & Onboarding Routes
+      // =====================================================================
       GoRoute(
         path: '/login',
         builder: (context, state) {
@@ -513,16 +495,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // --------------------------------------------------------
-      // SET NEW PASSWORD (recovery completion)
-      // --------------------------------------------------------
-      //
-      // Step 2 of the recovery flow, entered only from ForgotPasswordPage once
-      // the one-time code has been verified. It is intentionally *not* one of
-      // the profile-guarded routes: the guard would bounce `/reset-password`
-      // the moment the recovery code signs the user in, which is exactly when
-      // the page is needed. Without a session it falls back to `/login`, where
-      // there is nothing to change anyway.
+      // Langkah ke-2 pemulihan kata sandi setelah pengguna memverifikasi kode OTP.
       GoRoute(
         path: '/reset-password',
         builder: (context, state) {
@@ -537,15 +510,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // --------------------------------------------------------
-      // ONBOARDING
-      // --------------------------------------------------------
-      //
-      // Language selection + the three-screen journey flow, shown
-      // once after the user's first successful login (Make
-      // `OnboardingFlow`). The redirect below sends an authenticated
-      // user here when onboarding is not yet complete, and pushes
-      // onward to the role area once the flow finishes at '/'.
+      // Alur pemilihan bahasa & pengenalan fitur untuk pengguna yang baru pertama kali login.
       GoRoute(
         path: '/onboarding',
         builder: (context, state) {
@@ -553,35 +518,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         },
       ),
 
-      // =========================================================
-      // STUDENT
-      // =========================================================
+      // =====================================================================
+      // SECTION: Student Role Routes (/student/*)
+      // =====================================================================
       GoRoute(
         path: '/student',
         builder: (context, state) {
           return const StudentDashboardPage();
         },
         routes: [
-          // -------------------------------------------------------
-          // DAFTAR MATERI
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Learning Modules & Materials
+          // -----------------------------------------------------------------
 
           GoRoute(
             path: 'materials',
             builder: (context, state) {
               return const StudentMaterialsPage();
             },
-
-            // ---------------------------------------------------
-            // DAFTAR MATERI SATU MODUL
-            //
-            // Child dari `materials` supaya URIT menjadi
-            // `/student/materials/1` dan tetap lolos role guard prefix
-            // `/student/`. Segment `:moduleNumber` dijamin angka oleh
-            // builder ini: string lain jatuh ke halaman error, bukan dipeta
-            // ke modul 0.
-            // ---------------------------------------------------
             routes: [
+              // Menampilkan daftar materi dalam satu modul spesifik (:moduleNumber).
               GoRoute(
                 path: ':moduleNumber',
                 builder: (context, state) {
@@ -601,9 +557,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // DETAIL MATERI
-          // -------------------------------------------------------
+          // Detail ringkasan materi pembelajaran
           GoRoute(
             path: 'material/:materialId',
             builder: (context, state) {
@@ -619,9 +573,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // BACA MATERI
-          // -------------------------------------------------------
+          // Halaman pembaca materi interaktif (dilengkapi integrasi AI NetBot & Virtual Lab)
           GoRoute(
             path: 'material/:materialId/read',
             builder: (context, state) {
@@ -637,9 +589,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // VIDEO
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Video & PDF Viewers
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'video-list',
             builder: (context, state) {
@@ -662,9 +614,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // PDF MATERI
-          // -------------------------------------------------------
           GoRoute(
             path: 'material/:materialId/pdf',
             builder: (context, state) {
@@ -680,9 +629,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // INSTRUKSI ASSESSMENT (PRETEST)
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Student Assessments & Quizzes
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'assessment-instructions/:assessmentType',
             builder: (context, state) {
@@ -709,19 +658,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // =======================================================
-          // ASSESSMENT
-          // =======================================================
           GoRoute(
             path: 'assessment',
             builder: (context, state) {
               return const AssessmentListPage();
             },
             routes: [
-              // ---------------------------------------------------
-              // PENGERJAAN ASSESSMENT
-              // ---------------------------------------------------
-
+              // Halaman pengerjaan soal ujian/kuis
               GoRoute(
                 path: ':assessmentType',
                 builder: (context, state) {
@@ -752,9 +695,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // HASIL ASSESSMENT
-          // -------------------------------------------------------
+          // Halaman hasil skor setelah menyelesaikan assessment
           GoRoute(
             path: 'assessment-result/:attemptId',
             builder: (context, state) {
@@ -771,9 +712,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // RIWAYAT ASSESSMENT
-          // -------------------------------------------------------
+          // Riwayat seluruh percobaan assessment mahasiswa
           GoRoute(
             path: 'assessment-history',
             builder: (context, state) {
@@ -781,24 +720,30 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-           GoRoute(
-             path: 'virtual-lab',
-             builder: (context, state) {
-               final labBinding = state.extra is MaterialLabBinding
-                   ? state.extra as MaterialLabBinding
-                   : null;
-               return VirtualLabPage(labBinding: labBinding);
-             },
-           ),
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Interactive Simulators (Virtual Lab & Subnet Drill)
+          // -----------------------------------------------------------------
+          GoRoute(
+            path: 'virtual-lab',
+            builder: (context, state) {
+              final labBinding = state.extra is MaterialLabBinding
+                  ? state.extra as MaterialLabBinding
+                  : null;
+              return VirtualLabPage(labBinding: labBinding);
+            },
+          ),
 
-           GoRoute(
-             path: 'subnet-drill',
-             builder: (context, state) {
-               return const SubnetDrillPage();
-             },
-           ),
+          GoRoute(
+            path: 'subnet-drill',
+            builder: (context, state) {
+              return const SubnetDrillPage();
+            },
+          ),
 
-          // -------------------------------------------------------
+
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Class Leaderboard, Discussions & Extras
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'leaderboard',
             builder: (context, state) {
@@ -832,8 +777,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // AR SCANNER
-          // -------------------------------------------------------
+
           GoRoute(
             path: 'ar',
             builder: (context, state) {
@@ -841,13 +785,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // NOTIFIKASI
-          //
-          // Tujuan "View All Notifications" pada dashboard. Panel lonceng tetap
-          // memakai overlay yang sama; halaman ini yang memuat daftar penuhnya,
-          // jadi keduanya membaca provider yang sama.
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Notifications, About & Student Profile
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'notifications',
             builder: (context, state) {
@@ -855,12 +795,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // TENTANG APLIKASI
-          //
-          // Tujuan tombol `?` di hero dashboard. Halaman ini bercabang dari
-          // dashboard, bukan tab tersendiri, jadi tab Dashboard tetap aktif.
-          // -------------------------------------------------------
           GoRoute(
             path: 'about',
             builder: (context, state) {
@@ -868,9 +802,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // PROFIL
-          // -------------------------------------------------------
           GoRoute(
             path: 'profile',
             builder: (context, state) {
@@ -878,13 +809,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // PROFIL — SUB-HALAMAN
-          //
-          // Mirrors the lecturer side so both roles walk the same path:
-          // Profile Information -> Academic Information -> Security. The rows
-          // on `/student/profile` push here and each page falls back safely.
-          // -------------------------------------------------------
+          // Sub-halaman pengaturan profil, informasi akademik, dan keamanan akun mahasiswa
           GoRoute(
             path: 'profile-info',
             builder: (context, state) {
@@ -908,9 +833,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'change-password',
                 builder: (context, state) {
-                  // Form ubah kata sandi yang sama dengan dosen; navbar
-                  // bawah tidak dibawa karena sub-page profil mahasiswa
-                  // yang lain juga tidak membawanya.
                   return ChangePasswordPage(
                     useStudentProfile: true,
                     backFallback: '/student/security',
@@ -920,7 +842,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // FORGOT PASSWORD (student entry point)
+          // Halaman onboarding bergabung ke kelas menggunakan kode kelas 6 karakter
           GoRoute(
             path: 'class-onboarding',
             builder: (context, state) {
@@ -931,12 +853,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          //
-          // Satu lagi penggunaan [ForgotPasswordPage] yang sama dengan
-          // kombinasi entry point lainnya. Nested di bawah /student karena
-          // `/forgot-password` yang publik dibuang oleh auth guard ketika
-          // mahasiswa sedang login — bug yang sama dengan yang menyebabkan
-          // cabang /lecturer/forgot-password dibuat.
+
+          // Entry point lupa kata sandi khusus mahasiswa yang sedang dalam sesi login
           GoRoute(
             path: 'forgot-password',
             builder: (context, state) {
@@ -946,18 +864,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
-      // =========================================================
-      // LECTURER
-      // =========================================================
+      // =====================================================================
+      // SECTION: Lecturer Role Routes (/lecturer/*)
+      // =====================================================================
       GoRoute(
         path: '/lecturer',
         builder: (context, state) {
           return const LecturerDashboardPage();
         },
         routes: [
-          // -------------------------------------------------------
-          // -------------------------------------------------------
-          // KELOLA KELAS (v7 Multi-Class LMS)
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Multi-Class LMS Management
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'class-onboarding',
             builder: (context, state) {
@@ -968,7 +886,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               );
             },
           ),
-          // -------------------------------------------------------
+
           GoRoute(
             path: 'classes',
             builder: (context, state) {
@@ -1014,23 +932,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // KELOLA MATERI
-          // -------------------------------------------------------
-
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Course Material Management (CRUD & AI Generator)
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'materials',
             builder: (context, state) {
               return const LecturerMaterialsPage();
             },
             routes: [
-              // ---------------------------------------------------
-              // TAMBAH MATERI
-              //
-              // Registered before the ':materialId' sibling so the literal
-              // segment wins; GoRouter matches in order.
-              // ---------------------------------------------------
-
+              // Form pembuatan materi baru (didahulukan sebelum `:materialId` agar segmen literal cocok lebih dulu)
               GoRoute(
                 path: 'create',
                 builder: (context, state) {
@@ -1044,15 +955,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // ---------------------------------------------------
-              // BACA MATERI (lecturer)
-              //
-              // Dosen melihat materi seperti mahasiswa: dari sini body
-              // materi tampil penuh, tanpa footer progres mahasiswa
-              // (`fromLecturer`). MaterialDetailPage tidak pernah
-              // menampilkan isi bacaan, jadi route ini tidak lagi menyeret
-              // dosen ke halaman ringkas yang kosong.
-              // ---------------------------------------------------
+              // Pratinjau bacaan materi dari sisi dosen (`fromLecturer: true`)
               GoRoute(
                 path: ':materialId/view',
                 builder: (context, state) {
@@ -1071,9 +974,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // ---------------------------------------------------
-              // EDIT MATERI
-              // ---------------------------------------------------
+              // Form penyuntingan materi yang sudah ada
               GoRoute(
                 path: ':materialId/edit',
                 builder: (context, state) {
@@ -1091,14 +992,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // PDF MATERI (lecturer)
-          //
-          // Sibling dari `materials` — bukan nested di dalamnya — supaya
-          // lokasinya `/lecturer/material/:materialId/pdf`, target yang
-          // sama dengan yang di-push reader bentuk dosen. Route mahasiswa
-          // `/student/material/:materialId/pdf` tidak berubah.
-          // -------------------------------------------------------
+          // Penampil dokumen PDF materi untuk dosen
           GoRoute(
             path: 'material/:materialId/pdf',
             builder: (context, state) {
@@ -1117,9 +1011,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // KELOLA ASSESSMENT
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Assessment, Quiz & Task Management
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'assessments',
             builder: (context, state) {
@@ -1142,9 +1036,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // Add a question. A page rather than the modal sheet the list used
-              // to open, matching the design's `question-form` screen; the form
-              // writes the row and invalidates the list itself.
+              // Halaman pembuatan butir soal kuis baru
               GoRoute(
                 path: ':quizId/questions/create',
                 builder: (context, state) {
@@ -1161,9 +1053,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // Edit a question. The id is a path parameter rather than an
-              // object passed through `extra`, so a restored route resolves the
-              // question from the same assessment it belongs to.
+              // Halaman penyuntingan butir soal kuis berdasarkan ID soal
               GoRoute(
                 path: ':quizId/questions/:questionId/edit',
                 builder: (context, state) {
@@ -1187,11 +1077,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // ---------------------------------------------------
-              // TASK ROUTES (assessment_type = 'task')
-              // ---------------------------------------------------
-
-              // Create new task
+              // Rute pengelolaan Tugas / Task (`assessment_type = 'task'`)
               GoRoute(
                 path: 'task/create',
                 builder: (context, state) {
@@ -1199,7 +1085,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // Task detail
               GoRoute(
                 path: 'task/:taskId',
                 builder: (context, state) {
@@ -1215,7 +1100,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 },
               ),
 
-              // Edit task
               GoRoute(
                 path: 'task/:taskId/edit',
                 builder: (context, state) {
@@ -1233,9 +1117,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // LEARNING VIDEO
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Lecturer Learning Video & Virtual Lab Sandbox
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'video-list',
             builder: (context, state) {
@@ -1243,9 +1127,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // The player itself. Same page as the student side (`VideoPage`);
-          // the lecturer branch exists only so the role guard never bounces a
-          // lecturer off a `/student/video/...` push back to the dashboard.
           GoRoute(
             path: 'video/:materialId',
             builder: (context, state) {
@@ -1261,16 +1142,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // VIRTUAL LAB
-          // -------------------------------------------------------
-          //
-          // The student page is reused as-is: the 2D topology editor has no
-          // student-only data, and the canvas is stored per account
-          // (`virtual_lab_canvases`), so a lecturer editing the lab gets their
-          // own canvas instead of seeing a student's. The separate /lecturer
-          // route exists so the role guard does not bounce the lecturer back to
-          // /lecturer; a student opening it is bounced to /student.
+          // Virtual Lab untuk Dosen: menggunakan kanvas tersendiri per akun dosen
           GoRoute(
             path: 'virtual-lab',
             builder: (context, state) {
@@ -1281,7 +1153,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Lecturer Leaderboard, Discussions & AR
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'leaderboard',
             builder: (context, state) {
@@ -1315,13 +1189,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               ),
             ],
           ),
-          // AR SCANNER
-          // -------------------------------------------------------
-          //
-          // Separate route from /student/ar on purpose so a lecturer never
-          // lands on the student navbar. The role guard in the redirect now
-          // also covers these deep links, so a student opening /lecturer/ar
-          // is bounced back to /student.
+
           GoRoute(
             path: 'ar',
             builder: (context, state) {
@@ -1329,9 +1197,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // PROFIL
-          // -------------------------------------------------------
+          // -----------------------------------------------------------------
+          // SUB-SECTION: Lecturer Profile, Students Score & Announcements
+          // -----------------------------------------------------------------
           GoRoute(
             path: 'profile',
             builder: (context, state) {
@@ -1368,13 +1236,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // FORGOT PASSWORD (lecturer entry point)
-          //
-          // Reuses the same ForgotPasswordPage as the login entry point.
-          // Nested under /lecturer so an authenticated lecturer is not bounced
-          // by the login/register/forgot-password auth guard.
-          // -------------------------------------------------------
           GoRoute(
             path: 'forgot-password',
             builder: (context, state) {
@@ -1382,9 +1243,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // ABOUT (lecturer)
-          // -------------------------------------------------------
           GoRoute(
             path: 'about',
             builder: (context, state) {
@@ -1392,9 +1250,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // NOTIFIKASI (lecturer)
-          // -------------------------------------------------------
           GoRoute(
             path: 'notifications',
             builder: (context, state) {
@@ -1402,19 +1257,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             },
           ),
 
-          // -------------------------------------------------------
-          // STUDENT LIST (lecturer)
-          // -------------------------------------------------------
+          // Daftar mahasiswa dan rincian rekap nilai per mahasiswa
           GoRoute(
             path: 'students',
             builder: (context, state) {
               return const LecturerStudentListPage();
             },
-
-            // Detail "Rekap Nilai Mahasiswa" untuk satu mahasiswa —
-            // pengganti bottom sheet lama yang berisiko overflow di 360dp.
-            // studentId kosong/malformed jatuh ke RouterErrorPage, bukan
-            // halaman kosong tanpa petunjuk.
             routes: [
               GoRoute(
                 path: ':studentId',
@@ -1435,9 +1283,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // -------------------------------------------------------
-          // ANNOUNCEMENTS
-          // -------------------------------------------------------
+          // Pengelolaan pengumuman kelas oleh dosen
           GoRoute(
             path: 'announcements',
             builder: (context, state) {
@@ -1474,12 +1320,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
-/// Whether the signed-in account has completed the onboarding flow.
+/// [_isOnboardingComplete]
 ///
-/// The status is the account's Supabase auth user metadata
-/// (`onboarding_status.dart`), not a device boolean: a per-account flag is
-/// what lets the flow appear for a fresh account on any device and stay away
-/// for an account that already finished it. Kept as a wrapper so the router
-/// redirect can await it behind one named call.
+/// Memeriksa apakah akun pengguna yang sedang login telah menyelesaikan alur
+/// onboarding (tersimpan pada user metadata Supabase Auth).
 Future<bool> _isOnboardingComplete() =>
     isOnboardingCompleteForCurrentUser();

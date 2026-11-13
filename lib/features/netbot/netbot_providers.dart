@@ -1,11 +1,26 @@
+// ============================================================================
+// MODULE: AI Provider Registry & Priority Configuration
+// DESCRIPTION: Mendefinisikan daftar penyedia layanan LLM beserta urutan
+//              prioritas failover dan model kandidat untuk asisten AI NetBot.
+// ============================================================================
+
 import '../../core/constants/env.dart';
 import 'netbot_models.dart';
 
+/// [NetBotProviders]
+///
+/// Mengelola registrasi dan pemfilteran penyedia AI yang aktif berdasarkan
+/// ketersediaan API key pada konfigurasi [Env].
 class NetBotProviders {
   NetBotProviders._();
 
-  /// Returns the ordered list of AI providers configured in the system.
-  /// Only providers with non-empty API keys are returned.
+  /// [getAvailableProviders]
+  ///
+  /// Mengembalikan daftar penyedia AI yang telah memiliki API key valid,
+  /// diurutkan berdasarkan tingkat prioritas eksekusi:
+  /// 1. **Groq LPU** (Prioritas 1 — Latensi ultra-rendah untuk respons real-time).
+  /// 2. **OpenRouter** (Prioritas 2 — Agregator model cadangan gratis/terbuka).
+  /// 3. **Google Gemini** (Prioritas 3 — Cadangan akhir dengan stabilitas tinggi).
   static List<AiProviderConfig> getAvailableProviders() {
     final all = <AiProviderConfig>[
       AiProviderConfig(
@@ -52,4 +67,5 @@ class NetBotProviders {
       ..sort((a, b) => a.priority.compareTo(b.priority));
   }
 }
+
 

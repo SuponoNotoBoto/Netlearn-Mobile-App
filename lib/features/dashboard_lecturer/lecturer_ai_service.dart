@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: Lecturer AI Co-Pilot Service & Pedagogical Assistant
+// DESCRIPTION: Layanan inferensi AI khusus Dosen yang mengotomatisasi pembuatan
+//              soal kuis, penerjemahan dwibahasa (ID/EN) materi & assessment,
+//              serta analitik performa pedagogis rekap nilai mahasiswa.
+// ============================================================================
+
 import 'dart:async';
 import 'dart:convert';
 
@@ -7,6 +14,13 @@ import 'package:http/http.dart' as http;
 import '../../shared/models/student_model.dart';
 import '../netbot/netbot_providers.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Data Transfer Objects (DTO) for AI Translations & Insights
+// ---------------------------------------------------------------------------
+
+/// [LecturerMaterialTranslation]
+///
+/// Menyimpan hasil terjemahan AI untuk materi pembelajaran (judul, ringkasan, dan deskripsi).
 class LecturerMaterialTranslation {
   final String title;
   final String summary;
@@ -21,6 +35,9 @@ class LecturerMaterialTranslation {
   });
 }
 
+/// [LecturerAssessmentTranslation]
+///
+/// Menyimpan hasil terjemahan AI untuk metadata assessment (judul, petunjuk pengerjaan).
 class LecturerAssessmentTranslation {
   final String title;
   final String description;
@@ -35,6 +52,9 @@ class LecturerAssessmentTranslation {
   });
 }
 
+/// [LecturerQuestionTranslation]
+///
+/// Menyimpan hasil terjemahan AI untuk butir soal kuis beserta pilihan jawaban A–D.
 class LecturerQuestionTranslation {
   final String questionText;
   final String optionA;
@@ -53,6 +73,10 @@ class LecturerQuestionTranslation {
   });
 }
 
+/// [LecturerScoreAnalyticsResult]
+///
+/// Menyimpan laporan evaluasi pedagogis dalam format Markdown yang dihasilkan AI
+/// berdasarkan distribusi nilai kuis dan tugas mahasiswa di kelas.
 class LecturerScoreAnalyticsResult {
   final String markdownInsight;
   final String providerName;
@@ -63,11 +87,20 @@ class LecturerScoreAnalyticsResult {
   });
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Lecturer AI Service Implementation
+// ---------------------------------------------------------------------------
+
+/// [LecturerAiService]
+///
+/// Mesin eksekusi prompt AI terpadu untuk Dosen dengan dukungan multi-provider
+/// failover (Groq LPU -> OpenRouter -> Google Gemini).
 class LecturerAiService {
   LecturerAiService._();
 
-  /// Executes a single-turn AI completion across the resilient multi-provider
-  /// gateway (Groq -> OpenRouter -> Google Gemini).
+  /// [complete]
+  ///
+  /// Menjalankan inferensi single-turn AI melalui gateway multi-provider yang tangguh.
   static Future<({String content, String providerName})> complete({
     required String systemPrompt,
     required String userPrompt,

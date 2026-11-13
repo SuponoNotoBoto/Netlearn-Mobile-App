@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: Application Entry Point & Bootstrap
+// DESCRIPTION: Titik masuk utama aplikasi NetLearn Mobile. Mengelola pemuatan
+//              environment variable (.env), inisialisasi koneksi Supabase,
+//              fallback error screen, serta konfigurasi global MaterialApp.
+// ============================================================================
+
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -11,9 +18,22 @@ import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
 import 'l10n/app_localizations.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Main Bootstrap Sequence
+// ---------------------------------------------------------------------------
+
+/// [main]
+///
+/// Menjalankan urutan inisialisasi awal aplikasi sebelum merender widget tree:
+/// 1. Memastikan binding engine Flutter siap.
+/// 2. Memuat konfigurasi `.env` secara opsional agar tidak memicu crash jika
+///    dijalankan melalui parameter `--dart-define`.
+/// 3. Menginisialisasi client Supabase beserta mekanisme fallback layar error
+///    apabila koneksi server atau kredensial belum dikonfigurasi.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Memuat file .env lokal untuk kredensial Supabase dan API key AI.
   try {
     await dotenv.load(fileName: ".env", isOptional: true);
   } catch (e) {
@@ -23,6 +43,7 @@ Future<void> main() async {
   bool isSupabaseReady = false;
   String? initError;
 
+  // Inisialisasi instance tunggal (singleton) Supabase Client.
   try {
     final supabaseUrl = Env.supabaseUrl;
     final supabaseKey = Env.supabasePublishableKey.isNotEmpty
@@ -40,6 +61,8 @@ Future<void> main() async {
     debugPrint('Supabase initialize error: $e\n$st');
   }
 
+  // Fallback UI: Menampilkan layar diagnostik ramah pengguna jika gagal
+  // terhubung ke backend, mencegah layar putih (blank screen).
   if (!isSupabaseReady) {
     runApp(
       MaterialApp(
@@ -79,9 +102,19 @@ Future<void> main() async {
     return;
   }
 
+  // Menjalankan aplikasi utama di dalam cakupan state management Riverpod.
   runApp(const ProviderScope(child: NetLearnApp()));
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Root Application Widget
+// ---------------------------------------------------------------------------
+
+/// [NetLearnApp]
+///
+/// Widget akar (root) aplikasi yang mengintegrasikan konfigurasi router
+/// ([GoRouter]), lokalisasi dwibahasa (Indonesia & Inggris), serta tema
+/// tampilan (Light & Dark Mode) secara reaktif melalui Riverpod.
 class NetLearnApp extends ConsumerStatefulWidget {
   const NetLearnApp({super.key});
 
@@ -94,6 +127,8 @@ class _NetLearnAppState extends ConsumerState<NetLearnApp> {
   void initState() {
     super.initState();
 
+    // Memulihkan preferensi bahasa dan tema yang tersimpan di penyimpanan lokal
+    // segera setelah frame pertama diinisialisasi.
     Future.microtask(() async {
       await ref.read(languageProvider.notifier).initialize();
       await ref.read(themeModeProvider.notifier).initialize();

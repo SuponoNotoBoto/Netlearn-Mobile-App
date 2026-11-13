@@ -1,10 +1,24 @@
+// ============================================================================
+// MODULE: Virtual Lab Automated Mission Evaluator & Checker Engine
+// DESCRIPTION: Mesin auto-grader praktikum jaringan yang mengevaluasi secara
+//              otomatis kelengkapan perkabelan, keabsahan IP/Subnet, routing,
+//              serta uji konektivitas paket ICMP ping untuk Modul 1 sampai 4.
+// ============================================================================
+
 import 'package:flutter/foundation.dart';
 
 import '../materials/material_lab_binding.dart';
 import 'virtual_lab_model.dart';
 import 'virtual_lab_network.dart';
 
-/// Satu butir tugas/target objektif dalam sebuah skenario praktikum Virtual Lab.
+// ---------------------------------------------------------------------------
+// SECTION: Mission Objective Models & Submission Reports
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabMissionTask]
+///
+/// Merepresentasikan satu butir target capaian dalam skenario praktikum lab
+/// (misal: "Hubungkan PC1 ke Switch menggunakan kabel Straight").
 @immutable
 class VirtualLabMissionTask {
   final String id;

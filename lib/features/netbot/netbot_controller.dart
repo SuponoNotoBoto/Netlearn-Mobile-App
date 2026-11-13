@@ -1,3 +1,10 @@
+// ============================================================================
+// MODULE: NetBot Chat State Controller & Local Persistence
+// DESCRIPTION: Mengelola state percakapan asisten AI NetBot menggunakan
+//              Riverpod Notifier, mencakup penyimpanan riwayat chat per akun
+//              pengguna di SharedPreferences serta pembaruan token streaming.
+// ============================================================================
+
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -7,6 +14,14 @@ import '../../core/supabase/supabase_client.dart';
 import 'netbot_models.dart';
 import 'netbot_service.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: Immutable Chat State Model
+// ---------------------------------------------------------------------------
+
+/// [NetBotState]
+///
+/// Menyimpan kondisi terkini dari ruang obrolan NetBot, termasuk daftar pesan,
+/// status streaming aktif, nama provider AI yang terhubung, dan ID pemilik sesi.
 class NetBotState {
   final List<NetBotMessage> messages;
   final bool isStreaming;
@@ -39,17 +54,27 @@ class NetBotState {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Riverpod Notifier & Conversation Lifecycle
+// ---------------------------------------------------------------------------
+
+/// [NetBotNotifier]
+///
+/// Controller state Riverpod yang mengatur pengiriman pesan ke [NetBotService],
+/// mengisolasi riwayat obrolan berdasarkan ID pengguna yang sedang login,
+/// dan membersihkan format Markdown berlebih setelah streaming selesai.
 class NetBotNotifier extends Notifier<NetBotState> {
   String get _activeUserId => supabase.auth.currentUser?.id ?? 'guest';
 
   @override
   NetBotState build() {
     final uid = _activeUserId;
-    // Async load user chat history
+    // Memuat riwayat percakapan pengguna secara asinkron dari penyimpanan lokal.
     Future.microtask(() => _loadUserHistory(uid));
     return NetBotState(userId: uid);
   }
 
+  /// Memulihkan riwayat percakapan milik [uid] dari `SharedPreferences`.
   Future<void> _loadUserHistory(String uid) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -66,11 +91,12 @@ class NetBotNotifier extends Notifier<NetBotState> {
     } catch (_) {}
   }
 
+  /// Menyimpan maksimal 50 pesan terakhir ke `SharedPreferences` agar ukuran
+  /// penyimpanan lokal tetap ringan.
   Future<void> _saveUserHistory() async {
     final uid = _activeUserId;
     try {
       final prefs = await SharedPreferences.getInstance();
-      // Keep up to 50 most recent messages to prevent storage bloat
       final toSave = state.messages.length > 50
           ? state.messages.sublist(state.messages.length - 50)
           : state.messages;
@@ -79,6 +105,7 @@ class NetBotNotifier extends Notifier<NetBotState> {
     } catch (_) {}
   }
 
+  /// Menghapus seluruh riwayat obrolan pada state dan penyimpanan lokal untuk pengguna aktif.
   Future<void> clearConversation() async {
     final uid = _activeUserId;
     state = NetBotState(userId: uid);
@@ -88,6 +115,8 @@ class NetBotNotifier extends Notifier<NetBotState> {
     } catch (_) {}
   }
 
+  /// Mengirim pertanyaan [text] beserta [context] pembelajaran ke layanan AI
+  /// dan memperbarui gelembung pesan bot secara reaktif setiap kali chunk diterima.
   Future<void> sendMessage({
     required String text,
     required NetBotContext context,
@@ -96,7 +125,7 @@ class NetBotNotifier extends Notifier<NetBotState> {
     if (trimmed.isEmpty || state.isStreaming) return;
 
     final uid = _activeUserId;
-    // Guard: if user changed without build triggering, reload user history first
+    // Pengaman pergantian akun: muat ulang riwayat jika userId berubah.
     if (state.userId != uid) {
       await _loadUserHistory(uid);
     }
@@ -158,7 +187,7 @@ class NetBotNotifier extends Notifier<NetBotState> {
         state = state.copyWith(messages: msgs);
       }
 
-      // Clean final response text before persisting to remove any stray **
+      // Sanitasi teks akhir untuk membersihkan simbol ** berlebih di luar blok kode.
       final cleanText = NetBotService.cleanResponseText(responseBuffer.toString());
       final finalizedMsgs = state.messages.map((m) {
         if (m.id == botMsgId) {
@@ -171,7 +200,7 @@ class NetBotNotifier extends Notifier<NetBotState> {
       }).toList();
       state = state.copyWith(messages: finalizedMsgs);
 
-      // Persist completed chat to the active user's storage
+      // Simpan percakapan yang telah selesai ke penyimpanan lokal pengguna.
       await _saveUserHistory();
     } catch (e) {
       final errorText = context.languageCode == 'id'
@@ -201,6 +230,7 @@ class NetBotNotifier extends Notifier<NetBotState> {
   }
 }
 
+/// Provider global Riverpod untuk mengakses state dan aksi [NetBotNotifier].
 final netBotProvider = NotifierProvider<NetBotNotifier, NetBotState>(
   NetBotNotifier.new,
 );

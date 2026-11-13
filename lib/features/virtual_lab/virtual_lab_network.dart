@@ -1,12 +1,31 @@
+// ============================================================================
+// MODULE: Virtual Lab Network Simulation Engine (Layer 2, Layer 3 & Services)
+// DESCRIPTION: Mesin simulasi logika jaringan komputer murni yang menangani
+//              kalkulasi IPv4, Subnetting CIDR, Switching Layer 2 (BFS Graph),
+//              Routing Antar-Subnet Layer 3, alokasi DHCP DORA, dan HTTP Server.
+// ============================================================================
+
 import 'dart:core';
 import 'package:flutter/material.dart' show Offset;
 
 import 'virtual_lab_model.dart';
 
+// ---------------------------------------------------------------------------
+// SECTION: IPv4 & Subnet Mask Mathematical Primitives
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabIpv4]
+///
+/// Representasi terstruktur alamat IPv4 32-bit (4 oktet) yang menyediakan
+/// validasi format ketat dan konversi ke bilangan bulat (integer 32-bit)
+/// untuk operasi bitwise jaringan.
 class VirtualLabIpv4 {
   const VirtualLabIpv4(this.octets);
   final List<int> octets;
 
+  /// Mem-parsing string alamat IPv4 (contoh: `192.168.1.10`).
+  /// Mengembalikan `null` jika jumlah oktet bukan 4, terdapat karakter non-angka,
+  /// leading zero tidak valid, atau nilai oktet di luar rentang 0..255.
   static VirtualLabIpv4? parse(String raw) {
     final parts = raw.trim().split('.');
     if (parts.length != 4) return null;
@@ -21,18 +40,28 @@ class VirtualLabIpv4 {
     return VirtualLabIpv4(out);
   }
 
+  /// Memastikan ke-4 oktet berada dalam rentang nilai byte yang sah (0..255).
   bool get isValid => octets.length == 4 && octets.every((n) => n >= 0 && n <= 255);
 
+  /// Mengonversi 4 oktet menjadi satu nilai integer 32-bit unsigned untuk
+  /// memudahkan perhitungan Network ID dan Broadcast Address secara bitwise.
   int get asNum => (octets[0] << 24) | (octets[1] << 16) | (octets[2] << 8) | octets[3];
 
   @override
   String toString() => octets.join('.');
 }
 
+/// [VirtualLabSubnetMask]
+///
+/// Representasi Subnet Mask IPv4 yang memvalidasi kontiguitas bit `1` diikuti bit `0`
+/// (mencegah mask tidak valid seperti `255.0.255.0`), serta menghitung panjang
+/// prefix CIDR (misal `/24`) dan alamat Network ID.
 class VirtualLabSubnetMask {
   const VirtualLabSubnetMask(this.octets);
   final List<int> octets;
 
+  /// Memvalidasi apakah string masukan merupakan subnet mask yang sah (bit 1 berurutan
+  /// dari MSB ke LSB tanpa selang-seling bit 0).
   static VirtualLabSubnetMask? parse(String raw) {
     final ip = VirtualLabIpv4.parse(raw);
     if (ip == null) return null;
@@ -46,6 +75,7 @@ class VirtualLabSubnetMask {
     return VirtualLabSubnetMask(ip.octets);
   }
 
+  /// Menghitung panjang prefix CIDR (`/0` hingga `/32`) dari jumlah bit `1`.
   int get prefixLength {
     int p = 0;
     for (final n in octets) {
@@ -68,12 +98,14 @@ class VirtualLabSubnetMask {
     return p;
   }
 
+  /// Mengembalikan nilai bitmask 32-bit untuk operasi bitwise AND.
   int get toMaskNum {
     final p = prefixLength;
     if (p == 0) return 0;
     return (-1 << (32 - p)) & 0xFFFFFFFF;
   }
 
+  /// Menghitung Network Address hasil operasi bitwise AND antara [ip] dan subnet mask.
   VirtualLabIpv4 toNetwork(VirtualLabIpv4 ip) {
     final network = ip.asNum & toMaskNum;
     return VirtualLabIpv4([
@@ -85,7 +117,12 @@ class VirtualLabSubnetMask {
   }
 }
 
+/// [VirtualLabEngine]
+///
+/// Kumpulan fungsi bantu untuk memverifikasi kesamaan subnet dan kelayakan
+/// alamat IP sebagai Host Address yang dapat digunakan perangkat.
 class VirtualLabEngine {
+  /// Memeriksa apakah dua pasang alamat IP dan Subnet Mask berada pada Network ID yang sama.
   static bool sameSubnet(String ipA, String maskA, String ipB, String maskB) {
     final a = VirtualLabIpv4.parse(ipA);
     final b = VirtualLabIpv4.parse(ipB);
@@ -95,6 +132,8 @@ class VirtualLabEngine {
     return ma.toNetwork(a).asNum == mb.toNetwork(b).asNum;
   }
 
+  /// Memvalidasi bahwa alamat IP bukan merupakan Network Address maupun
+  /// Broadcast Address pada subnet yang bersangkutan (kecuali prefix `/31` atau `/32`).
   static bool isHostAddress(String ip, String mask) {
     final a = VirtualLabIpv4.parse(ip);
     final m = VirtualLabSubnetMask.parse(mask);
@@ -110,6 +149,14 @@ class VirtualLabEngine {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Layer 2 & Layer 3 Connectivity Simulation Engine
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabConnectivityResult]
+///
+/// Menyimpan status keberhasilan simulasi konektivitas (Ping / Evaluasi Topologi),
+/// kode alasan kegagalan/keberhasilan ([reason]), dan daftar ID node yang dilalui ([details]).
 class VirtualLabConnectivityResult {
   const VirtualLabConnectivityResult({
     required this.success,
@@ -122,25 +169,35 @@ class VirtualLabConnectivityResult {
   final List<String> details;
 }
 
-/// Status ringkas satu perangkat untuk dot di kanvas — mengikuti legenda
-/// desain: Connected (hijau), Needs config (oranye), Not cabled (abu).
+/// Indikator status visual untuk badge titik (dot) pada setiap perangkat di kanvas:
+/// - [connected] (Hijau): Tersambung kabel dan konfigurasi IP valid.
+/// - [needsConfig] (Oranye): Tersambung kabel tetapi IP/Subnet belum diatur atau salah.
+/// - [notCabled] (Abu-abu): Belum ada kabel yang terpasang ke perangkat.
 enum VirtualLabDeviceStatus { connected, needsConfig, notCabled }
 
+/// [VirtualLabConnectivityEngine]
+///
+/// Mesin inti evaluasi topologi yang menyimulasikan pergerakan paket data pada:
+/// - **Layer 2 (Data Link)**: Komunikasi langsung dalam satu subnet melewati Switch
+///   menggunakan algoritma pencarian jalur terpendek Breadth-First Search (BFS).
+/// - **Layer 3 (Network)**: Komunikasi lintas subnet yang memvalidasi Default Gateway
+///   pada host pengirim/penerima serta tabel interface (`eth0`/`eth1`) pada Router.
 class VirtualLabConnectivityEngine {
+  /// Mengevaluasi status kesiapan satu perangkat di kanvas secara real-time.
   static VirtualLabDeviceStatus deviceStatus(
     VirtualLabSession session,
     VirtualLabDevice device,
   ) {
     final cabled = session.cables.any((c) => c.involves(device.id));
     if (device.kind == VirtualLabDeviceKind.switch_) {
-      // Switch tidak butuh IP: cukup tersambung atau belum.
+      // Switch bekerja di Layer 2 (Unmanged Switch) dan tidak membutuhkan alamat IP.
       return cabled
           ? VirtualLabDeviceStatus.connected
           : VirtualLabDeviceStatus.notCabled;
     }
     if (device.kind == VirtualLabDeviceKind.router) {
       if (!cabled) return VirtualLabDeviceStatus.notCabled;
-      // Router butuh interface 1 (eth0) terkonfigurasi secara valid
+      // Router membutuhkan minimal interface pertama (eth0) terkonfigurasi dengan benar.
       final ip1 = VirtualLabIpv4.parse(device.ipAddress ?? '');
       final mask1 = VirtualLabSubnetMask.parse(device.subnetMask ?? '');
       if (ip1 == null ||
@@ -149,7 +206,7 @@ class VirtualLabConnectivityEngine {
               device.ipAddress!, device.subnetMask!)) {
         return VirtualLabDeviceStatus.needsConfig;
       }
-      // Jika memiliki kabel kedua, interface 2 (eth1) juga harus valid
+      // Apabila Router menghubungkan 2 segmen kabel atau lebih, interface kedua (eth1) wajib valid.
       final count = VirtualLabSession.cableCount(session, device.id);
       if (count >= 2) {
         final ip2 = VirtualLabIpv4.parse(device.ipAddress2 ?? '');
@@ -174,10 +231,9 @@ class VirtualLabConnectivityEngine {
     return VirtualLabDeviceStatus.connected;
   }
 
-  /// Ping berarah source → target untuk tab "Ping Test": memakai jalur kabel
-  /// aktual (boleh melewati switch) dan mengembalikan jalur perangkat pada
-  /// `details` ketika berhasil — dipakai animasi paket agar mengikuti jalur
-  /// yang benar, bukan seluruh kabel di kanvas.
+  /// Menyimulasikan pengiriman paket ICMP Echo Request (Ping) berarah dari
+  /// [sourceId] menuju [targetId] dan mengembalikan urutan hop perangkat pada `details`
+  /// untuk dianimasikan di atas kanvas.
   static VirtualLabConnectivityResult ping(
     VirtualLabSession session, {
     required VirtualLabDeviceId sourceId,
@@ -193,6 +249,8 @@ class VirtualLabConnectivityEngine {
       return const VirtualLabConnectivityResult(
           success: false, reason: 'same_device');
     }
+
+    // Validasi kelengkapan dan keabsahan IP/Subnet pada perangkat pengirim dan tujuan.
     for (final device in [source, target]) {
       if ((device.ipAddress ?? '').trim().isEmpty ||
           (device.subnetMask ?? '').trim().isEmpty) {
@@ -214,11 +272,14 @@ class VirtualLabConnectivityEngine {
             success: false, reason: 'host_address', details: [device.id]);
       }
     }
+
+    // Deteksi konflik alamat IP (IP Address Conflict).
     if (source.ipAddress!.trim() == target.ipAddress!.trim()) {
       return VirtualLabConnectivityResult(success: false, reason: 'duplicate', details: [
         source.ipAddress!.trim(),
       ]);
     }
+
     final isSameSubnet = VirtualLabEngine.sameSubnet(
       source.ipAddress!,
       source.subnetMask!,
@@ -226,8 +287,9 @@ class VirtualLabConnectivityEngine {
       target.subnetMask!,
     );
 
+    // KASUS A — Komunikasi Layer 2 (Satu Subnet / Local Broadcast Domain):
+    // Paket diteruskan langsung atau melalui Switch tanpa melibatkan Router.
     if (isSameSubnet) {
-      // Layer 2: Jalur kabel fisik antar perangkat dalam satu subnet (boleh lewat Switch)
       final switches = session.devices
           .where((d) => d.kind == VirtualLabDeviceKind.switch_)
           .map((d) => d.id);
@@ -241,7 +303,8 @@ class VirtualLabConnectivityEngine {
           success: true, reason: 'connected', details: path);
     }
 
-    // Layer 3 (Antar-Subnet Berbeda): Membutuhkan Router & Default Gateway!
+    // KASUS B — Komunikasi Layer 3 (Lintas Subnet Berbeda):
+    // Wajib melewati Default Gateway dan Router yang menghubungkan kedua network.
     final srcGw = (source.defaultGateway ?? '').trim();
     if (srcGw.isEmpty) {
       return VirtualLabConnectivityResult(
@@ -300,7 +363,8 @@ class VirtualLabConnectivityEngine {
       );
     }
 
-    // Cari Router yang memiliki interface sesuai srcGw dan tgtGw
+    // Cari perangkat Router yang memiliki sepasang interface sesuai dengan
+    // Default Gateway pengirim (srcGw) dan Default Gateway tujuan (tgtGw).
     final routers = session.devices
         .where((d) => d.kind == VirtualLabDeviceKind.router)
         .toList();
@@ -326,12 +390,12 @@ class VirtualLabConnectivityEngine {
       final matchesTgtEth1 = router.ipAddress2?.trim() == tgtGw;
       if (!matchesTgtEth0 && !matchesTgtEth1) continue;
 
-      // Pastikan kedua interface berbeda (eth0 vs eth1)
+      // Pastikan kedua subnet terhubung pada dua interface Router yang berbeda (eth0 vs eth1).
       if ((matchesSrcEth0 && matchesTgtEth0) || (matchesSrcEth1 && matchesTgtEth1)) {
         continue;
       }
 
-      // Validasi jalur fisik Layer 2: Source -> Router
+      // Verifikasi jalur fisik Layer 2 dari Pengirim menuju Router Gateway.
       final pathToRouter = _shortestPath(
         session,
         sourceId,
@@ -340,7 +404,7 @@ class VirtualLabConnectivityEngine {
       );
       if (pathToRouter == null) continue;
 
-      // Validasi jalur fisik Layer 2: Router -> Target
+      // Verifikasi jalur fisik Layer 2 dari Router Gateway menuju Penerima.
       final pathFromRouter = _shortestPath(
         session,
         router.id,
@@ -368,8 +432,8 @@ class VirtualLabConnectivityEngine {
     );
   }
 
-  /// BFS sederhana pada graf kabel (switch ikut sebagai simpul) untuk
-  /// mendapatkan jalur terpendek antar dua perangkat.
+  /// Algoritma Breadth-First Search (BFS) pada graf kabel fisik untuk mencari
+  /// rute hop terpendek antara perangkat [from] dan [to].
   static List<String>? _shortestPath(
     VirtualLabSession session,
     String from,
@@ -417,6 +481,7 @@ class VirtualLabConnectivityEngine {
     return null;
   }
 
+  /// Mengevaluasi kesehatan konfigurasi topologi kanvas secara menyeluruh.
   static VirtualLabConnectivityResult evaluate(VirtualLabSession session) {
     final devicesWithIp = session.devices
         .where((d) =>
@@ -435,14 +500,14 @@ class VirtualLabConnectivityEngine {
         return VirtualLabConnectivityResult(success: false, reason: 'host_address', details: [d.id]);
       }
     }
-    // duplicate
+    // Pemeriksaan duplikasi alamat IP antar PC
     final seen = <String>{};
     for (final d in devicesWithIp) {
       final ip = d.ipAddress!.trim();
       if (seen.contains(ip)) return VirtualLabConnectivityResult(success: false, reason: 'duplicate', details: [ip]);
       seen.add(ip);
     }
-    // adjacency via cables with switch bridging
+    // Pembentukan graf keterhubungan kabel dengan jembatan Switch Layer 2
     final ids = devicesWithIp.map((d) => d.id).toSet();
     final adj = <String, Set<String>>{};
     for (final id in ids) { adj[id] = <String>{}; }
@@ -495,6 +560,13 @@ class VirtualLabConnectivityEngine {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: DHCP Server & DORA Lease Allocation Engine
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabDhcpResult]
+///
+/// Menyimpan hasil negosiasi peminjaman IP (DHCP Lease) antara PC Client dan Server.
 class VirtualLabDhcpResult {
   const VirtualLabDhcpResult({
     required this.success,
@@ -515,9 +587,13 @@ class VirtualLabDhcpResult {
   final String? serverName;
 }
 
+/// [VirtualLabDhcpEngine]
+///
+/// Menyimulasikan siklus protokol DHCP (Discover, Offer, Request, Acknowledge):
+/// mencari DHCP Server aktif dalam domain broadcast Layer 2 yang sama dan
+/// mengalokasikan alamat IPv4 bebas pertama dari DHCP Pool.
 class VirtualLabDhcpEngine {
-  /// Melakukan proses DHCP DORA (Discover, Offer, Request, Acknowledge)
-  /// dari [client] ke Server DHCP yang berada dalam satu broadcast domain L2.
+  /// Memproses permintaan lease IP baru dari perangkat [clientId].
   static VirtualLabDhcpResult requestLease(
     VirtualLabSession session,
     String clientId,
@@ -530,7 +606,7 @@ class VirtualLabDhcpEngine {
       );
     }
 
-    // 1. Temukan semua perangkat dalam broadcast domain L2 (melewati Switch, berhenti di Router)
+    // 1. Broadcast DHCP Discover pada domain Layer 2 (melewati Switch, tidak menembus Router).
     final switches = session.devices
         .where((d) => d.kind == VirtualLabDeviceKind.switch_)
         .map((d) => d.id);
@@ -542,7 +618,6 @@ class VirtualLabDhcpEngine {
     VirtualLabDevice? dhcpServer;
     for (final server in servers) {
       if (!server.dhcpServerEnabled) continue;
-      // Periksa apakah ada jalur L2 dari client ke server
       final path = VirtualLabConnectivityEngine._shortestPath(
         session,
         client.id,
@@ -562,7 +637,7 @@ class VirtualLabDhcpEngine {
       );
     }
 
-    // 2. Alokasikan IP dari DHCP Pool server
+    // 2. Hitung dan alokasikan alamat IP yang tersedia dari DHCP Pool Server.
     final serverIpStr = (dhcpServer.ipAddress ?? '').trim();
     final maskStr = (dhcpServer.dhcpSubnetMask ?? '').trim().isNotEmpty
         ? dhcpServer.dhcpSubnetMask!.trim()
@@ -579,8 +654,7 @@ class VirtualLabDhcpEngine {
         ? dhcpServer.dhcpStartIp!.trim()
         : '192.168.1.100';
 
-    // Jika server memiliki IP aktif dan poolStart berada di subnet berbeda,
-    // selaraskan poolStart otomatis ke subnet server.
+    // Penyesuaian otomatis subnet pool jika IP statis Server diubah oleh pengguna.
     if (serverIpStr.isNotEmpty) {
       if (!VirtualLabEngine.sameSubnet(serverIpStr, maskStr, poolStartStr, maskStr)) {
         final srvIpv4 = VirtualLabIpv4.parse(serverIpStr);
@@ -605,7 +679,7 @@ class VirtualLabDhcpEngine {
       );
     }
 
-    // Kumpulkan semua IP yang sedang dipakai di seluruh perangkat (kecuali IP lama client ini)
+    // Daftarkan seluruh IP yang sedang aktif digunakan di kanvas agar tidak terjadi tabrakan IP.
     final usedIps = <String>{};
     for (final d in session.devices) {
       if (d.id == clientId) continue;
@@ -617,7 +691,7 @@ class VirtualLabDhcpEngine {
       }
     }
 
-    // Cari IP pertama yang belum terpakai di subnet pool
+    // Iterasi hingga 100 kandidat host di dalam pool untuk menemukan IP bebas pertama.
     String? allocatedIp;
     final baseNum = startIpv4.asNum;
     for (int offset = 0; offset < 100; offset++) {
@@ -646,7 +720,7 @@ class VirtualLabDhcpEngine {
       );
     }
 
-    // Default Gateway yang dibagikan ke client DHCP:
+    // Resolusi Default Gateway yang akan didistribusikan kepada DHCP Client.
     final serverGw = (dhcpServer.defaultGateway ?? '').trim();
     final customDhcpGw = (dhcpServer.dhcpGateway ?? '').trim();
 
@@ -681,6 +755,13 @@ class VirtualLabDhcpEngine {
   }
 }
 
+// ---------------------------------------------------------------------------
+// SECTION: Application Layer HTTP Server Simulation Engine
+// ---------------------------------------------------------------------------
+
+/// [VirtualLabHttpResult]
+///
+/// Merepresentasikan respons HTTP dari simulasi Web Server pada Virtual Lab.
 class VirtualLabHttpResult {
   const VirtualLabHttpResult({
     required this.success,
@@ -697,8 +778,13 @@ class VirtualLabHttpResult {
   final String? body;
 }
 
+/// [VirtualLabHttpEngine]
+///
+/// Menyimulasikan komunikasi protokol HTTP GET pada Layer 7 (Application Layer)
+/// yang terlebih dahulu memverifikasi konektivitas transport/network melalui
+/// [VirtualLabConnectivityEngine.ping].
 class VirtualLabHttpEngine {
-  /// Mengirim permintaan HTTP GET dari [sourceId] ke [targetIp].
+  /// Mengirimkan request HTTP GET dari [sourceId] ke alamat IP [targetIp].
   static VirtualLabHttpResult get(
     VirtualLabSession session, {
     required String sourceId,
@@ -723,6 +809,7 @@ class VirtualLabHttpEngine {
       );
     }
 
+    // Pastikan terdapat rute jaringan (Layer 2 atau Layer 3) yang valid menuju server.
     final pingResult = VirtualLabConnectivityEngine.ping(
       session,
       sourceId: sourceId,
