@@ -40,12 +40,17 @@ class AssessmentInstructionsPage extends ConsumerWidget {
 
     final isId = Localizations.localeOf(context).languageCode == 'id';
     final isPretestRoute = assessmentType == 'pretest';
+    final isPosttestRoute = assessmentType == 'posttest';
 
     final copy = _copyFor(
       l10n,
       isPretest: isPretestRoute,
+      isPosttest: isPosttestRoute,
       isId: isId,
     );
+
+    final displayTitle =
+        assessmentAsync.asData?.value?.title ?? copy.topBarTitle;
 
     return Scaffold(
       backgroundColor: context.background,
@@ -54,7 +59,7 @@ class AssessmentInstructionsPage extends ConsumerWidget {
       // ditumpuk dari daftar, dan jatuh ke daftar assessment (induk logisnya)
       // ketika halaman ini dibuka langsung lewat deep link.
       appBar: NlTopBar(
-        title: copy.topBarTitle,
+        title: displayTitle,
         onBack: () => goBack(context, fallback: '/student/assessment'),
       ),
       body: SafeArea(
@@ -152,6 +157,7 @@ _InstructionsCopy _copyFor(
   AppLocalizations l10n, {
   AssessmentListItem? assessment,
   bool isPretest = false,
+  bool isPosttest = false,
   bool isId = true,
 }) {
   if (assessment != null && assessment.isTask) {
@@ -210,20 +216,39 @@ _InstructionsCopy _copyFor(
     );
   }
 
+  if (isPosttest) {
+    return _InstructionsCopy(
+      topBarTitle: l10n.posttestInstructionsTopBar,
+      artLabel: l10n.posttestInstructionsArtLabel,
+      title: l10n.posttestInstructionsTitle,
+      body: l10n.posttestInstructionsBody,
+      warningPrefix: l10n.posttestInstructionsWarningPrefix,
+      // Penekanan "satu kali" dan penutup kalimat koneksinya adalah aturan yang
+      // sama untuk kedua tes (dijaga `start_assessment_attempt`), jadi kuncinya
+      // dipakai bersama, bukan diduplikasi.
+      warningEmphasis: l10n.pretestInstructionsWarningEmphasis,
+      warningSuffix: l10n.pretestInstructionsWarningSuffix,
+      lockTitle: l10n.posttestInstructionsLockTitle,
+      lockBody: l10n.posttestInstructionsLockBody,
+      startLabel: l10n.startPosttestNow,
+    );
+  }
+
   return _InstructionsCopy(
-    topBarTitle: l10n.posttestInstructionsTopBar,
-    artLabel: l10n.posttestInstructionsArtLabel,
-    title: l10n.posttestInstructionsTitle,
-    body: l10n.posttestInstructionsBody,
-    warningPrefix: l10n.posttestInstructionsWarningPrefix,
-    // Penekanan "satu kali" dan penutup kalimat koneksinya adalah aturan yang
-    // sama untuk kedua tes (dijaga `start_assessment_attempt`), jadi kuncinya
-    // dipakai bersama, bukan diduplikasi.
-    warningEmphasis: l10n.pretestInstructionsWarningEmphasis,
-    warningSuffix: l10n.pretestInstructionsWarningSuffix,
-    lockTitle: l10n.posttestInstructionsLockTitle,
-    lockBody: l10n.posttestInstructionsLockBody,
-    startLabel: l10n.startPosttestNow,
+    topBarTitle: isId ? 'Instruksi Kuis' : 'Quiz Instructions',
+    artLabel: isId ? 'Kuis Dosen' : 'Lecturer Quiz',
+    title: isId ? 'Petunjuk Pengerjaan' : 'Instructions',
+    body: isId
+        ? 'Kerjakan soal-soal asesmen ini dengan teliti sesuai instruksi.'
+        : 'Complete this assessment carefully according to instructions.',
+    warningPrefix: '',
+    warningEmphasis: '',
+    warningSuffix: '',
+    lockTitle: isId ? 'Kuis Dosen' : 'Lecturer Quiz',
+    lockBody: isId
+        ? 'Asesmen ini disiapkan oleh dosen pengampu.'
+        : 'This assessment is prepared by your lecturer.',
+    startLabel: isId ? 'Mulai Kuis' : 'Start Quiz',
   );
 }
 

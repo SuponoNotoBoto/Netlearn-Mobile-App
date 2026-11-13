@@ -210,21 +210,14 @@ class _MaterialContent extends ConsumerWidget {
               if (!isUnlocked)
                 const _LockedCard()
               else ...[
-                if (summary != null && summary.trim().isNotEmpty) ...[
-                  _SummaryCard(
-                    summary: summary,
-                  ),
-                  const SizedBox(
-                    height: NetLearnSpace.s16,
-                  ),
-                ],
                 NlSectionHeading(
                   title: l10n.learningMaterial,
                   leadingIcon: Icons.menu_book_outlined,
                 ),
                 _ReadingActionCard(
                   materialId: material.id,
-                  hasContent: content != null && content.trim().isNotEmpty,
+                  hasContent: (content != null && content.trim().isNotEmpty) ||
+                      (summary != null && summary.trim().isNotEmpty),
                   completed: progress?.readingCompleted ?? false,
                 ),
                 const SizedBox(
@@ -249,6 +242,14 @@ class _MaterialContent extends ConsumerWidget {
                 const SizedBox(
                   height: NetLearnSpace.s20,
                 ),
+                if (summary != null && summary.trim().isNotEmpty) ...[
+                  _SummaryCard(
+                    summary: summary,
+                  ),
+                  const SizedBox(
+                    height: NetLearnSpace.s20,
+                  ),
+                ],
                 if (labBinding != null) ...[
                   const NlSectionHeading(
                     title: 'Praktikum & Simulasi',
@@ -476,8 +477,6 @@ class _SummaryCard extends StatelessWidget {
   Widget build(
     BuildContext context,
   ) {
-    final l10n = AppLocalizations.of(context)!;
-
     // `accentTint` bukan `NetLearnColors.mint`: alias mint adalah nilai tetap
     // `#e9e3fb` yang tidak pernah berubah di mode gelap, jadi teks ungu gelap
     // pernah hilang di atas latar ungu gelap.
@@ -487,26 +486,43 @@ class _SummaryCard extends StatelessWidget {
         NetLearnSpace.s16,
       ),
       decoration: BoxDecoration(
-        color: context.accentTint,
+        color: context.surface,
         borderRadius: BorderRadius.circular(
           NetLearnRadius.card,
+        ),
+        border: Border.all(
+          color: context.border,
         ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            l10n.summary.toUpperCase(),
-            style: Theme.of(context).textTheme.labelSmall,
+          Row(
+            children: [
+              Icon(
+                Icons.menu_book_outlined,
+                size: 16,
+                color: context.mutedText,
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'RINGKASAN MATERI',
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      color: context.mutedText,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
+              ),
+            ],
           ),
           const SizedBox(
             height: NetLearnSpace.s8,
           ),
           Text(
             summary,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: context.onAccentTint,
-                  height: 1.65,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: context.onSurface,
+                  height: 1.6,
                 ),
           ),
         ],

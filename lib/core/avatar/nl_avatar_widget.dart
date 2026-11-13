@@ -216,6 +216,11 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
     final tummyColor = switch (config.base) {
       'panda' => const Color(0xFFFAFAFC),
       'penguin' => _cream,
+      'monkey' => const Color(0xFFFFD1BA),
+      'frog' => const Color(0xFFE8F5E9),
+      'tiger' => _cream,
+      'lion' => _cream,
+      'hamster' => _cream,
       _ => lighter,
     };
     canvas.drawOval(
@@ -370,6 +375,65 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
         }
         break;
 
+      case 'monkey':
+        // Big round side ears
+        final peachInner = Paint()..color = const Color(0xFFFFD1BA);
+        for (final dir in [-1.0, 1.0]) {
+          final center = Offset(s * 0.50 + dir * s * 0.29, s * 0.56);
+          canvas.drawCircle(center, s * 0.115, Paint()..color = primary);
+          canvas.drawCircle(center, s * 0.068, peachInner);
+          canvas.drawCircle(center, s * 0.115, stroke);
+        }
+        break;
+
+      case 'frog':
+        // Big bulging frog eye domes on top of head
+        for (final dir in [-1.0, 1.0]) {
+          final center = Offset(s * 0.50 + dir * s * 0.18, s * 0.33);
+          canvas.drawCircle(center, s * 0.11, Paint()..color = primary);
+          canvas.drawCircle(center, s * 0.065, Paint()..color = lighter);
+          canvas.drawCircle(center, s * 0.11, stroke);
+        }
+        break;
+
+      case 'tiger':
+        // Round big-cat ears
+        for (final dir in [-1.0, 1.0]) {
+          final center = Offset(s * 0.50 + dir * s * 0.22, s * 0.33);
+          canvas.drawCircle(center, s * 0.095, Paint()..color = primary);
+          canvas.drawCircle(center, s * 0.052, pinkInner);
+          canvas.drawCircle(center, s * 0.095, stroke);
+        }
+        break;
+
+      case 'lion':
+        // Magnificent puffy cartoon mane behind head + cute ears
+        final maneColor = Color.lerp(darker, const Color(0xFFD84315), 0.35)!;
+        for (var i = 0; i < 12; i++) {
+          final angle = (i * 2 * math.pi) / 12;
+          final mx = s * 0.50 + math.cos(angle) * s * 0.30;
+          final my = s * 0.58 + math.sin(angle) * s * 0.23;
+          canvas.drawCircle(Offset(mx, my), s * 0.11, Paint()..color = maneColor);
+          canvas.drawCircle(Offset(mx, my), s * 0.11, stroke);
+        }
+        for (final dir in [-1.0, 1.0]) {
+          final center = Offset(s * 0.50 + dir * s * 0.24, s * 0.33);
+          canvas.drawCircle(center, s * 0.095, Paint()..color = primary);
+          canvas.drawCircle(center, s * 0.052, pinkInner);
+          canvas.drawCircle(center, s * 0.095, stroke);
+        }
+        break;
+
+      case 'hamster':
+        // Small cute round ears
+        for (final dir in [-1.0, 1.0]) {
+          final center = Offset(s * 0.50 + dir * s * 0.20, s * 0.34);
+          canvas.drawCircle(center, s * 0.08, Paint()..color = primary);
+          canvas.drawCircle(center, s * 0.045, pinkInner);
+          canvas.drawCircle(center, s * 0.08, stroke);
+        }
+        break;
+
       default:
         break;
     }
@@ -510,6 +574,112 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
         canvas.drawRRect(screenRect, Paint()..color = const Color(0xFF1E2233));
         break;
 
+      case 'monkey':
+        // Peach cartoon face mask around eyes & mouth
+        const peach = Color(0xFFFFD1BA);
+        for (final dir in [-1.0, 1.0]) {
+          canvas.drawCircle(
+            Offset(s * 0.50 + dir * s * 0.11, s * 0.55),
+            s * 0.14,
+            Paint()..color = peach,
+          );
+        }
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(s * 0.50, s * 0.65),
+            width: s * 0.40,
+            height: s * 0.22,
+          ),
+          Paint()..color = peach,
+        );
+        break;
+
+      case 'frog':
+        // Pale mint lower jaw/belly patch
+        final jaw = Path()
+          ..moveTo(s * 0.24, s * 0.64)
+          ..quadraticBezierTo(s * 0.50, s * 0.56, s * 0.76, s * 0.64)
+          ..quadraticBezierTo(s * 0.74, s * 0.79, s * 0.50, s * 0.795)
+          ..quadraticBezierTo(s * 0.26, s * 0.79, s * 0.24, s * 0.64)
+          ..close();
+        canvas.drawPath(jaw, Paint()..color = const Color(0xFFF1F8E9));
+        break;
+
+      case 'tiger':
+        // Cream snout
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(s * 0.50, s * 0.64),
+            width: s * 0.28,
+            height: s * 0.18,
+          ),
+          Paint()..color = _cream,
+        );
+        // Forehead and cheek stripes
+        final stripePaint = Paint()
+          ..color = _darkPatch
+          ..strokeWidth = (s * 0.024).clamp(1.2, 3.8)
+          ..strokeCap = StrokeCap.round;
+        canvas.drawLine(
+          Offset(s * 0.50, s * 0.36),
+          Offset(s * 0.50, s * 0.44),
+          stripePaint,
+        );
+        canvas.drawLine(
+          Offset(s * 0.46, s * 0.40),
+          Offset(s * 0.54, s * 0.40),
+          stripePaint,
+        );
+        canvas.drawLine(
+          Offset(s * 0.42, s * 0.38),
+          Offset(s * 0.45, s * 0.43),
+          stripePaint,
+        );
+        canvas.drawLine(
+          Offset(s * 0.58, s * 0.38),
+          Offset(s * 0.55, s * 0.43),
+          stripePaint,
+        );
+        for (final dir in [-1.0, 1.0]) {
+          canvas.drawLine(
+            Offset(s * 0.50 + dir * s * 0.27, s * 0.54),
+            Offset(s * 0.50 + dir * s * 0.21, s * 0.56),
+            stripePaint,
+          );
+          canvas.drawLine(
+            Offset(s * 0.50 + dir * s * 0.28, s * 0.60),
+            Offset(s * 0.50 + dir * s * 0.22, s * 0.61),
+            stripePaint,
+          );
+        }
+        break;
+
+      case 'lion':
+        // Cream snout
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(s * 0.50, s * 0.64),
+            width: s * 0.28,
+            height: s * 0.18,
+          ),
+          Paint()..color = _cream,
+        );
+        break;
+
+      case 'hamster':
+        // Chubby cheek pouches
+        for (final dir in [-1.0, 1.0]) {
+          canvas.drawOval(
+            Rect.fromCenter(
+              center: Offset(s * 0.50 + dir * s * 0.16, s * 0.64),
+              width: s * 0.20,
+              height: s * 0.17,
+            ),
+            Paint()..color = _cream,
+          );
+        }
+        break;
+
       default:
         break;
     }
@@ -598,6 +768,12 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
+    // Classic cute ':3' / 'w' cat-smile
+    final wSmile = Path()
+      ..moveTo(s * 0.445, s * 0.635)
+      ..quadraticBezierTo(s * 0.472, s * 0.668, s * 0.50, s * 0.632)
+      ..quadraticBezierTo(s * 0.528, s * 0.668, s * 0.555, s * 0.635);
+
     if (config.base == 'owl' || config.base == 'penguin') {
       final beak = Path()
         ..moveTo(s * 0.46, s * 0.59)
@@ -634,6 +810,74 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
       return;
     }
 
+    if (config.base == 'monkey') {
+      final nostrilPaint = Paint()..color = _ink;
+      canvas.drawCircle(Offset(s * 0.47, s * 0.61), s * 0.013, nostrilPaint);
+      canvas.drawCircle(Offset(s * 0.53, s * 0.61), s * 0.013, nostrilPaint);
+      canvas.drawArc(
+        Rect.fromCenter(
+          center: Offset(s * 0.50, s * 0.645),
+          width: s * 0.18,
+          height: s * 0.09,
+        ),
+        0.15,
+        math.pi - 0.3,
+        false,
+        mouthStroke,
+      );
+      return;
+    }
+
+    if (config.base == 'frog') {
+      final nostrilPaint = Paint()..color = _ink;
+      canvas.drawCircle(Offset(s * 0.47, s * 0.59), s * 0.010, nostrilPaint);
+      canvas.drawCircle(Offset(s * 0.53, s * 0.59), s * 0.010, nostrilPaint);
+      canvas.drawArc(
+        Rect.fromCenter(
+          center: Offset(s * 0.50, s * 0.62),
+          width: s * 0.28,
+          height: s * 0.12,
+        ),
+        0.15,
+        math.pi - 0.3,
+        false,
+        mouthStroke,
+      );
+      return;
+    }
+
+    if (config.base == 'hamster') {
+      // Tiny pink nose
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: Offset(s * 0.50, s * 0.59),
+          width: s * 0.045,
+          height: s * 0.032,
+        ),
+        Paint()..color = const Color(0xFFFF7A93),
+      );
+      // Two cute white buck teeth
+      final toothPaint = Paint()..color = Colors.white;
+      final toothStroke = Paint()
+        ..color = _ink
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = (strokeW * 0.6).clamp(0.8, 1.8);
+      for (final toothX in [s * 0.485, s * 0.515]) {
+        final toothRect = RRect.fromRectAndRadius(
+          Rect.fromCenter(
+            center: Offset(toothX, s * 0.655),
+            width: s * 0.024,
+            height: s * 0.034,
+          ),
+          const Radius.circular(1.5),
+        );
+        canvas.drawRRect(toothRect, toothPaint);
+        canvas.drawRRect(toothRect, toothStroke);
+      }
+      canvas.drawPath(wSmile, mouthStroke);
+      return;
+    }
+
     if (config.base == 'bear' || config.base == 'dog' || config.base == 'panda') {
       if (config.base != 'panda') {
         canvas.drawOval(
@@ -648,27 +892,22 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
     }
 
     // Cute tiny triangle/oval nose
-    final noseColor = (config.base == 'cat' || config.base == 'rabbit')
+    final noseColor = (config.base == 'cat' || config.base == 'rabbit' || config.base == 'tiger')
         ? const Color(0xFFFF7A93)
         : _ink;
     canvas.drawOval(
       Rect.fromCenter(
         center: Offset(s * 0.50, s * 0.595),
-        width: s * 0.055,
-        height: s * 0.038,
+        width: config.base == 'lion' ? s * 0.065 : s * 0.055,
+        height: config.base == 'lion' ? s * 0.042 : s * 0.038,
       ),
       Paint()..color = noseColor,
     );
 
-    // Classic cute ':3' / 'w' cat-smile
-    final wSmile = Path()
-      ..moveTo(s * 0.445, s * 0.635)
-      ..quadraticBezierTo(s * 0.472, s * 0.668, s * 0.50, s * 0.632)
-      ..quadraticBezierTo(s * 0.528, s * 0.668, s * 0.555, s * 0.635);
     canvas.drawPath(wSmile, mouthStroke);
 
-    // Cat whiskers
-    if (config.base == 'cat') {
+    // Cat & tiger whiskers
+    if (config.base == 'cat' || config.base == 'tiger') {
       final whisker = Paint()
         ..color = _ink.withValues(alpha: 0.75)
         ..strokeWidth = (strokeW * 0.6).clamp(0.9, 2.5)
@@ -684,6 +923,16 @@ class _ChibiCartoonAvatarPainter extends CustomPainter {
           Offset(s * 0.50 + dir * s * 0.31, s * 0.63),
           whisker,
         );
+      }
+    }
+
+    // Lion muzzle whisker dots
+    if (config.base == 'lion') {
+      final dotPaint = Paint()..color = _ink;
+      for (final dir in [-1.0, 1.0]) {
+        canvas.drawCircle(Offset(s * 0.50 + dir * s * 0.065, s * 0.63), s * 0.007, dotPaint);
+        canvas.drawCircle(Offset(s * 0.50 + dir * s * 0.088, s * 0.64), s * 0.007, dotPaint);
+        canvas.drawCircle(Offset(s * 0.50 + dir * s * 0.065, s * 0.65), s * 0.007, dotPaint);
       }
     }
   }

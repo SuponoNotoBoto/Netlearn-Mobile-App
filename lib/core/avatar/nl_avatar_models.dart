@@ -118,6 +118,11 @@ class AvatarConfig {
       'rabbit',
       'fox',
       'panda',
+      'monkey',
+      'frog',
+      'tiger',
+      'lion',
+      'hamster',
       'owl',
       'koala',
     ];
@@ -153,6 +158,11 @@ class AvatarConfig {
       'koala' => '#B0BEC5',
       'bear' => '#A1887F',
       'rabbit' => '#F8BBD0',
+      'monkey' => '#A1887F',
+      'frog' => '#80CBC4',
+      'tiger' => '#FFB74D',
+      'lion' => '#FFE082',
+      'hamster' => '#FFCC80',
       _ => starterColors[(hash ~/ 3) % starterColors.length],
     };
 
@@ -245,6 +255,11 @@ class AvatarCatalog {
     AvatarCatalogItem(id: 'rabbit', labelId: 'Kelinci', labelEn: 'Bunny'),
     AvatarCatalogItem(id: 'fox', labelId: 'Rubah', labelEn: 'Fox'),
     AvatarCatalogItem(id: 'panda', labelId: 'Panda', labelEn: 'Panda'),
+    AvatarCatalogItem(id: 'monkey', labelId: 'Monyet', labelEn: 'Monkey'),
+    AvatarCatalogItem(id: 'frog', labelId: 'Katak', labelEn: 'Frog'),
+    AvatarCatalogItem(id: 'tiger', labelId: 'Harimau', labelEn: 'Tiger'),
+    AvatarCatalogItem(id: 'lion', labelId: 'Singa', labelEn: 'Lion'),
+    AvatarCatalogItem(id: 'hamster', labelId: 'Hamster', labelEn: 'Hamster'),
     AvatarCatalogItem(id: 'owl', labelId: 'Burung Hantu', labelEn: 'Owl'),
     AvatarCatalogItem(id: 'koala', labelId: 'Koala', labelEn: 'Koala'),
     AvatarCatalogItem(

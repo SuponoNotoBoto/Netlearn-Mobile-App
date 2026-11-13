@@ -480,7 +480,28 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
         ? MaterialLabBinding.stripLabTag(rawContent)
         : null;
 
-    final hasContent = content != null && content.isNotEmpty;
+    final summary = widget.material.localizedSummary(
+      widget.languageCode,
+    )?.trim();
+
+    // Teks bacaan materi yang menempel pada aplikasi persis seperti Modul 2 di PTI 2025 A:
+    // Mengalir jelas dengan tipografi standar (onSurface), tanpa background atau font biru.
+    final String? readingText;
+    if (content != null && content.isNotEmpty && summary != null && summary.isNotEmpty) {
+      if (content.contains(summary)) {
+        readingText = content;
+      } else {
+        readingText = '$summary\n\n$content';
+      }
+    } else if (content != null && content.isNotEmpty) {
+      readingText = content;
+    } else if (summary != null && summary.isNotEmpty) {
+      readingText = summary;
+    } else {
+      readingText = null;
+    }
+
+    final hasContent = readingText != null && readingText.isNotEmpty;
 
     final labBinding = MaterialLabBinding.fromMaterial(widget.material);
 
@@ -530,9 +551,9 @@ class _ReaderBodyState extends ConsumerState<_ReaderBody> {
                         const SizedBox(
                           height: NetLearnSpace.s24,
                         ),
-                        if (hasContent)
+                        if (readingText != null && readingText.isNotEmpty)
                           _BodyText(
-                            text: content,
+                            text: readingText,
                           )
                         else
                           _InlineMessage(
