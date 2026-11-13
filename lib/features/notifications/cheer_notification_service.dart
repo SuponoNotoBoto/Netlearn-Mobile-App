@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/supabase/supabase_client.dart';
+import '../classes/class_controller.dart';
 
 /// Catatan notifikasi semangat / cheer yang diterima seorang mahasiswa.
 @immutable
@@ -49,7 +50,10 @@ class CheerNotificationItem {
 
 /// Layanan untuk mencatat dan menyajikan notifikasi semangat (cheer) antar mahasiswa.
 class CheerNotificationService {
-  static String _storageKey(String receiverId) => 'v2_received_cheers_$receiverId';
+  static String _storageKey(String receiverId, [String? classId]) =>
+      classId != null && classId.isNotEmpty
+          ? 'v2_received_cheers_${receiverId}_$classId'
+          : 'v2_received_cheers_$receiverId';
 
   /// Mencatat saat seorang user mengirim semangat ke [receiverId].
   static Future<void> recordCheer({
@@ -94,35 +98,56 @@ class CheerNotificationService {
       createdAt: now,
     );
 
-    // 1. Simpan di SharedPreferences penerima (cache lokal/instan)
+    // 1. Simpan di SharedPreferences penerima (cache lokal/instan), baik per-kelas maupun global
     try {
       final prefs = await SharedPreferences.getInstance();
-      final key = _storageKey(receiverId);
-      final raw = prefs.getString(key);
-      final list = <CheerNotificationItem>[item];
-      if (raw != null && raw.isNotEmpty) {
-        try {
-          final List decoded = jsonDecode(raw) as List;
-          list.addAll(decoded.map((m) =>
-              CheerNotificationItem.fromMap(Map<String, dynamic>.from(m as Map))));
-        } catch (_) {}
+      final keysToUpdate = [
+        _storageKey(receiverId),
+        if (classId != null && classId.isNotEmpty)
+          _storageKey(receiverId, classId),
+      ];
+
+      for (final key in keysToUpdate) {
+        final raw = prefs.getString(key);
+        final list = <CheerNotificationItem>[item];
+        if (raw != null && raw.isNotEmpty) {
+          try {
+            final List decoded = jsonDecode(raw) as List;
+            list.addAll(decoded.map((m) => CheerNotificationItem.fromMap(
+                Map<String, dynamic>.from(m as Map))));
+          } catch (_) {}
+        }
+        await prefs.setString(
+          key,
+          jsonEncode(list.take(30).map((e) => e.toMap()).toList()),
+        );
       }
-      await prefs.setString(
-        key,
-        jsonEncode(list.take(30).map((e) => e.toMap()).toList()),
-      );
     } catch (_) {}
 
-    // 2. Best-effort mirror ke Supabase jika tabel user_notifications / profile_cheers ada
+    // 2. Mirror ke Supabase tabel profile_cheers (dengan fallback toleransi skema)
+    final basePayload = <String, dynamic>{
+      'sender_id': sender.id,
+      'receiver_id': receiverId,
+      'created_at': now.toIso8601String(),
+    };
+    if (classId != null && classId.isNotEmpty) {
+      basePayload['class_id'] = classId;
+    }
+
     try {
+      // Coba insert dengan sender_name
       await supabase.from('profile_cheers').insert({
-        'sender_id': sender.id,
-        'receiver_id': receiverId,
-        'class_id': classId,
+        ...basePayload,
         'sender_name': senderName,
-        'created_at': now.toIso8601String(),
       });
-    } catch (_) {}
+    } catch (_) {
+      try {
+        // Fallback jika skema profile_cheers tidak memiliki kolom sender_name
+        await supabase.from('profile_cheers').insert(basePayload);
+      } catch (err) {
+        debugPrint('profile_cheers insert note: $err');
+      }
+    }
   }
 
   /// Membaca daftar semangat yang diterima oleh user aktif.
@@ -136,26 +161,66 @@ class CheerNotificationService {
     try {
       var query = supabase
           .from('profile_cheers')
-          .select('id, sender_id, sender_name, class_id, created_at')
+          .select()
           .eq('receiver_id', receiverId);
       if (classId != null && classId.isNotEmpty) {
         query = query.eq('class_id', classId);
       }
-      final rows = await query.order('created_at', ascending: false).limit(25);
+      final rows = await query.order('created_at', ascending: false).limit(35);
       if ((rows as List).isNotEmpty) {
+        final missingSenderNameIds = <String>{};
         for (final r in rows) {
-          result.add(
-            CheerNotificationItem.fromMap(Map<String, dynamic>.from(r as Map)),
-          );
+          final m = Map<String, dynamic>.from(r as Map);
+          final sName = m['sender_name']?.toString().trim();
+          if (sName == null || sName.isEmpty) {
+            final sId = m['sender_id']?.toString();
+            if (sId != null && sId.isNotEmpty) {
+              missingSenderNameIds.add(sId);
+            }
+          }
+        }
+
+        final senderNamesMap = <String, String>{};
+        if (missingSenderNameIds.isNotEmpty) {
+          try {
+            final pRows = await supabase
+                .from('profiles')
+                .select('id, name')
+                .filter('id', 'in', missingSenderNameIds.toList());
+            for (final pr in pRows as List) {
+              final pm = Map<String, dynamic>.from(pr as Map);
+              senderNamesMap[pm['id'].toString()] =
+                  pm['name']?.toString().trim() ?? 'Teman Sekelas';
+            }
+          } catch (_) {}
+        }
+
+        for (final r in rows) {
+          final m = Map<String, dynamic>.from(r as Map);
+          if (m['sender_name'] == null || m['sender_name'].toString().trim().isEmpty) {
+            final sId = m['sender_id']?.toString() ?? '';
+            m['sender_name'] = senderNamesMap[sId] ?? 'Teman Sekelas';
+          }
+          result.add(CheerNotificationItem.fromMap(m));
         }
         return result;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('getReceivedCheers Supabase notice: $e');
+    }
 
     // 2. Fallback baca dari SharedPreferences
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey(receiverId));
+      final key = (classId != null && classId.isNotEmpty)
+          ? _storageKey(receiverId, classId)
+          : _storageKey(receiverId);
+
+      var raw = prefs.getString(key);
+      if ((raw == null || raw.isEmpty) && classId != null && classId.isNotEmpty) {
+        raw = prefs.getString(_storageKey(receiverId));
+      }
+
       if (raw != null && raw.isNotEmpty) {
         final List decoded = jsonDecode(raw) as List;
         for (final m in decoded) {
@@ -176,7 +241,77 @@ class CheerNotificationService {
   }
 }
 
-/// Provider reaktif untuk riwayat dan total semangat (cheers) yang diterima mahasiswa.
+/// Status cheers yang diterima mahasiswa yang terikat pada kelas aktif.
+class StudentClassCheersState {
+  final int count;
+  final List<CheerNotificationItem> history;
+  final String? classId;
+  final String? className;
+
+  const StudentClassCheersState({
+    required this.count,
+    required this.history,
+    this.classId,
+    this.className,
+  });
+}
+
+/// Provider reaktif untuk total dan riwayat semangat (cheers) mahasiswa per kelas aktif.
+final studentClassCheersProvider = FutureProvider.autoDispose
+    .family<StudentClassCheersState, String>((ref, userId) async {
+  if (userId.isEmpty) {
+    return const StudentClassCheersState(count: 0, history: []);
+  }
+
+  // Ambil kelas aktif saat ini
+  final activeClassAsync = ref.watch(activeStudentClassProvider);
+  final activeClass = activeClassAsync.value;
+  final classId = (activeClass != null && !activeClass.isLegacyFallback)
+      ? activeClass.id
+      : ref.watch(activeStudentClassIdProvider);
+
+  final validClassUuid = (classId != null &&
+          RegExp(r'^[0-9a-fA-F-]{36}$').hasMatch(classId))
+      ? classId
+      : null;
+
+  int dbCount = 0;
+  // 1. Baca hitungan resmi cheers dari get_public_member_profile di kelas aktif
+  try {
+    final dynamic res = await supabase.rpc(
+      'get_public_member_profile',
+      params: {
+        'p_user': userId,
+        'p_class': validClassUuid,
+      },
+    );
+    if (res is List && res.isNotEmpty) {
+      final m = Map<String, dynamic>.from(res.first as Map);
+      dbCount = (m['cheers_count'] as num?)?.toInt() ?? 0;
+    } else if (res is Map) {
+      dbCount = (res['cheers_count'] as num?)?.toInt() ?? 0;
+    }
+  } catch (e) {
+    debugPrint('get_public_member_profile error in studentClassCheersProvider: $e');
+  }
+
+  // 2. Ambil riwayat detail pengirim cheers untuk kelas ini
+  final history = await CheerNotificationService.getReceivedCheers(
+    userId,
+    classId: validClassUuid,
+  );
+
+  final finalCount = dbCount > history.length ? dbCount : history.length;
+
+  return StudentClassCheersState(
+    count: finalCount,
+    history: history,
+    classId: validClassUuid,
+    className: activeClass?.name,
+  );
+});
+
+/// Provider kompatibilitas lama
 final studentReceivedCheersProvider =
     FutureProvider.family.autoDispose<List<CheerNotificationItem>, String>(
         (ref, userId) async {

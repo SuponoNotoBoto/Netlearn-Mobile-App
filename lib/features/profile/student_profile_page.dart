@@ -707,15 +707,17 @@ class StudentProfilePage extends ConsumerWidget {
     String userId,
     bool isId,
   ) {
-    final cheersAsync = ref.watch(studentReceivedCheersProvider(userId));
-    final cheers = cheersAsync.value ?? const <CheerNotificationItem>[];
-    final count = cheers.length;
+    final cheersAsync = ref.watch(studentClassCheersProvider(userId));
+    final state = cheersAsync.value ??
+        const StudentClassCheersState(count: 0, history: []);
+    final count = state.count;
+    final className = state.className;
 
     return Material(
       color: Colors.transparent,
       child: InkWell(
         key: const Key('profile_cheers_banner_btn'),
-        onTap: () => _showCheersHistorySheet(context, userId, cheers, isId),
+        onTap: () => _showCheersHistorySheet(context, userId, state, isId),
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -754,14 +756,18 @@ class StudentProfilePage extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Text(
-                          isId
-                              ? '$count Semangat Diterima'
-                              : '$count Cheers Received',
-                          style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w800,
-                            color: Color(0xFF6B21A8),
+                        Flexible(
+                          child: Text(
+                            isId
+                                ? '$count Semangat Diterima'
+                                : '$count Cheers Received',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w800,
+                              color: Color(0xFF6B21A8),
+                            ),
                           ),
                         ),
                         const SizedBox(width: 6),
@@ -787,9 +793,15 @@ class StudentProfilePage extends ConsumerWidget {
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      isId
-                          ? 'Ketuk untuk melihat riwayat teman yang menyemangatimu'
-                          : 'Tap to view who sent you cheers',
+                      className != null && className.isNotEmpty
+                          ? (isId
+                              ? 'Kelas: $className • Ketuk untuk lihat riwayat'
+                              : 'Class: $className • Tap to view history')
+                          : (isId
+                              ? 'Ketuk untuk melihat riwayat teman yang menyemangatimu'
+                              : 'Tap to view who sent you cheers'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 11,
                         color: Colors.grey[700],
@@ -814,9 +826,13 @@ class StudentProfilePage extends ConsumerWidget {
   void _showCheersHistorySheet(
     BuildContext context,
     String userId,
-    List<CheerNotificationItem> cheers,
+    StudentClassCheersState cheersState,
     bool isId,
   ) {
+    final cheers = cheersState.history;
+    final count = cheersState.count;
+    final className = cheersState.className;
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -873,9 +889,13 @@ class StudentProfilePage extends ConsumerWidget {
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            isId
-                                ? 'Total ${cheers.length} ucapan semangat dari rekan belajar'
-                                : 'Total ${cheers.length} cheers from your classmates',
+                            className != null && className.isNotEmpty
+                                ? (isId
+                                    ? 'Total $count ucapan semangat di kelas $className'
+                                    : 'Total $count cheers in $className')
+                                : (isId
+                                    ? 'Total $count ucapan semangat dari rekan belajar'
+                                    : 'Total $count cheers from your classmates'),
                             style: TextStyle(
                               fontSize: 12,
                               color: Theme.of(ctx).textTheme.bodySmall?.color,
@@ -893,7 +913,7 @@ class StudentProfilePage extends ConsumerWidget {
               ),
               const Divider(height: 1),
               Flexible(
-                child: cheers.isEmpty
+                child: count == 0
                     ? Padding(
                         padding: const EdgeInsets.all(32),
                         child: Column(
@@ -902,7 +922,12 @@ class StudentProfilePage extends ConsumerWidget {
                             const Text('👋', style: TextStyle(fontSize: 48)),
                             const SizedBox(height: 12),
                             Text(
-                              isId ? 'Belum Ada Semangat' : 'No Cheers Yet',
+                              isId
+                                  ? (className != null
+                                      ? 'Belum Ada Semangat di $className'
+                                      : 'Belum Ada Semangat')
+                                  : 'No Cheers Yet',
+                              textAlign: TextAlign.center,
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -911,7 +936,7 @@ class StudentProfilePage extends ConsumerWidget {
                             const SizedBox(height: 6),
                             Text(
                               isId
-                                  ? 'Ayo aktif belajar di kelas dan berinteraksi di leaderboard agar teman-teman dapat mengirimkan semangat!'
+                                  ? 'Ayo aktif belajar dan berinteraksi di leaderboard agar teman sekelas dapat mengirimkan semangat!'
                                   : 'Stay active in class and leaderboards to receive cheers from classmates!',
                               textAlign: TextAlign.center,
                               style: TextStyle(
@@ -922,7 +947,40 @@ class StudentProfilePage extends ConsumerWidget {
                           ],
                         ),
                       )
-                    : ListView.separated(
+                    : (cheers.isEmpty && count > 0)
+                        ? Padding(
+                            padding: const EdgeInsets.all(24),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                const Text('🎉', style: TextStyle(fontSize: 44)),
+                                const SizedBox(height: 12),
+                                Text(
+                                  isId
+                                      ? '$count Teman Sekelas Telah Menyemangatimu!'
+                                      : '$count Classmates Cheered For You!',
+                                  textAlign: TextAlign.center,
+                                  style: const TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w700,
+                                    color: Color(0xFF6B21A8),
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Text(
+                                  isId
+                                      ? 'Tetap pertahankan keaktifan dan prestasimu di kelas ini!'
+                                      : 'Keep up the great work in this class!',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Theme.of(ctx).textTheme.bodySmall?.color,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          )
+                        : ListView.separated(
                         padding: const EdgeInsets.fromLTRB(18, 12, 18, 24),
                         itemCount: cheers.length,
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
