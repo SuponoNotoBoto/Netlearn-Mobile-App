@@ -64,7 +64,9 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
     final archivedClasses = ref.watch(lecturerArchivedClassesProvider).value;
     final activeClass = ref.watch(activeLecturerClassProvider).value;
     final classes = classesAsync.value;
-    if (classes != null &&
+    final isAdmin = profileAsync.value?.isAdmin == true;
+    if (!isAdmin &&
+        classes != null &&
         classes.isEmpty &&
         (archivedClasses?.isEmpty ?? true)) {
       return Scaffold(
@@ -116,6 +118,12 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
                           LecturerActiveClassBar(
                             classes: classes,
                             activeClass: activeClass,
+                          ),
+                          const SizedBox(height: NetLearnSpace.s16),
+                        ],
+                        if (isAdmin) ...[
+                          _AdminUserManagementCard(
+                            onTap: () => context.push('/admin/users'),
                           ),
                           const SizedBox(height: NetLearnSpace.s16),
                         ],
@@ -258,24 +266,59 @@ class _LecturerDashboardPageState extends ConsumerState<LecturerDashboardPage> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  greetingText,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: -0.2,
-                    color: isDark
-                        ? NetLearnColors.darkText
-                        : NetLearnColors.neutral900,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        greetingText,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.2,
+                          color: isDark
+                              ? NetLearnColors.darkText
+                              : NetLearnColors.neutral900,
+                        ),
+                      ),
+                    ),
+                    if (profile?.isAdmin == true) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 7,
+                          vertical: 2,
+                        ),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFD97706).withValues(alpha: 0.14),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: const Color(0xFFD97706).withValues(alpha: 0.35),
+                          ),
+                        ),
+                        child: const Text(
+                          'ADMIN',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFFD97706),
+                            letterSpacing: 0.4,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  profile != null && profile.identityNumber.isNotEmpty
-                      ? '${l10n.lecturerDashboardSubtitle} • ${profile.identityNumber}'
-                      : l10n.lecturerDashboardSubtitle,
+                  profile?.isAdmin == true
+                      ? (profile!.identityNumber.isNotEmpty
+                          ? 'Administrator • ${profile.identityNumber}'
+                          : 'Administrator')
+                      : (profile != null && profile.identityNumber.isNotEmpty
+                          ? '${l10n.lecturerDashboardSubtitle} • ${profile.identityNumber}'
+                          : l10n.lecturerDashboardSubtitle),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: theme.textTheme.bodySmall?.copyWith(
@@ -817,6 +860,94 @@ class _NotificationsEmpty extends StatelessWidget {
                 ?.copyWith(color: context.mutedText),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Kartu khusus untuk Role Admin di atas dashboard untuk membuka halaman Kelola Pengguna.
+class _AdminUserManagementCard extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _AdminUserManagementCard({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final isId = Localizations.localeOf(context).languageCode == 'id';
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    const amberColor = Color(0xFFD97706);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(NetLearnRadius.card),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isDark ? const Color(0xFF282118) : const Color(0xFFFFFBEB),
+            borderRadius: BorderRadius.circular(NetLearnRadius.card),
+            border: Border.all(
+              color: amberColor.withValues(alpha: 0.35),
+            ),
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: amberColor.withValues(alpha: 0.16),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: const Icon(
+                  Icons.manage_accounts_rounded,
+                  color: amberColor,
+                  size: 24,
+                ),
+              ),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      isId
+                          ? 'Panel Admin • Kelola Pengguna'
+                          : 'Admin Panel • User Management',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w800,
+                        color: isDark
+                            ? const Color(0xFFFDE68A)
+                            : const Color(0xFF92400E),
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      isId
+                          ? 'Tambah akun, nonaktifkan, atau hapus akun mahasiswa & dosen'
+                          : 'Add, deactivate, or delete student & lecturer accounts',
+                      style: TextStyle(
+                        fontSize: 11.5,
+                        color: isDark
+                            ? const Color(0xFFD6C39A)
+                            : const Color(0xFFB45309),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              const Icon(
+                Icons.arrow_forward_ios_rounded,
+                size: 16,
+                color: amberColor,
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

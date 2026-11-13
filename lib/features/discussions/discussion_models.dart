@@ -43,7 +43,8 @@ class DiscussionThread {
     required this.updatedAt,
   });
 
-  bool get isAuthorLecturer => authorRole == 'lecturer';
+  bool get isAuthorLecturer =>
+      authorRole == 'lecturer' || authorRole == 'admin';
 
   AvatarConfig get effectiveAvatar =>
       authorAvatarConfig ??
@@ -106,7 +107,8 @@ class DiscussionReply {
     required this.createdAt,
   });
 
-  bool get isAuthorLecturer => authorRole == 'lecturer';
+  bool get isAuthorLecturer =>
+      authorRole == 'lecturer' || authorRole == 'admin';
 
   AvatarConfig get effectiveAvatar =>
       authorAvatarConfig ??

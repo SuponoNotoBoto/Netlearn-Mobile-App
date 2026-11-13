@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../features/admin/user_management_page.dart';
 import '../../features/auth/onboarding_status.dart';
 import '../../features/about/student_about_page.dart';
 import '../../features/subnet_drill/subnet_drill_page.dart';
@@ -106,6 +107,8 @@ bool authRedirectNeedsProfile(String location) {
       location == '/student' || location.startsWith('/student/');
   final onLecturerRoute =
       location == '/lecturer' || location.startsWith('/lecturer/');
+  final onAdminRoute =
+      location == '/admin' || location.startsWith('/admin/');
 
   return location == '/' ||
       location == '/login' ||
@@ -113,34 +116,21 @@ bool authRedirectNeedsProfile(String location) {
       location == '/forgot-password' ||
       location == '/onboarding' ||
       onStudentRoute ||
-      onLecturerRoute;
+      onLecturerRoute ||
+      onAdminRoute;
 }
 
 /// Pure auth-guard decision, extracted so the deep-link rules can be unit
 /// tested without Supabase.
 ///
-/// Only `student` and `lecturer` are supported roles. A missing profile, an
-/// inactive account, `admin`, or any unknown role is signed out and sent to
-/// `/login` rather than being mapped onto a student or lecturer screen. A
-/// supported role is bounced to its own area, which also stops a deep link
-/// into the other role's area.
+/// `student`, `lecturer`, and `admin` are supported roles. `admin` shares the
+/// lecturer workspace plus `/admin/**` user management routes.
 AuthRedirect resolveAuthRedirect({
   required bool hasSession,
   required String location,
   required String? role,
   required bool isActive,
 }) {
-  // '/admin' and '/admin/**' are dead routes: the admin side was removed, so
-  // a legacy admin session (or anyone) deep-linking there must have its session
-  // ended rather than leave a stale privileged session behind. Checked before
-  // anything else so it can never be skipped or swallowed by the error page.
-  // Matched per path segment: '/administrator' is NOT the admin route.
-  final onAdminRoute = location == '/admin' || location.startsWith('/admin/');
-
-  if (onAdminRoute) {
-    return AuthRedirect('/login', signOut: hasSession);
-  }
-
   final loggingIn = location == '/login';
   final registering = location == '/register';
   final resettingPassword = location == '/forgot-password';
@@ -149,6 +139,8 @@ AuthRedirect resolveAuthRedirect({
       location == '/student' || location.startsWith('/student/');
   final onLecturerRoute =
       location == '/lecturer' || location.startsWith('/lecturer/');
+  final onAdminRoute =
+      location == '/admin' || location.startsWith('/admin/');
 
   if (!hasSession) {
     // `/splash` harus tetap terlihat tanpa sesi: ia hanya memutar animasi
@@ -173,6 +165,7 @@ AuthRedirect resolveAuthRedirect({
       case 'student':
         return const AuthRedirect('/student');
       case 'lecturer':
+      case 'admin':
         return const AuthRedirect('/lecturer');
       default:
         return const AuthRedirect('/login', signOut: true);
@@ -189,13 +182,20 @@ AuthRedirect resolveAuthRedirect({
 
   switch (role) {
     case 'student':
-      if (location == '/' || loggingIn || onLecturerRoute) {
+      if (location == '/' || loggingIn || onLecturerRoute || onAdminRoute) {
         return const AuthRedirect('/student');
       }
 
       return const AuthRedirect(null);
 
     case 'lecturer':
+      if (location == '/' || loggingIn || onStudentRoute || onAdminRoute) {
+        return const AuthRedirect('/lecturer');
+      }
+
+      return const AuthRedirect(null);
+
+    case 'admin':
       if (location == '/' || loggingIn || onStudentRoute) {
         return const AuthRedirect('/lecturer');
       }
@@ -348,7 +348,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     }
     try {
       final dynamic response = await supabase.rpc(
-        role == 'lecturer' ? 'lecturer_classes' : 'my_classes',
+        (role == 'lecturer' || role == 'admin')
+            ? 'lecturer_classes'
+            : 'my_classes',
       );
       final has = response is List && response.isNotEmpty;
       if (has) {
@@ -436,7 +438,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         final profile = await loadProfile(session.user.id);
 
         final role = profile?['role']?.toString();
-        return role == 'lecturer' ? '/lecturer' : '/student';
+        return (role == 'lecturer' || role == 'admin')
+            ? '/lecturer'
+            : '/student';
       }
 
       // Class gate: no dashboard (or any other role page) until the student
@@ -1476,6 +1480,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
         ],
+      ),
+
+      // =========================================================
+      // ADMIN (USER MANAGEMENT)
+      // =========================================================
+      GoRoute(
+        path: '/admin/users',
+        pageBuilder: nlPageBuilder((context, state) {
+          return const UserManagementPage();
+        }),
       ),
     ],
   );

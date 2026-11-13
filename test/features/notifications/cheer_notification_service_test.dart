@@ -72,6 +72,22 @@ void main() {
       expect(state.count, 0);
       expect(state.history, isEmpty);
     });
+
+    test('CheerNotificationItem maps real sender names without generic fallback', () {
+      final item = CheerNotificationItem.fromMap({
+        'id': 'c99',
+        'sender_id': 'u1',
+        'sender_name': 'Rendy Aditya',
+        'class_id': 'c1',
+      });
+      expect(item.senderName, 'Rendy Aditya');
+
+      final emptyItem = CheerNotificationItem.fromMap({
+        'id': 'c100',
+        'sender_id': 'u2',
+      });
+      expect(emptyItem.senderName, 'Mahasiswa');
+    });
   });
 }
 

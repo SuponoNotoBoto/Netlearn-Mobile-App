@@ -167,7 +167,9 @@ class LecturerProfilePage extends ConsumerWidget {
                   subtitle: nip,
                   initial: data.initial,
                   userId: data.id,
-                  roleLabel: l10n.lecturerRoleProgram,
+                  roleLabel: data.isAdmin
+                      ? 'Administrator'
+                      : l10n.lecturerRoleProgram,
                   academicTag: (activeClass != null &&
                           activeClass.id.isNotEmpty &&
                           activeClass.id != kLegacyFallbackClassId)
@@ -235,6 +237,19 @@ class LecturerProfilePage extends ConsumerWidget {
                 // profile, so the two role screens stay pixel-identical.
                 NlProfileMenuCard(
                   rows: [
+                    if (data.isAdmin)
+                      NlProfileMenuRow(
+                        type: NlProfileMenuRowType.navigation,
+                        tintIndex: 4,
+                        icon: Icons.manage_accounts_rounded,
+                        title: locale.languageCode == 'id'
+                            ? 'Kelola Pengguna'
+                            : 'User Management',
+                        subtitle: locale.languageCode == 'id'
+                            ? 'Tambah, nonaktifkan, atau hapus akun mahasiswa & dosen'
+                            : 'Add, deactivate, or delete student & lecturer accounts',
+                        onTap: () => context.push('/admin/users'),
+                      ),
                     // Row 1: Profile Information
                     NlProfileMenuRow(
                       type: NlProfileMenuRowType.navigation,

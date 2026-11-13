@@ -57,3 +57,6 @@ CONTEXT_MEMORY.md
 rules.md
 lib/features/virtual_lab_backup/
 
+# Database setup scripts (manual execution in Supabase Dashboard)
+docs/supabase_admin_setup.sql
+

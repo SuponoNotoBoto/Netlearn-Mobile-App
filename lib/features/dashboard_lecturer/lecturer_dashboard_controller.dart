@@ -17,6 +17,7 @@ class LecturerProfile {
   final String email;
   final String? program;
   final bool isActive;
+  final String role;
   final AvatarConfig? avatarConfig;
   final String? bio;
 
@@ -27,9 +28,12 @@ class LecturerProfile {
     required this.email,
     required this.program,
     required this.isActive,
+    this.role = 'lecturer',
     this.avatarConfig,
     this.bio,
   });
+
+  bool get isAdmin => role == 'admin';
 
   factory LecturerProfile.fromMap(
     Map<String, dynamic> map,
@@ -43,6 +47,7 @@ class LecturerProfile {
       email: map['email']?.toString() ?? '',
       program: map['program']?.toString(),
       isActive: map['is_active'] == true,
+      role: map['role']?.toString() ?? 'lecturer',
       avatarConfig: AvatarConfig.fromDynamic(map['avatar_config']),
       bio: (rawBio == null || rawBio.isEmpty) ? null : rawBio,
     );
@@ -91,7 +96,7 @@ final lecturerProfileProvider =
 
       final role = response['role']?.toString();
 
-      if (role != 'lecturer' || !profile.isActive) {
+      if ((role != 'lecturer' && role != 'admin') || !profile.isActive) {
         return null;
       }
 

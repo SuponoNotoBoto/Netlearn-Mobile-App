@@ -45,7 +45,7 @@ class PublicMemberProfile {
     this.isMe = false,
   });
 
-  bool get isLecturer => role == 'lecturer';
+  bool get isLecturer => role == 'lecturer' || role == 'admin';
 
   PublicMemberProfile copyWith({
     int? cheersCount,
@@ -327,11 +327,26 @@ class _PublicProfileSheetState extends State<_PublicProfileSheet> {
 
       int nextCount = current.cheersCount + 1;
 
+      String? currentSenderName;
+      final senderUser = supabase.auth.currentUser;
+      if (senderUser != null) {
+        final meta = senderUser.userMetadata;
+        final candidate = (meta?['name'] ??
+                meta?['full_name'] ??
+                meta?['display_name'])
+            ?.toString()
+            .trim();
+        if (candidate != null && candidate.isNotEmpty) {
+          currentSenderName = candidate;
+        }
+      }
+
       // 1. Selalu catat notifikasi pengirim cheer ke penerima
-      unawaited(CheerNotificationService.recordCheer(
+      await CheerNotificationService.recordCheer(
         receiverId: current.userId,
         classId: validClassUuid,
-      ));
+        senderName: currentSenderName,
+      );
 
       // 2. Kirim update ke backend RPC Supabase
       try {

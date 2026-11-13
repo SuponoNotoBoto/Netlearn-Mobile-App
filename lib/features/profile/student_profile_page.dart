@@ -957,8 +957,8 @@ class StudentProfilePage extends ConsumerWidget {
                                 const SizedBox(height: 12),
                                 Text(
                                   isId
-                                      ? '$count Teman Sekelas Telah Menyemangatimu!'
-                                      : '$count Classmates Cheered For You!',
+                                      ? '$count Ucapan Semangat Diterima'
+                                      : '$count Cheers Received',
                                   textAlign: TextAlign.center,
                                   style: const TextStyle(
                                     fontSize: 15,
@@ -969,7 +969,9 @@ class StudentProfilePage extends ConsumerWidget {
                                 const SizedBox(height: 8),
                                 Text(
                                   isId
-                                      ? 'Tetap pertahankan keaktifan dan prestasimu di kelas ini!'
+                                      ? (className != null
+                                          ? 'Di kelas $className. Tetap pertahankan prestasimu!'
+                                          : 'Tetap pertahankan keaktifan dan prestasimu!')
                                       : 'Keep up the great work in this class!',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
