@@ -214,18 +214,21 @@ class SubnetDrillLeaderboardService {
     } catch (_) {}
   }
 
-  /// Returns real student scores for the given class, with fallback to global scores.
+  /// Returns real student scores strictly isolated per class.
   static Future<List<SubnetDrillScore>> getTopScores({String? classId}) async {
+    final effectiveClassId =
+        (classId != null && classId.isNotEmpty) ? classId : null;
     try {
       final prefs = await SharedPreferences.getInstance();
+      final key = _storageKey(effectiveClassId);
 
       // 1. Try remote fetch from Supabase
       try {
         var query = supabase
             .from('subnet_drill_scores')
             .select('id, user_id, student_name, score, max_streak, class_id, avatar_config, updated_at');
-        if (classId != null && classId.isNotEmpty) {
-          query = query.eq('class_id', classId);
+        if (effectiveClassId != null) {
+          query = query.eq('class_id', effectiveClassId);
         } else {
           query = query.isFilter('class_id', null);
         }
@@ -235,36 +238,39 @@ class SubnetDrillLeaderboardService {
             .order('max_streak', ascending: false)
             .limit(50);
 
-        if (remoteRows.isNotEmpty) {
-          final remoteScores = remoteRows.map((item) {
-            final m = Map<String, dynamic>.from(item as Map);
-            return SubnetDrillScore(
-              id: m['id']?.toString() ?? '',
-              studentId: m['user_id']?.toString() ?? '',
-              studentName: m['student_name']?.toString() ?? 'Mahasiswa',
-              score: (m['score'] as num?)?.toInt() ?? 0,
-              maxStreak: (m['max_streak'] as num?)?.toInt() ?? 0,
-              classId: m['class_id']?.toString(),
-              date: DateTime.tryParse(m['updated_at']?.toString() ?? '') ?? DateTime.now(),
-              avatarConfig: AvatarConfig.fromDynamic(m['avatar_config']),
-            );
-          }).toList();
+        final remoteScores = remoteRows.map((item) {
+          final m = Map<String, dynamic>.from(item as Map);
+          return SubnetDrillScore(
+            id: m['id']?.toString() ?? '',
+            studentId: m['user_id']?.toString() ?? '',
+            studentName: m['student_name']?.toString() ?? 'Mahasiswa',
+            score: (m['score'] as num?)?.toInt() ?? 0,
+            maxStreak: (m['max_streak'] as num?)?.toInt() ?? 0,
+            classId: m['class_id']?.toString(),
+            date: DateTime.tryParse(m['updated_at']?.toString() ?? '') ?? DateTime.now(),
+            avatarConfig: AvatarConfig.fromDynamic(m['avatar_config']),
+          );
+        }).toList();
 
-          final key = _storageKey(classId);
-          await prefs.setString(key, jsonEncode(remoteScores.map((e) => e.toMap()).toList()));
-
-          return remoteScores;
+        if (remoteScores.isEmpty) {
+          await prefs.remove(key);
+        } else {
+          await prefs.setString(
+            key,
+            jsonEncode(remoteScores.map((e) => e.toMap()).toList()),
+          );
         }
+
+        return remoteScores;
       } catch (remoteErr) {
         debugPrint('SubnetDrill getTopScores remote fallback: $remoteErr');
       }
 
-      final key = _storageKey(classId);
       var raw = prefs.getString(key);
 
       // Migrate legacy scores from subnet_drill_leaderboard_v1 only for global fallback,
       // and remove the key so it never leaks or populates other newly opened classes.
-      if (classId == null || classId.isEmpty) {
+      if (effectiveClassId == null) {
         final legacyRaw = prefs.getString('subnet_drill_leaderboard_v1');
         if (legacyRaw != null && legacyRaw.isNotEmpty) {
           try {
@@ -290,16 +296,16 @@ class SubnetDrillLeaderboardService {
         }
       }
 
-      // If class-specific leaderboard is empty, fallback to global scores
-      if ((raw == null || raw.isEmpty) && classId != null && classId.isNotEmpty) {
-        raw = prefs.getString(_storageKey(null));
-      }
-
       if (raw == null || raw.isEmpty) return <SubnetDrillScore>[];
 
       final List decoded = jsonDecode(raw) as List;
       final scores = decoded
           .map((item) => SubnetDrillScore.fromMap(Map<String, dynamic>.from(item)))
+          .where((s) {
+            final itemClassId =
+                (s.classId != null && s.classId!.isNotEmpty) ? s.classId : null;
+            return itemClassId == effectiveClassId;
+          })
           .toList();
       scores.sort((a, b) {
         final cmp = b.score.compareTo(a.score);

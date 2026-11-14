@@ -190,8 +190,8 @@ Berikut akun yang dapat digunakan:
 
 | Peran (Role) | Nomor Identitas (NIM / NIP) | Password | Keterangan Akses |
 | :--- | :--- | :--- | :--- |
-| **Mahasiswa** | `[MASUKKAN NIM MAHASISWA DEMO]` | `[MASUKKAN PASSWORD]` | Akses Virtual Lab, AR, Subnet Drill, Materi, NetBot AI. |
-| **Dosen** | `[MASUKKAN NIP DOSEN DEMO]` | `[MASUKKAN PASSWORD]` | Akses Buat Kuis AI, Analisis Nilai AI, Rekap Nilai, Kelola Kelas. |
+| **Mahasiswa** | `2026105` | `andhika123` | Akses Virtual Lab, AR, Subnet Drill, Materi, NetBot AI. |
+| **Dosen** | `2026101` | `faiz123` | Akses Buat Kuis AI, Analisis Nilai AI, Rekap Nilai, Kelola Kelas. |
 
 ---
 

@@ -71,17 +71,46 @@ class _ClassLeaderboardViewState extends ConsumerState<ClassLeaderboardView> {
   int _selectedMode = 0; // 0 = Overall Class, 1 = Per Assessment, 2 = Subnet Drill, 3 = Virtual Lab
   String? _selectedQuizId;
   String _selectedVLabMission = 'overall';
+  int _refreshTick = 0;
+
+  @override
+  void didUpdateWidget(covariant ClassLeaderboardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _selectedQuizId = null;
+      _refreshTick++;
+    }
+  }
+
+  Future<void> _handleRefresh() async {
+    ref.invalidate(classLeaderboardProvider(widget.classId));
+    ref.invalidate(classLeaderboardQuizzesProvider(widget.classId));
+    if (_selectedQuizId != null) {
+      ref.invalidate(
+        assessmentLeaderboardProvider((
+          classId: widget.classId,
+          quizId: _selectedQuizId!,
+        )),
+      );
+    }
+    if (mounted) {
+      setState(() => _refreshTick++);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
     final isId = Localizations.localeOf(context).languageCode == 'id';
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppSpacing.s20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
+    return RefreshIndicator(
+      onRefresh: _handleRefresh,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(AppSpacing.s20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
           Wrap(
             spacing: AppSpacing.s8,
             runSpacing: AppSpacing.s8,
@@ -142,29 +171,41 @@ class _ClassLeaderboardViewState extends ConsumerState<ClassLeaderboardView> {
           ),
           const SizedBox(height: AppSpacing.s16),
           if (_selectedMode == 0)
-            _OverallClassLeaderboardSection(classId: widget.classId)
+            _OverallClassLeaderboardSection(
+              key: ValueKey('overall_${widget.classId}_$_refreshTick'),
+              classId: widget.classId,
+            )
           else if (_selectedMode == 1)
             _AssessmentLeaderboardSection(
+              key: ValueKey('assessment_${widget.classId}_$_refreshTick'),
               classId: widget.classId,
               selectedQuizId: _selectedQuizId,
               onSelectQuiz: (id) => setState(() => _selectedQuizId = id),
             )
           else if (_selectedMode == 2)
-            _SubnetDrillLeaderboardSection(classId: widget.classId)
+            _SubnetDrillLeaderboardSection(
+              key: ValueKey('subnet_drill_${widget.classId}_$_refreshTick'),
+              classId: widget.classId,
+            )
           else
             _ClassVirtualLabLeaderboardSection(
+              key: ValueKey('vlab_${widget.classId}_$_refreshTick'),
               classId: widget.classId,
               selectedMission: _selectedVLabMission,
               onSelectMission: (m) => setState(() => _selectedVLabMission = m),
             ),
         ],
       ),
+      ),
     );
   }
 }
 
 class _OverallClassLeaderboardSection extends ConsumerWidget {
-  const _OverallClassLeaderboardSection({required this.classId});
+  const _OverallClassLeaderboardSection({
+    super.key,
+    required this.classId,
+  });
 
   final String classId;
 
@@ -215,6 +256,11 @@ class _OverallClassLeaderboardSection extends ConsumerWidget {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            _OverallLeaderboardPodium(
+              entries: entries,
+              classId: classId,
+            ),
+            const SizedBox(height: AppSpacing.s16),
             if (finalCohort.isNotEmpty) ...[
               Text(
                 l10n.leaderboardCohortFinal,
@@ -241,6 +287,160 @@ class _OverallClassLeaderboardSection extends ConsumerWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _OverallLeaderboardPodium extends StatelessWidget {
+  const _OverallLeaderboardPodium({
+    required this.entries,
+    required this.classId,
+  });
+
+  final List<ClassLeaderboardEntry> entries;
+  final String classId;
+
+  @override
+  Widget build(BuildContext context) {
+    final first = entries.isNotEmpty ? entries[0] : null;
+    final second = entries.length > 1 ? entries[1] : null;
+    final third = entries.length > 2 ? entries[2] : null;
+
+    return Row(
+      key: const Key('overall_leaderboard_podium'),
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        if (second != null)
+          Expanded(
+            child: _buildPodiumColumn(
+              context,
+              second,
+              2,
+              const Color(0xFFB0BEC5),
+              110,
+              '🥈',
+            ),
+          ),
+        if (first != null)
+          Expanded(
+            child: _buildPodiumColumn(
+              context,
+              first,
+              1,
+              const Color(0xFFFFB300),
+              140,
+              '👑',
+            ),
+          ),
+        if (third != null)
+          Expanded(
+            child: _buildPodiumColumn(
+              context,
+              third,
+              3,
+              const Color(0xFFCD7F32),
+              90,
+              '🥉',
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPodiumColumn(
+    BuildContext context,
+    ClassLeaderboardEntry item,
+    int rank,
+    Color color,
+    double height,
+    String badge,
+  ) {
+    final l10n = AppLocalizations.of(context)!;
+    final avatar = item.avatarConfig ??
+        AvatarConfig.defaultFor(
+          item.studentId.isNotEmpty ? item.studentId : item.displayName,
+        );
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () => showPublicProfileSheet(
+        context,
+        userId: item.studentId,
+        classId: classId,
+        fallbackName: item.displayName,
+        fallbackAvatar: avatar,
+        fallbackPoints: item.weightedScore,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(badge, style: const TextStyle(fontSize: 22)),
+          const SizedBox(height: 2),
+          NlAvatarWidget(
+            config: avatar,
+            size: rank == 1 ? 48 : 40,
+            borderWidth: 2,
+            borderColor: color,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            item.displayName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            '${item.weightedScore.round()} pts',
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w900,
+              color: color,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Container(
+            width: double.infinity,
+            height: height,
+            margin: const EdgeInsets.symmetric(horizontal: 4),
+            padding: const EdgeInsets.symmetric(horizontal: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.18),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              border: Border.all(
+                color: color.withValues(alpha: 0.4),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  '#$rank',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: color,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${item.completedAssessments}/${item.totalRankedAssessments} ${l10n.assessments}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 10,
+                    color: Color(0xFF8A8FA3),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -380,6 +580,7 @@ class _OverallLeaderboardRow extends StatelessWidget {
 
 class _AssessmentLeaderboardSection extends ConsumerWidget {
   const _AssessmentLeaderboardSection({
+    super.key,
     required this.classId,
     required this.selectedQuizId,
     required this.onSelectQuiz,
@@ -600,7 +801,10 @@ class _AssessmentLeaderboardRow extends StatelessWidget {
 }
 
 class _SubnetDrillLeaderboardSection extends StatefulWidget {
-  const _SubnetDrillLeaderboardSection({required this.classId});
+  const _SubnetDrillLeaderboardSection({
+    super.key,
+    required this.classId,
+  });
 
   final String classId;
 
@@ -617,6 +821,14 @@ class _SubnetDrillLeaderboardSectionState
   void initState() {
     super.initState();
     _future = SubnetDrillLeaderboardService.getTopScores(classId: widget.classId);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SubnetDrillLeaderboardSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.classId != widget.classId) {
+      _future = SubnetDrillLeaderboardService.getTopScores(classId: widget.classId);
+    }
   }
 
   @override
@@ -819,6 +1031,7 @@ class _ClassVirtualLabLeaderboardSection extends StatelessWidget {
   final ValueChanged<String> onSelectMission;
 
   const _ClassVirtualLabLeaderboardSection({
+    super.key,
     required this.classId,
     required this.selectedMission,
     required this.onSelectMission,

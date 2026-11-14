@@ -55,9 +55,9 @@ supabase/
 
 # Local memory & AI guidelines (not pushed to GitHub)
 CONTEXT_MEMORY.md
-rules.md
 lib/features/virtual_lab_backup/
 
 # Database setup scripts (manual execution in Supabase Dashboard)
 docs/supabase_admin_setup.sql
+docs/supabase_virtual_lab_scores_setup.sql
 

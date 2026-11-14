@@ -80,9 +80,22 @@ class VirtualLabLeaderboardService {
     required String studentName,
   }) async {
     if (submissions.isEmpty) return;
+    final targetClassId =
+        (classId != null && classId.isNotEmpty) ? classId : null;
     for (final sub in submissions.values) {
+      final subClassId =
+          (sub.classId != null && sub.classId!.isNotEmpty) ? sub.classId : null;
+      // Isolasi kelas: jangan menyalin pengumpulan milik kelas lain.
+      if (targetClassId != null &&
+          subClassId != null &&
+          subClassId != targetClassId) {
+        continue;
+      }
+      if (targetClassId == null && subClassId != null) {
+        continue;
+      }
       await saveScore(
-        classId: classId,
+        classId: targetClassId,
         studentId: sub.userId,
         studentName: studentName,
         materialId: sub.materialId,
@@ -111,12 +124,15 @@ class VirtualLabLeaderboardService {
     AvatarConfig? avatarConfig,
   }) async {
     final cleanName = studentName.trim().isEmpty ? 'Mahasiswa' : studentName.trim();
+    final effectiveClassId =
+        (classId != null && classId.isNotEmpty) ? classId : null;
     try {
       final prefs = await SharedPreferences.getInstance();
 
+      // Isolasi per-kelas: simpan hanya ke bucket kelas target agar tidak
+      // pernah bocor ke kelas lain.
       final targetKeys = <String>{
-        _storageKey(classId),
-        _storageKey(null),
+        _storageKey(effectiveClassId),
       };
 
       for (final key in targetKeys) {
@@ -263,36 +279,53 @@ class VirtualLabLeaderboardService {
       'material_title',
     ];
 
+    final effectiveClassId =
+        (classId != null && classId.isNotEmpty) ? classId : null;
+
     for (var i = 0; i <= optionalCols.length; i++) {
       try {
-        await supabase
+        var lookup = supabase
             .from('virtual_lab_scores')
-            .upsert(payload, onConflict: 'user_id, material_id');
+            .select('id, score')
+            .eq('user_id', userId)
+            .eq('material_id', materialId);
+        if (effectiveClassId != null && payload.containsKey('class_id')) {
+          lookup = lookup.eq('class_id', effectiveClassId);
+        } else if (effectiveClassId == null && payload.containsKey('class_id')) {
+          lookup = lookup.isFilter('class_id', null);
+        }
+
+        final existing = await lookup.maybeSingle();
+        if (existing != null) {
+          final prevScore = (existing['score'] as num?)?.toInt() ?? 0;
+          if (score >= prevScore) {
+            await supabase
+                .from('virtual_lab_scores')
+                .update(payload)
+                .eq('id', existing['id'].toString());
+          }
+          return;
+        }
+
+        if (effectiveClassId != null && payload.containsKey('class_id')) {
+          await supabase
+              .from('virtual_lab_scores')
+              .upsert(payload, onConflict: 'user_id, class_id, material_id');
+        } else {
+          await supabase.from('virtual_lab_scores').insert(payload);
+        }
         return;
       } on PostgrestException catch (e) {
         final msg = e.message.toLowerCase();
-        // Tidak ada unique constraint (user_id, material_id) -> select + update/insert.
+        // Fallback jika unique constraint belum terpasang
         if (e.code == '42P10' || msg.contains('on conflict')) {
           try {
-            final existing = await supabase
-                .from('virtual_lab_scores')
-                .select('id, score')
-                .eq('user_id', userId)
-                .eq('material_id', materialId)
-                .maybeSingle();
-            if (existing != null) {
-              final prevScore = (existing['score'] as num?)?.toInt() ?? 0;
-              if (score >= prevScore) {
-                await supabase
-                    .from('virtual_lab_scores')
-                    .update(payload)
-                    .eq('id', existing['id'].toString());
-              }
-            } else {
-              await supabase.from('virtual_lab_scores').insert(payload);
-            }
+            await supabase.from('virtual_lab_scores').insert(payload);
             return;
-          } catch (_) {
+          } catch (insertErr) {
+            debugPrint(
+              'VirtualLabLeaderboardService fallback insert error: $insertErr',
+            );
             return;
           }
         }
@@ -317,8 +350,12 @@ class VirtualLabLeaderboardService {
             continue;
           }
         }
+        debugPrint(
+          'VirtualLabLeaderboardService PostgrestException (${e.code}): ${e.message}',
+        );
         return;
-      } catch (_) {
+      } catch (e) {
+        debugPrint('VirtualLabLeaderboardService sync remote error: $e');
         return;
       }
     }
@@ -332,55 +369,69 @@ class VirtualLabLeaderboardService {
       final effectiveClassId =
           (classId != null && classId.isNotEmpty) ? classId : null;
 
-      // 1. Baca dari SharedPreferences terlebih dahulu (scoped + global fallback)
+      // 1. Baca dari SharedPreferences khusus bucket kelas aktif (isolasi ketat)
       final localScores = <VirtualLabScore>[];
-      void loadPrefsKey(String key, {required bool filterByClass}) {
-        final raw = prefs.getString(key);
-        if (raw == null || raw.isEmpty) return;
+      final scopedKey = _storageKey(effectiveClassId);
+      final raw = prefs.getString(scopedKey);
+      if (raw != null && raw.isNotEmpty) {
         try {
           final List decoded = jsonDecode(raw) as List;
           for (final item in decoded) {
             final parsed =
                 VirtualLabScore.fromMap(Map<String, dynamic>.from(item as Map));
-            if (filterByClass && effectiveClassId != null) {
-              if (parsed.classId != null &&
-                  parsed.classId!.isNotEmpty &&
-                  parsed.classId != effectiveClassId) {
-                continue;
-              }
+            final parsedClass = (parsed.classId != null && parsed.classId!.isNotEmpty)
+                ? parsed.classId
+                : null;
+            if (effectiveClassId != null && parsedClass != effectiveClassId) {
+              continue;
+            }
+            if (effectiveClassId == null && parsedClass != null) {
+              continue;
             }
             localScores.add(parsed);
           }
         } catch (_) {}
       }
 
-      loadPrefsKey(_storageKey(effectiveClassId), filterByClass: false);
-      if (effectiveClassId != null) {
-        loadPrefsKey(_storageKey(null), filterByClass: true);
-      }
-
       // 2. Baca dari remote Supabase jika tersedia dan gabungkan
       List<VirtualLabScore> remoteScores = const [];
+      var remoteSucceeded = false;
+      String? currentUserId;
       try {
+        currentUserId = supabase.auth.currentUser?.id;
         var query = supabase.from('virtual_lab_scores').select();
         if (effectiveClassId != null) {
           query = query.eq('class_id', effectiveClassId);
+        } else {
+          query = query.isFilter('class_id', null);
         }
         final remoteRows = await query.order('score', ascending: false);
+        remoteSucceeded = true;
         remoteScores = (remoteRows as List).map((item) {
           return VirtualLabScore.fromMap(
             Map<String, dynamic>.from(item as Map),
           );
         }).toList();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('VirtualLabLeaderboardService getAllScores remote error: $e');
+      }
 
-      final merged = mergeScoreLists(remoteScores, localScores);
-      if (merged.isNotEmpty) {
-        final key = _storageKey(effectiveClassId);
-        await prefs.setString(
-          key,
-          jsonEncode(merged.map((e) => e.toMap()).toList()),
-        );
+      final localForMerge = remoteSucceeded
+          ? localScores
+              .where((s) => currentUserId != null && s.studentId == currentUserId)
+              .toList()
+          : localScores;
+
+      final merged = mergeScoreLists(remoteScores, localForMerge);
+      if (remoteSucceeded) {
+        if (merged.isEmpty) {
+          await prefs.remove(scopedKey);
+        } else {
+          await prefs.setString(
+            scopedKey,
+            jsonEncode(merged.map((e) => e.toMap()).toList()),
+          );
+        }
       }
       return merged;
     } catch (_) {}

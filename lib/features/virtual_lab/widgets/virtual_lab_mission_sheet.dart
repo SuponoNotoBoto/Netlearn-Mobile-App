@@ -128,9 +128,21 @@ class _VirtualLabMissionSheetState
     setState(() => _isSubmitting = true);
 
     try {
+      String? resolvedClassId;
+      try {
+        final activeClass = ref.read(activeStudentClassProvider).value ??
+            await resolveActiveStudentClass(ref);
+        if (activeClass != null && !activeClass.isLegacyFallback) {
+          resolvedClassId = activeClass.id;
+        }
+      } catch (e) {
+        debugPrint('VirtualLab submit resolve class warning: $e');
+      }
+
       final submission = VirtualLabMissionSubmission(
         id: 'sub_${DateTime.now().millisecondsSinceEpoch}',
         userId: ref.read(virtualLabMissionServiceProvider).currentUserId,
+        classId: resolvedClassId,
         materialId: currentReport.materialId,
         materialTitle: currentReport.materialTitle,
         preset: currentReport.preset,
@@ -172,15 +184,8 @@ class _VirtualLabMissionSheetState
           }
         }
 
-        final activeClass = ref.read(activeStudentClassProvider).value ??
-            await resolveActiveStudentClass(ref);
-        final classId =
-            (activeClass != null && !activeClass.isLegacyFallback)
-                ? activeClass.id
-                : null;
-
         await VirtualLabLeaderboardService.saveScore(
-          classId: classId,
+          classId: resolvedClassId,
           studentId: submission.userId,
           studentName: studentName,
           materialId: submission.materialId,
@@ -191,7 +196,9 @@ class _VirtualLabMissionSheetState
           totalTasks: submission.totalTasks,
           isPassed: submission.isPassed,
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('VirtualLab submit leaderboard sync warning: $e');
+      }
 
       if (!mounted) return;
 

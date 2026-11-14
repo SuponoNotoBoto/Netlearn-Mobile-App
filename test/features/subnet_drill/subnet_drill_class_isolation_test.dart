@@ -45,6 +45,18 @@ void main() {
       final refreshedClassA = await SubnetDrillLeaderboardService.getTopScores(classId: 'class-a');
       expect(refreshedClassA.length, 1);
       expect(refreshedClassA.first.score, 85);
+
+      // 6. Save a global score (classId: null) and verify an empty class does NOT inherit it
+      await SubnetDrillLeaderboardService.saveScore(
+        classId: null,
+        studentId: 'student-999',
+        studentName: 'Global User',
+        score: 120,
+        maxStreak: 9,
+      );
+
+      final emptyClassC = await SubnetDrillLeaderboardService.getTopScores(classId: 'class-c');
+      expect(emptyClassC, isEmpty);
     });
   });
 }

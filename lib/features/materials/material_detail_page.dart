@@ -520,9 +520,10 @@ class _SummaryCard extends StatelessWidget {
           ),
           Text(
             summary,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                   color: context.onSurface,
-                  height: 1.6,
+                  fontWeight: FontWeight.w400,
+                  height: 1.7,
                 ),
           ),
         ],

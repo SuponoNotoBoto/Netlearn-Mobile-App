@@ -110,6 +110,7 @@ class VirtualLabMissionReport {
 class VirtualLabMissionSubmission {
   final String id;
   final String userId;
+  final String? classId;
   final String materialId;
   final String materialTitle;
   final String preset;
@@ -123,6 +124,7 @@ class VirtualLabMissionSubmission {
   const VirtualLabMissionSubmission({
     required this.id,
     required this.userId,
+    this.classId,
     required this.materialId,
     required this.materialTitle,
     required this.preset,
@@ -137,6 +139,7 @@ class VirtualLabMissionSubmission {
   Map<String, dynamic> toJson() => {
         'id': id,
         'user_id': userId,
+        if (classId != null && classId!.isNotEmpty) 'class_id': classId,
         'material_id': materialId,
         'material_title': materialTitle,
         'preset': preset,
@@ -149,9 +152,13 @@ class VirtualLabMissionSubmission {
       };
 
   factory VirtualLabMissionSubmission.fromJson(Map<String, dynamic> json) {
+    final rawClassId = json['class_id']?.toString().trim();
     return VirtualLabMissionSubmission(
       id: json['id']?.toString() ?? '',
       userId: json['user_id']?.toString() ?? '',
+      classId: (rawClassId != null && rawClassId.isNotEmpty)
+          ? rawClassId
+          : null,
       materialId: json['material_id']?.toString() ?? '',
       materialTitle: json['material_title']?.toString() ?? '',
       preset: json['preset']?.toString() ?? '',
